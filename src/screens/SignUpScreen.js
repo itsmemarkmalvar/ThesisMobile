@@ -139,10 +139,10 @@ const SignUpScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={signUpStyles.safeArea}>
       <LinearGradient
-        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
+        colors={['#FFE5EC', '#FFF2E3', '#E8F7E8']}
         style={signUpStyles.container}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        end={{ x: 0, y: 1 }}
       >
         <ScrollView 
           style={signUpStyles.content}
@@ -156,6 +156,7 @@ const SignUpScreen = ({ navigation }) => {
             <TouchableOpacity 
               style={signUpStyles.backButton}
               onPress={() => navigation.goBack()}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <MaterialIcons name="arrow-back-ios" size={24} color="#4A90E2" />
             </TouchableOpacity>

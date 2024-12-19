@@ -8,11 +8,15 @@ import {
   TextInput,
   ActivityIndicator,
   Platform,
+  Dimensions,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome5, MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { loginStyles } from '../styles/LoginStyles';
 import axios from 'axios';
+
+const { height } = Dimensions.get('window');
 
 const API_URL = Platform.select({
   android: 'http://10.0.2.2:8000/api',  // For Android Emulator
@@ -21,11 +25,6 @@ const API_URL = Platform.select({
 });
 
 const LoginScreen = ({ navigation }) => {
-  // Animation values
-  const fadeAnim = new Animated.Value(0);
-  const slideAnim = new Animated.Value(50);
-
-  // Form state
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -34,36 +33,29 @@ const LoginScreen = ({ navigation }) => {
   });
   const [errors, setErrors] = useState({});
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
+  // Add the validation and handleLogin functions from EmailLoginScreen
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email is invalid';
+    }
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleLogin = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
     try {
       setLoading(true);
       setErrors({});
-
-      // Basic validation
-      if (!formData.email || !formData.password) {
-        setErrors({
-          message: 'Please enter both email and password'
-        });
-        return;
-      }
-
-      console.log('Attempting login with:', formData);
       
       const response = await axios.post(`${API_URL}/auth/login`, formData, {
         headers: {
@@ -72,26 +64,21 @@ const LoginScreen = ({ navigation }) => {
         }
       });
 
-      console.log('Login response:', response.data);
-
       if (response.data.token) {
-        // TODO: Store the token securely
-        navigation.replace('MainApp');
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainApp' }],
+        });
       }
     } catch (error) {
-      console.error('Login error:', error.response?.data || error.message);
-      
       if (error.response?.data?.errors) {
         setErrors(error.response.data.errors);
-        Alert.alert(
-          'Login Failed',
-          error.response.data.message || 'Invalid credentials'
-        );
+        const firstError = Object.values(error.response.data.errors)[0][0];
+        Alert.alert('Login Failed', firstError);
+      } else if (error.response?.status === 401) {
+        Alert.alert('Login Failed', 'Invalid email or password');
       } else {
-        Alert.alert(
-          'Error',
-          'Something went wrong. Please try again.'
-        );
+        Alert.alert('Error', 'Something went wrong. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -100,28 +87,20 @@ const LoginScreen = ({ navigation }) => {
 
   return (
     <LinearGradient
-      colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
+      colors={['#FFE5EC', '#FFF2E3', '#E8F7E8']}
       style={loginStyles.container}
       start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
+      end={{ x: 0, y: 1 }}
     >
-      <Animated.View 
-        style={[
-          loginStyles.content,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
-      >
-        {/* Logo and Icon */}
-        <View style={loginStyles.logoContainer}>
+      <View style={loginStyles.mainContainer}>
+        {/* Logo Section */}
+        <View style={loginStyles.logoSection}>
           <View style={loginStyles.iconContainer}>
             <View style={loginStyles.iconBackground}>
-              <FontAwesome5 name="baby-carriage" size={60} color="#4A90E2" />
+              <FontAwesome5 name="baby-carriage" size={40} color="#4A90E2" />
               <MaterialIcons 
                 name="medical-services" 
-                size={30} 
+                size={20} 
                 color="#4A90E2" 
                 style={loginStyles.medicalIcon} 
               />
@@ -132,35 +111,49 @@ const LoginScreen = ({ navigation }) => {
         </View>
 
         {/* Login Form */}
-        <View style={loginStyles.formContainer}>
+        <View style={loginStyles.formSection}>
           {/* Email Input */}
           <View style={loginStyles.inputContainer}>
-            <View style={loginStyles.inputWrapper}>
+            <View style={[
+              loginStyles.inputWrapper,
+              errors.email && loginStyles.inputError
+            ]}>
               <MaterialIcons name="email" size={20} color="#666" />
               <TextInput
                 style={loginStyles.input}
-                placeholder="Email Address"
+                placeholder="Enter your email"
                 placeholderTextColor="#999"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={formData.email}
-                onChangeText={(text) => setFormData({ ...formData, email: text })}
+                onChangeText={(text) => {
+                  setFormData({ ...formData, email: text });
+                  if (errors.email) setErrors({ ...errors, email: null });
+                }}
               />
             </View>
-            {errors.email && <Text style={loginStyles.errorText}>{errors.email}</Text>}
+            {errors.email && (
+              <Text style={loginStyles.errorText}>{errors.email}</Text>
+            )}
           </View>
 
           {/* Password Input */}
           <View style={loginStyles.inputContainer}>
-            <View style={loginStyles.inputWrapper}>
+            <View style={[
+              loginStyles.inputWrapper,
+              errors.password && loginStyles.inputError
+            ]}>
               <MaterialIcons name="lock-outline" size={20} color="#666" />
               <TextInput
                 style={loginStyles.input}
-                placeholder="Password"
+                placeholder="Enter your password"
                 placeholderTextColor="#999"
                 secureTextEntry={!showPassword}
                 value={formData.password}
-                onChangeText={(text) => setFormData({ ...formData, password: text })}
+                onChangeText={(text) => {
+                  setFormData({ ...formData, password: text });
+                  if (errors.password) setErrors({ ...errors, password: null });
+                }}
               />
               <TouchableOpacity
                 style={loginStyles.passwordToggle}
@@ -173,13 +166,14 @@ const LoginScreen = ({ navigation }) => {
                 />
               </TouchableOpacity>
             </View>
-            {errors.password && <Text style={loginStyles.errorText}>{errors.password}</Text>}
+            {errors.password && (
+              <Text style={loginStyles.errorText}>{errors.password}</Text>
+            )}
           </View>
 
           {/* Login Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[loginStyles.loginButton, loading && loginStyles.loginButtonDisabled]}
-            activeOpacity={0.8}
             onPress={handleLogin}
             disabled={loading}
           >
@@ -191,42 +185,35 @@ const LoginScreen = ({ navigation }) => {
           </TouchableOpacity>
 
           <TouchableOpacity 
-            activeOpacity={0.6}
-            onPress={() => Alert.alert('Coming Soon', 'Password reset feature coming soon!')}
+            style={loginStyles.forgotPasswordButton}
+            onPress={() => navigation.navigate('ForgotPassword')}
           >
-            <Text style={loginStyles.forgotPassword}>Forgot Password?</Text>
+            <Text style={loginStyles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
-        </View>
 
-        {/* Social Login Options */}
-        <View style={loginStyles.socialContainer}>
-          <View style={loginStyles.divider}>
-            <View style={loginStyles.dividerLine} />
-            <Text style={loginStyles.dividerText}>or continue with</Text>
-            <View style={loginStyles.dividerLine} />
+          {/* Social Login */}
+          <View style={loginStyles.socialSection}>
+            <View style={loginStyles.divider}>
+              <View style={loginStyles.dividerLine} />
+              <Text style={loginStyles.dividerText}>or continue with</Text>
+              <View style={loginStyles.dividerLine} />
+            </View>
+
+            <TouchableOpacity style={loginStyles.facebookButton}>
+              <FontAwesome5 name="facebook" size={20} color="#1877F2" style={loginStyles.buttonIcon} />
+              <Text style={loginStyles.buttonText}>Continue with Facebook</Text>
+            </TouchableOpacity>
           </View>
-
-          <TouchableOpacity 
-            style={loginStyles.facebookButton}
-            activeOpacity={0.8}
-            onPress={() => Alert.alert('Coming Soon', 'Facebook login will be available soon!')}
-          >
-            <FontAwesome5 name="facebook" size={22} color="#1877F2" style={loginStyles.buttonIcon} />
-            <Text style={loginStyles.buttonText}>Continue with Facebook</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Sign Up Link */}
         <View style={loginStyles.signupContainer}>
           <Text style={loginStyles.signupText}>Don't have an account? </Text>
-          <TouchableOpacity 
-            activeOpacity={0.6}
-            onPress={() => navigation.navigate('SignUp')}
-          >
+          <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
             <Text style={loginStyles.signupLink}>Sign Up</Text>
           </TouchableOpacity>
         </View>
-      </Animated.View>
+      </View>
     </LinearGradient>
   );
 };
