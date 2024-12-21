@@ -63,10 +63,10 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
   return (
     <LinearGradient
-      colors={['#FFE5EC', '#FFF2E3', '#E8F7E8']}
+      colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
       style={forgotPasswordStyles.container}
       start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 1 }}
+      end={{ x: 1, y: 1 }}
     >
       <View style={forgotPasswordStyles.header}>
         <TouchableOpacity 

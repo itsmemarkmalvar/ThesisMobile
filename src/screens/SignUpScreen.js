@@ -8,6 +8,7 @@ import {
   Alert,
   Platform,
   SafeAreaView,
+  StatusBar,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
@@ -137,170 +138,173 @@ const SignUpScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={signUpStyles.safeArea}>
+    <>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
       <LinearGradient
-        colors={['#FFE5EC', '#FFF2E3', '#E8F7E8']}
+        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
         style={signUpStyles.container}
         start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+        end={{ x: 1, y: 1 }}
       >
-        <ScrollView 
-          style={signUpStyles.content}
-          contentContainerStyle={signUpStyles.scrollContentContainer}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-        >
-          {/* Header */}
-          <View style={signUpStyles.header}>
-            <TouchableOpacity 
-              style={signUpStyles.backButton}
-              onPress={() => navigation.goBack()}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <MaterialIcons name="arrow-back-ios" size={24} color="#4A90E2" />
-            </TouchableOpacity>
-            <Text style={signUpStyles.headerTitle}>Create Account</Text>
-          </View>
-
-          {/* Form */}
-          <View style={signUpStyles.formContainer}>
-            {/* Full Name Input */}
-            <View style={signUpStyles.inputContainer}>
-              <Text style={signUpStyles.label}>Full Name</Text>
-              <View style={signUpStyles.inputWrapper}>
-                <MaterialIcons name="person-outline" size={20} color="#666" />
-                <TextInput
-                  style={signUpStyles.input}
-                  placeholder="Enter your full name"
-                  placeholderTextColor="#999"
-                  value={formData.name}
-                  onChangeText={(text) => setFormData({ ...formData, name: text })}
-                />
-              </View>
-              {errors.name && <Text style={signUpStyles.errorText}>{errors.name}</Text>}
+        <SafeAreaView style={signUpStyles.safeArea}>
+          <ScrollView 
+            style={signUpStyles.content}
+            contentContainerStyle={signUpStyles.scrollContentContainer}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
+            {/* Header */}
+            <View style={signUpStyles.header}>
+              <TouchableOpacity 
+                style={signUpStyles.backButton}
+                onPress={() => navigation.goBack()}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <MaterialIcons name="arrow-back-ios" size={24} color="#4A90E2" />
+              </TouchableOpacity>
+              <Text style={signUpStyles.headerTitle}>Create Account</Text>
             </View>
 
-            {/* Email Input */}
-            <View style={signUpStyles.inputContainer}>
-              <Text style={signUpStyles.label}>Email Address</Text>
-              <View style={signUpStyles.inputWrapper}>
-                <MaterialIcons name="email" size={20} color="#666" />
-                <TextInput
-                  style={signUpStyles.input}
-                  placeholder="Enter your email"
-                  placeholderTextColor="#999"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={formData.email}
-                  onChangeText={(text) => setFormData({ ...formData, email: text })}
-                />
-              </View>
-              {errors.email && <Text style={signUpStyles.errorText}>{errors.email}</Text>}
-            </View>
-
-            {/* Password Input */}
-            <View style={signUpStyles.inputContainer}>
-              <Text style={signUpStyles.label}>Password</Text>
-              <View style={signUpStyles.inputWrapper}>
-                <MaterialIcons name="lock-outline" size={20} color="#666" />
-                <TextInput
-                  style={signUpStyles.input}
-                  placeholder="Create a password"
-                  placeholderTextColor="#999"
-                  secureTextEntry={!showPassword}
-                  value={formData.password}
-                  onChangeText={(text) => setFormData({ ...formData, password: text })}
-                />
-                <TouchableOpacity
-                  style={signUpStyles.passwordToggle}
-                  onPress={() => setShowPassword(!showPassword)}
-                >
-                  <Ionicons
-                    name={showPassword ? "eye-off-outline" : "eye-outline"}
-                    size={20}
-                    color="#666"
+            {/* Form */}
+            <View style={signUpStyles.formContainer}>
+              {/* Full Name Input */}
+              <View style={signUpStyles.inputContainer}>
+                <Text style={signUpStyles.label}>Full Name</Text>
+                <View style={signUpStyles.inputWrapper}>
+                  <MaterialIcons name="person-outline" size={20} color="#666" />
+                  <TextInput
+                    style={signUpStyles.input}
+                    placeholder="Enter your full name"
+                    placeholderTextColor="#999"
+                    value={formData.name}
+                    onChangeText={(text) => setFormData({ ...formData, name: text })}
                   />
+                </View>
+                {errors.name && <Text style={signUpStyles.errorText}>{errors.name}</Text>}
+              </View>
+
+              {/* Email Input */}
+              <View style={signUpStyles.inputContainer}>
+                <Text style={signUpStyles.label}>Email Address</Text>
+                <View style={signUpStyles.inputWrapper}>
+                  <MaterialIcons name="email" size={20} color="#666" />
+                  <TextInput
+                    style={signUpStyles.input}
+                    placeholder="Enter your email"
+                    placeholderTextColor="#999"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={formData.email}
+                    onChangeText={(text) => setFormData({ ...formData, email: text })}
+                  />
+                </View>
+                {errors.email && <Text style={signUpStyles.errorText}>{errors.email}</Text>}
+              </View>
+
+              {/* Password Input */}
+              <View style={signUpStyles.inputContainer}>
+                <Text style={signUpStyles.label}>Password</Text>
+                <View style={signUpStyles.inputWrapper}>
+                  <MaterialIcons name="lock-outline" size={20} color="#666" />
+                  <TextInput
+                    style={signUpStyles.input}
+                    placeholder="Create a password"
+                    placeholderTextColor="#999"
+                    secureTextEntry={!showPassword}
+                    value={formData.password}
+                    onChangeText={(text) => setFormData({ ...formData, password: text })}
+                  />
+                  <TouchableOpacity
+                    style={signUpStyles.passwordToggle}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      size={20}
+                      color="#666"
+                    />
+                  </TouchableOpacity>
+                </View>
+                {errors.password && <Text style={signUpStyles.errorText}>{errors.password}</Text>}
+              </View>
+
+              {/* Confirm Password Input */}
+              <View style={signUpStyles.inputContainer}>
+                <Text style={signUpStyles.label}>Confirm Password</Text>
+                <View style={signUpStyles.inputWrapper}>
+                  <MaterialIcons name="lock-outline" size={20} color="#666" />
+                  <TextInput
+                    style={signUpStyles.input}
+                    placeholder="Confirm your password"
+                    placeholderTextColor="#999"
+                    secureTextEntry={!showPassword}
+                    value={formData.password_confirmation}
+                    onChangeText={(text) => setFormData({ ...formData, password_confirmation: text })}
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Bottom Section */}
+            <View style={signUpStyles.bottomSection}>
+              {/* Terms and Conditions */}
+              <TouchableOpacity
+                style={signUpStyles.termsContainer}
+                onPress={() => setAcceptedTerms(!acceptedTerms)}
+              >
+                <MaterialIcons
+                  name={acceptedTerms ? "check-box" : "check-box-outline-blank"}
+                  size={24}
+                  color="#4A90E2"
+                  style={signUpStyles.checkbox}
+                />
+                <Text style={signUpStyles.termsText}>
+                  I agree to the{' '}
+                  <Text style={signUpStyles.termsLink}>Terms and Conditions</Text>
+                  {' '}and{' '}
+                  <Text style={signUpStyles.termsLink}>Privacy Policy</Text>
+                </Text>
+              </TouchableOpacity>
+
+              {/* Sign Up Button */}
+              <TouchableOpacity
+                style={[
+                  signUpStyles.signUpButton,
+                  (!acceptedTerms || loading) && { opacity: 0.7 }
+                ]}
+                disabled={!acceptedTerms || loading}
+                onPress={handleSignUp}
+              >
+                <Text style={signUpStyles.signUpButtonText}>
+                  {loading ? 'Creating Account...' : 'Sign Up'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Divider */}
+              <View style={signUpStyles.divider}>
+                <View style={signUpStyles.dividerLine} />
+                <Text style={signUpStyles.dividerText}>or sign up with</Text>
+                <View style={signUpStyles.dividerLine} />
+              </View>
+
+              {/* Social Buttons */}
+              <View style={signUpStyles.socialButtonsContainer}>
+                <TouchableOpacity style={signUpStyles.socialButton}>
+                  <FontAwesome5 name="google" size={20} color="#DB4437" style={signUpStyles.socialButtonIcon} />
+                  <Text style={signUpStyles.socialButtonText}>Google</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={signUpStyles.socialButton}>
+                  <FontAwesome5 name="facebook" size={20} color="#1877F2" style={signUpStyles.socialButtonIcon} />
+                  <Text style={signUpStyles.socialButtonText}>Facebook</Text>
                 </TouchableOpacity>
               </View>
-              {errors.password && <Text style={signUpStyles.errorText}>{errors.password}</Text>}
             </View>
-
-            {/* Confirm Password Input */}
-            <View style={signUpStyles.inputContainer}>
-              <Text style={signUpStyles.label}>Confirm Password</Text>
-              <View style={signUpStyles.inputWrapper}>
-                <MaterialIcons name="lock-outline" size={20} color="#666" />
-                <TextInput
-                  style={signUpStyles.input}
-                  placeholder="Confirm your password"
-                  placeholderTextColor="#999"
-                  secureTextEntry={!showPassword}
-                  value={formData.password_confirmation}
-                  onChangeText={(text) => setFormData({ ...formData, password_confirmation: text })}
-                />
-              </View>
-            </View>
-          </View>
-
-          {/* Bottom Section */}
-          <View style={signUpStyles.bottomSection}>
-            {/* Terms and Conditions */}
-            <TouchableOpacity
-              style={signUpStyles.termsContainer}
-              onPress={() => setAcceptedTerms(!acceptedTerms)}
-            >
-              <MaterialIcons
-                name={acceptedTerms ? "check-box" : "check-box-outline-blank"}
-                size={24}
-                color="#4A90E2"
-                style={signUpStyles.checkbox}
-              />
-              <Text style={signUpStyles.termsText}>
-                I agree to the{' '}
-                <Text style={signUpStyles.termsLink}>Terms and Conditions</Text>
-                {' '}and{' '}
-                <Text style={signUpStyles.termsLink}>Privacy Policy</Text>
-              </Text>
-            </TouchableOpacity>
-
-            {/* Sign Up Button */}
-            <TouchableOpacity
-              style={[
-                signUpStyles.signUpButton,
-                (!acceptedTerms || loading) && { opacity: 0.7 }
-              ]}
-              disabled={!acceptedTerms || loading}
-              onPress={handleSignUp}
-            >
-              <Text style={signUpStyles.signUpButtonText}>
-                {loading ? 'Creating Account...' : 'Sign Up'}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Divider */}
-            <View style={signUpStyles.divider}>
-              <View style={signUpStyles.dividerLine} />
-              <Text style={signUpStyles.dividerText}>or sign up with</Text>
-              <View style={signUpStyles.dividerLine} />
-            </View>
-
-            {/* Social Buttons */}
-            <View style={signUpStyles.socialButtonsContainer}>
-              <TouchableOpacity style={signUpStyles.socialButton}>
-                <FontAwesome5 name="google" size={20} color="#DB4437" style={signUpStyles.socialButtonIcon} />
-                <Text style={signUpStyles.socialButtonText}>Google</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={signUpStyles.socialButton}>
-                <FontAwesome5 name="facebook" size={20} color="#1877F2" style={signUpStyles.socialButtonIcon} />
-                <Text style={signUpStyles.socialButtonText}>Facebook</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        </SafeAreaView>
       </LinearGradient>
-    </SafeAreaView>
+    </>
   );
 };
 

@@ -7,11 +7,18 @@ export const loginStyles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  contentContainer: {
+    flex: 1,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+  },
   mainContainer: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: height * 0.15,
+    paddingTop: height * 0.1,
     alignItems: 'center',
+    paddingBottom: 60,
   },
   logoSection: {
     alignItems: 'center',
@@ -142,30 +149,13 @@ export const loginStyles = StyleSheet.create({
     fontWeight: '600',
   },
   forgotPasswordButton: {
-    marginTop: 4,
+    marginTop: 8,
+    alignSelf: 'center',
   },
   forgotPasswordText: {
-    fontSize: 13,
-    color: '#8F9BB3',
-    marginTop: 8,
-  },
-  signupContainer: {
-    flexDirection: 'row',
-    position: 'absolute',
-    bottom: 32,
-  },
-  signupText: {
-    fontSize: 13,
-    color: '#8F9BB3',
-  },
-  signupLink: {
-    fontSize: 13,
-    color: '#4A90E2',
-    fontWeight: '500',
-  },
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FFE5EC',
+    fontSize: 12,
+    color: 'rgba(108, 108, 108, 0.8)',
+    textAlign: 'center',
   },
   formSection: {
     width: '100%',
@@ -251,5 +241,27 @@ export const loginStyles = StyleSheet.create({
         elevation: 2,
       },
     }),
+  },
+  bottomContainer: {
+    width: '100%',
+    paddingVertical: Platform.OS === 'ios' ? 20 : 16,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  signupContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  signupText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  signupLink: {
+    fontSize: 14,
+    color: '#4A90E2',
+    fontWeight: '600',
   },
 }); 

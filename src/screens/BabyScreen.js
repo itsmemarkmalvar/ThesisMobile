@@ -12,6 +12,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 
 const { width } = Dimensions.get('window');
 
@@ -47,145 +48,148 @@ const MilestoneItem = ({ title, date, completed }) => (
 
 const BabyScreen = () => {
   return (
-    <LinearGradient
-      colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
-      style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-    >
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Baby Profile</Text>
-          <TouchableOpacity style={styles.editButton}>
-            <MaterialIcons name="edit" size={24} color="#4A90E2" />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView 
-          style={styles.content}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Baby Info */}
-          <View style={styles.babyInfo}>
-            <View style={styles.babyImageContainer}>
-              <Image
-                source={{ uri: 'https://via.placeholder.com/120' }}
-                style={styles.babyImage}
-              />
-              <TouchableOpacity style={styles.cameraButton}>
-                <MaterialIcons name="camera-alt" size={20} color="#FFF" />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.babyName}>Emma</Text>
-            <Text style={styles.babyAge}>8 months old</Text>
-            <Text style={styles.babyDOB}>Born: August 15, 2023</Text>
-          </View>
-
-          {/* Growth Metrics */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Growth Tracking</Text>
-              <TouchableOpacity style={styles.seeAllButton}>
-                <Text style={styles.seeAllText}>See History</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.metricsContainer}>
-              <MetricCard
-                icon="straighten"
-                value="68"
-                unit="cm"
-                label="Height"
-              />
-              <MetricCard
-                icon="fitness-center"
-                value="7.2"
-                unit="kg"
-                label="Weight"
-              />
-              <MetricCard
-                icon="radio-button-checked"
-                value="43"
-                unit="cm"
-                label="Head Size"
-              />
-            </View>
-          </View>
-
-          {/* Next Checkup */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Next Checkup</Text>
-            </View>
-            <TouchableOpacity style={styles.checkupCard}>
-              <View style={styles.checkupIcon}>
-                <MaterialIcons name="event" size={24} color="#4A90E2" />
-              </View>
-              <View style={styles.checkupInfo}>
-                <Text style={styles.checkupTitle}>9-Month Checkup</Text>
-                <Text style={styles.checkupDate}>May 15, 2024 • 10:00 AM</Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={24} color="#C4C4C4" />
+    <>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <LinearGradient
+        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
+        style={styles.container}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Baby Profile</Text>
+            <TouchableOpacity style={styles.editButton}>
+              <MaterialIcons name="edit" size={24} color="#4A90E2" />
             </TouchableOpacity>
           </View>
 
-          {/* Milestones */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recent Milestones</Text>
-              <TouchableOpacity style={styles.seeAllButton}>
-                <Text style={styles.seeAllText}>See All</Text>
-              </TouchableOpacity>
+          <ScrollView 
+            style={styles.content}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Baby Info */}
+            <View style={styles.babyInfo}>
+              <View style={styles.babyImageContainer}>
+                <Image
+                  source={{ uri: 'https://via.placeholder.com/120' }}
+                  style={styles.babyImage}
+                />
+                <TouchableOpacity style={styles.cameraButton}>
+                  <MaterialIcons name="camera-alt" size={20} color="#FFF" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.babyName}>Emma</Text>
+              <Text style={styles.babyAge}>8 months old</Text>
+              <Text style={styles.babyDOB}>Born: August 15, 2023</Text>
             </View>
-            <View style={styles.milestonesList}>
-              <MilestoneItem
-                title="First Smile"
-                date="2 months old"
-                completed={true}
-              />
-              <MilestoneItem
-                title="Rolling Over"
-                date="4 months old"
-                completed={true}
-              />
-              <MilestoneItem
-                title="First Words"
-                date="Expected: 9-12 months"
-                completed={false}
-              />
-            </View>
-          </View>
 
-          {/* Quick Actions */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Quick Actions</Text>
+            {/* Growth Metrics */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Growth Tracking</Text>
+                <TouchableOpacity style={styles.seeAllButton}>
+                  <Text style={styles.seeAllText}>See History</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.metricsContainer}>
+                <MetricCard
+                  icon="straighten"
+                  value="68"
+                  unit="cm"
+                  label="Height"
+                />
+                <MetricCard
+                  icon="fitness-center"
+                  value="7.2"
+                  unit="kg"
+                  label="Weight"
+                />
+                <MetricCard
+                  icon="radio-button-checked"
+                  value="43"
+                  unit="cm"
+                  label="Head Size"
+                />
+              </View>
             </View>
-            <View style={styles.quickActions}>
-              <TouchableOpacity style={styles.actionButton}>
-                <View style={[styles.actionIcon, { backgroundColor: '#FFE8E8' }]}>
-                  <MaterialIcons name="medication" size={24} color="#FF4B4B" />
+
+            {/* Next Checkup */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Next Checkup</Text>
+              </View>
+              <TouchableOpacity style={styles.checkupCard}>
+                <View style={styles.checkupIcon}>
+                  <MaterialIcons name="event" size={24} color="#4A90E2" />
                 </View>
-                <Text style={styles.actionText}>Vaccinations</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton}>
-                <View style={[styles.actionIcon, { backgroundColor: '#E8F5FF' }]}>
-                  <MaterialIcons name="restaurant" size={24} color="#4A90E2" />
+                <View style={styles.checkupInfo}>
+                  <Text style={styles.checkupTitle}>9-Month Checkup</Text>
+                  <Text style={styles.checkupDate}>May 15, 2024 • 10:00 AM</Text>
                 </View>
-                <Text style={styles.actionText}>Feeding</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton}>
-                <View style={[styles.actionIcon, { backgroundColor: '#E8FFF1' }]}>
-                  <MaterialIcons name="king-bed" size={24} color="#00C853" />
-                </View>
-                <Text style={styles.actionText}>Sleep</Text>
+                <MaterialIcons name="chevron-right" size={24} color="#C4C4C4" />
               </TouchableOpacity>
             </View>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </LinearGradient>
+
+            {/* Milestones */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Recent Milestones</Text>
+                <TouchableOpacity style={styles.seeAllButton}>
+                  <Text style={styles.seeAllText}>See All</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.milestonesList}>
+                <MilestoneItem
+                  title="First Smile"
+                  date="2 months old"
+                  completed={true}
+                />
+                <MilestoneItem
+                  title="Rolling Over"
+                  date="4 months old"
+                  completed={true}
+                />
+                <MilestoneItem
+                  title="First Words"
+                  date="Expected: 9-12 months"
+                  completed={false}
+                />
+              </View>
+            </View>
+
+            {/* Quick Actions */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Quick Actions</Text>
+              </View>
+              <View style={styles.quickActions}>
+                <TouchableOpacity style={styles.actionButton}>
+                  <View style={[styles.actionIcon, { backgroundColor: '#FFE8E8' }]}>
+                    <MaterialIcons name="medication" size={24} color="#FF4B4B" />
+                  </View>
+                  <Text style={styles.actionText}>Vaccinations</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton}>
+                  <View style={[styles.actionIcon, { backgroundColor: '#E8F5FF' }]}>
+                    <MaterialIcons name="restaurant" size={24} color="#4A90E2" />
+                  </View>
+                  <Text style={styles.actionText}>Feeding</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton}>
+                  <View style={[styles.actionIcon, { backgroundColor: '#E8FFF1' }]}>
+                    <MaterialIcons name="king-bed" size={24} color="#00C853" />
+                  </View>
+                  <Text style={styles.actionText}>Sleep</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </LinearGradient>
+    </>
   );
 };
 

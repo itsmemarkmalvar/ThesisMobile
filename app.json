@@ -24,14 +24,6 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "scheme": "binibaby",
-    "plugins": [
-      [
-        "expo-facebook",
-        {
-          "appID": "your-facebook-app-id"
-        }
-      ]
-    ]
+    "scheme": "binibaby"
   }
 }
