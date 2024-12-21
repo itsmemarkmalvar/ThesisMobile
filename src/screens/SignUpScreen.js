@@ -88,7 +88,7 @@ const SignUpScreen = ({ navigation }) => {
           [
             {
               text: 'OK',
-              onPress: () => navigation.replace('MainApp')
+              onPress: () => navigation.replace('Onboarding')
             }
           ]
         );
