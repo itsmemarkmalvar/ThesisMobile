@@ -7,6 +7,10 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AppNavigator from './src/navigation/AppNavigator';
 import SplashScreen from './src/screens/SplashScreen';
+import { syncManager } from './src/utils/SyncManager';
+
+// Initialize sync manager
+syncManager;
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
