@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,9 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { API_URL } from '../../config';
 
 const BabyMeasurementsScreen = ({ navigation, route }) => {
   const [measurements, setMeasurements] = useState({
@@ -21,6 +24,27 @@ const BabyMeasurementsScreen = ({ navigation, route }) => {
   });
 
   const { babyName, gender, birthDate } = route.params;
+
+  useEffect(() => {
+    const checkToken = async () => {
+      const token = await AsyncStorage.getItem('userToken');
+      console.log('Initial token check:', !!token);
+      if (!token) {
+        Alert.alert(
+          'Authentication Required',
+          'Please login again to continue.',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.replace('Auth')
+            }
+          ]
+        );
+      }
+    };
+    
+    checkToken();
+  }, []);
 
   const validateMeasurements = () => {
     const height = parseFloat(measurements.height);
@@ -42,25 +66,66 @@ const BabyMeasurementsScreen = ({ navigation, route }) => {
     return true;
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (!validateMeasurements()) return;
 
-    // Here you would save the complete baby data
-    const babyData = {
-      name: babyName,
-      gender,
-      birthDate,
-      measurements: {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      console.log('Token when saving:', token ? token.substring(0, 10) + '...' : 'No token');
+      
+      if (!token) {
+        Alert.alert(
+          'Authentication Required',
+          'Please login again to continue.',
+          [{ text: 'OK', onPress: () => navigation.replace('Auth') }]
+        );
+        return;
+      }
+
+      const babyData = {
+        name: babyName,
+        gender,
+        birth_date: new Date(birthDate).toISOString().split('T')[0],
         height: parseFloat(measurements.height),
         weight: parseFloat(measurements.weight),
-        headSize: parseFloat(measurements.headSize),
-      },
-      // Add any other relevant data
-    };
+        head_size: parseFloat(measurements.headSize),
+      };
 
-    // Save to your backend/storage
-    console.log('Complete Baby Data:', babyData);
-    navigation.replace('MainApp');
+      console.log('Sending baby data:', babyData);
+      console.log('To API URL:', `${API_URL}/baby`);
+
+      const response = await axios.post(`${API_URL}/baby`, babyData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+
+      console.log('API Response:', response.data);
+
+      if (response.data) {
+        navigation.replace('MainApp');
+      }
+    } catch (error) {
+      console.error('Full error:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
+      if (error.response?.status === 401) {
+        Alert.alert(
+          'Session Expired',
+          'Please login again to continue.',
+          [{ text: 'OK', onPress: () => navigation.replace('Auth') }]
+        );
+      } else {
+        Alert.alert(
+          'Error',
+          `Failed to save baby information: ${error.response?.data?.message || error.message}`
+        );
+      }
+    }
   };
 
   const MeasurementInput = ({ label, value, unit, onChange, placeholder }) => (

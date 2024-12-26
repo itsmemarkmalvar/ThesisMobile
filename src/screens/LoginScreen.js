@@ -87,9 +87,7 @@ const LoginScreen = ({ navigation }) => {
   };
 
   const handleLogin = async () => {
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     try {
       setLoading(true);
@@ -103,10 +101,47 @@ const LoginScreen = ({ navigation }) => {
       });
 
       if (response.data.token) {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'MainApp' }],
-        });
+        try {
+          // Clear any existing token first
+          await AsyncStorage.removeItem('userToken');
+          // Save new token
+          await AsyncStorage.setItem('userToken', response.data.token);
+          
+          // Verify token was saved
+          const savedToken = await AsyncStorage.getItem('userToken');
+          console.log('Token saved after login:', savedToken ? 'Yes' : 'No');
+          
+          // Navigate based on whether user has baby data
+          const babyResponse = await axios.get(`${API_URL}/baby`, {
+            headers: {
+              'Authorization': `Bearer ${response.data.token}`,
+              'Accept': 'application/json',
+            }
+          });
+          
+          if (babyResponse.data.data) {
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'MainApp' }],
+            });
+          } else {
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Onboarding' }],
+            });
+          }
+        } catch (error) {
+          if (error.response?.status === 404) {
+            // No baby data found, go to onboarding
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Onboarding' }],
+            });
+          } else {
+            console.error('Error checking baby data:', error);
+            Alert.alert('Error', 'Failed to verify user data');
+          }
+        }
       }
     } catch (error) {
       if (error.response?.data?.errors) {

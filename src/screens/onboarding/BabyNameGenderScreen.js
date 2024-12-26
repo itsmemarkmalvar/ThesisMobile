@@ -27,7 +27,10 @@ const BabyNameGenderScreen = ({ navigation }) => {
       return;
     }
 
-    navigation.navigate('BabyBirth', { babyName, gender });
+    navigation.navigate('BabyBirth', { 
+      babyName: babyName.trim(), 
+      gender 
+    });
   };
 
   return (

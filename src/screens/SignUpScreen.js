@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { signUpStyles } from '../styles/SignUpStyles';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_URL = Platform.select({
   android: 'http://10.0.2.2:8000/api',  // For Android Emulator
@@ -81,17 +82,15 @@ const SignUpScreen = ({ navigation }) => {
       console.log('Response:', response.data);
       
       if (response.data.token) {
-        // Registration successful
-        Alert.alert(
-          'Success',
-          'Account created successfully!',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.replace('Onboarding')
-            }
-          ]
-        );
+        try {
+          await AsyncStorage.setItem('userToken', response.data.token);
+          console.log('Token saved after registration:', response.data.token.substring(0, 10) + '...');
+          
+          // Navigate to Onboarding
+          navigation.replace('Onboarding');
+        } catch (error) {
+          console.error('Error saving token:', error);
+        }
       }
     } catch (error) {
       console.error('Registration error:', error.response?.data || error.message);

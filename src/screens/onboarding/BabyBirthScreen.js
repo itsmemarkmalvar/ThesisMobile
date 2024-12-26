@@ -33,16 +33,16 @@ const BabyBirthScreen = ({ navigation, route }) => {
   };
 
   const handleNext = () => {
-    // Validate date is not in future
     if (date > new Date()) {
       Alert.alert('Invalid Date', 'Birth date cannot be in the future');
       return;
     }
 
+    // Convert date to ISO string before passing to navigation
     navigation.navigate('BabyMeasurements', {
-      babyName,
-      gender,
-      birthDate: date
+      babyName: route.params.babyName,
+      gender: route.params.gender,
+      birthDate: date.toISOString() // Serialize the date
     });
   };
 
