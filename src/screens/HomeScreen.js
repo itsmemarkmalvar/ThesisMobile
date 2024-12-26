@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  ScrollView,
-  TouchableOpacity,
   StyleSheet,
+  ScrollView,
   ActivityIndicator,
+  Animated,
+  Pressable,
+  Dimensions,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,17 +16,82 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../config';
 
-// QuickActionButton Component
-const QuickActionButton = ({ icon, label, onPress }) => (
-  <TouchableOpacity style={styles.actionButton} onPress={onPress}>
-    <View style={styles.actionIconContainer}>
-      <MaterialIcons name={icon} size={24} color="#4A90E2" />
-    </View>
-    <Text style={styles.actionLabel}>{label}</Text>
-  </TouchableOpacity>
+const { width } = Dimensions.get('window');
+const cardWidth = width * 0.9;
+
+const QuickActionButton = ({ icon, label, onPress, delay, color }) => {
+  const scaleAnim = React.useRef(new Animated.Value(0)).current;
+  const pressAnim = React.useRef(new Animated.Value(1)).current;
+  
+  React.useEffect(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      delay: delay * 100,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 7,
+    }).start();
+  }, []);
+
+  const handlePressIn = () => {
+    Animated.spring(pressAnim, {
+      toValue: 0.95,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(pressAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <Animated.View style={[
+      styles.actionButtonContainer,
+      {
+        transform: [
+          { scale: scaleAnim },
+          { scale: pressAnim }
+        ],
+      }
+    ]}>
+      <Pressable
+        style={[styles.actionButton, { backgroundColor: color }]}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+      >
+        <MaterialIcons name={icon} size={24} color="#FFF" />
+        <Text style={styles.actionLabel}>{label}</Text>
+      </Pressable>
+    </Animated.View>
+  );
+};
+
+const CategorySection = ({ title, actions, startDelay = 0, color }) => (
+  <View style={styles.categorySection}>
+    <LinearGradient
+      colors={[`${color}40`, `${color}20`, 'transparent']}
+      style={styles.categoryGradient}
+    >
+      <Text style={styles.categoryTitle}>{title}</Text>
+      <View style={styles.actionsGrid}>
+        {actions.map((action, index) => (
+          <QuickActionButton
+            key={action.label}
+            {...action}
+            delay={startDelay + index}
+            color={color}
+          />
+        ))}
+      </View>
+    </LinearGradient>
+  </View>
 );
 
-const HomeScreen = () => {
+const HomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
   const [babyData, setBabyData] = useState(null);
@@ -59,6 +126,76 @@ const HomeScreen = () => {
     }
   };
 
+  const handleMilestonesPress = () => {
+    navigation.navigate('GrowthTracking', { initialTab: 'milestones' });
+  };
+
+  const categories = {
+    growth: {
+      title: "Growth & Development",
+      color: '#4A90E2',
+      actions: [
+        {
+          icon: 'show-chart',
+          label: 'Growth',
+          onPress: () => navigation.navigate('GrowthTracking'),
+        },
+        {
+          icon: 'remove-red-eye',
+          label: 'Milestones',
+          onPress: handleMilestonesPress,
+        },
+        {
+          icon: 'psychology',
+          label: 'Development',
+          onPress: () => {/* TODO */},
+        },
+      ]
+    },
+    health: {
+      title: "Health & Care",
+      color: '#FF6B6B',
+      actions: [
+        {
+          icon: 'medical-services',
+          label: 'Health',
+          onPress: () => {/* TODO */},
+        },
+        {
+          icon: 'event-available',
+          label: 'Vaccination',
+          onPress: () => navigation.navigate('Immunization'),
+        },
+        {
+          icon: 'local-hospital',
+          label: 'Medicine',
+          onPress: () => {/* TODO */},
+        },
+      ]
+    },
+    daily: {
+      title: "Daily Activities",
+      color: '#4CAF50',
+      actions: [
+        {
+          icon: 'restaurant',
+          label: 'Feeding',
+          onPress: () => {/* TODO */},
+        },
+        {
+          icon: 'night-shelter',
+          label: 'Sleep',
+          onPress: () => {/* TODO */},
+        },
+        {
+          icon: 'baby-changing-station',
+          label: 'Diaper',
+          onPress: () => {/* TODO */},
+        },
+      ]
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -70,54 +207,49 @@ const HomeScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
+        colors={['#FFE5E5', '#E5F1FF', '#E5FFE8']}
         style={styles.gradient}
       >
         <ScrollView style={styles.scrollView}>
-          {/* Welcome Section */}
-          <View style={styles.welcomeSection}>
-            <Text style={styles.welcomeText}>
-              Welcome back, {userData?.name}
-            </Text>
+          {/* Welcome Card */}
+          <View style={styles.welcomeCard}>
+            <LinearGradient
+              colors={['#FFF', '#F8F9FF']}
+              style={styles.welcomeGradient}
+            >
+              <Text style={styles.welcomeText}>
+                Welcome back,
+                <Text style={styles.nameText}> {userData?.name}</Text>
+              </Text>
+              {babyData && (
+                <View style={styles.babyInfo}>
+                  <Text style={styles.babyName}>{babyData.name}</Text>
+                  <View style={styles.statsContainer}>
+                    <View style={styles.statItem}>
+                      <MaterialIcons name="straighten" size={16} color="#666" />
+                      <Text style={styles.statText}>{babyData.height} cm</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                      <MaterialIcons name="fitness-center" size={16} color="#666" />
+                      <Text style={styles.statText}>{babyData.weight} kg</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+            </LinearGradient>
           </View>
 
-          {/* Baby Card */}
-          {babyData && (
-            <View style={styles.babyCard}>
-              <Text style={styles.babyName}>Baby {babyData.name}</Text>
-              <View style={styles.babyStats}>
-                <Text>{babyData.weight} kg</Text>
-                <Text>{babyData.height} cm</Text>
-              </View>
-            </View>
-          )}
-
-          {/* Quick Actions */}
-          <View style={styles.quickActionsContainer}>
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
-            <View style={styles.actionsGrid}>
-              <QuickActionButton 
-                icon="baby-changing-station" 
-                label="Daily Care"
-                onPress={() => {/* Handle action */}}
-              />
-              <QuickActionButton 
-                icon="event" 
-                label="Schedule"
-                onPress={() => {/* Handle action */}}
-              />
-              <QuickActionButton 
-                icon="show-chart" 
-                label="Growth"
-                onPress={() => {/* Handle action */}}
-              />
-              <QuickActionButton 
-                icon="healing" 
-                label="Health"
-                onPress={() => {/* Handle action */}}
-              />
-            </View>
-          </View>
+          {/* Categories */}
+          {Object.entries(categories).map(([key, category], index) => (
+            <CategorySection
+              key={key}
+              title={category.title}
+              actions={category.actions}
+              startDelay={index * 3}
+              color={category.color}
+            />
+          ))}
         </ScrollView>
       </LinearGradient>
     </SafeAreaView>
@@ -133,26 +265,17 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    padding: 20,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  welcomeSection: {
-    marginBottom: 20,
-  },
-  welcomeText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  babyCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 15,
-    padding: 20,
-    marginBottom: 20,
+  welcomeCard: {
+    margin: 15,
+    borderRadius: 20,
+    overflow: 'hidden',
+    elevation: 5,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -160,54 +283,86 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5,
+  },
+  welcomeGradient: {
+    padding: 20,
+  },
+  welcomeText: {
+    fontSize: 20,
+    color: '#333',
+  },
+  nameText: {
+    fontWeight: 'bold',
+    color: '#4A90E2',
+  },
+  babyInfo: {
+    marginTop: 15,
   },
   babyName: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
     marginBottom: 10,
   },
-  babyStats: {
+  statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    alignItems: 'center',
   },
-  quickActionsContainer: {
-    marginTop: 20,
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+  statText: {
+    marginLeft: 5,
+    fontSize: 16,
+    color: '#666',
+  },
+  statDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#DDD',
+    marginHorizontal: 15,
+  },
+  categorySection: {
+    marginHorizontal: 15,
     marginBottom: 15,
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  categoryGradient: {
+    padding: 15,
+  },
+  categoryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#333',
+    marginBottom: 15,
+    marginLeft: 5,
   },
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    paddingHorizontal: 5,
+  },
+  actionButtonContainer: {
+    width: '30%',
+    aspectRatio: 1,
+    marginBottom: 10,
   },
   actionButton: {
-    width: '48%',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    flex: 1,
     borderRadius: 12,
-    padding: 15,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  actionIconContainer: {
-    marginBottom: 8,
+    padding: 10,
   },
   actionLabel: {
-    fontSize: 14,
-    color: '#333',
+    fontSize: 12,
+    color: '#FFF',
     fontWeight: '500',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });
 

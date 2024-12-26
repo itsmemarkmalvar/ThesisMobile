@@ -6,6 +6,7 @@ import MainNavigator from './MainNavigator';
 import OnboardingNavigator from './OnboardingNavigator';
 import axios from 'axios';
 import { API_URL } from '../config';
+import ImmunizationScreen from '../screens/ImmunizationScreen';
 
 const Stack = createStackNavigator();
 
@@ -65,6 +66,11 @@ const AppNavigator = () => {
       <Stack.Screen name="Auth" component={AuthNavigator} />
       <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
       <Stack.Screen name="MainApp" component={MainNavigator} />
+      <Stack.Screen 
+        name="Immunization" 
+        component={ImmunizationScreen}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 };

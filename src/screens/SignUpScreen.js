@@ -15,12 +15,8 @@ import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { signUpStyles } from '../styles/SignUpStyles';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '../config';
 
-const API_URL = Platform.select({
-  android: 'http://10.0.2.2:8000/api',  // For Android Emulator
-  ios: 'http://localhost:8000/api',      // For iOS Simulator
-  default: 'http://10.0.2.2:8000/api'    // Default to Android
-});
 
 const SignUpScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);

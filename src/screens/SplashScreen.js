@@ -21,7 +21,7 @@ const SplashScreen = () => {
     >
       <View style={styles.content}>
         <MaterialIcons name="child-care" size={80} color="#4A90E2" />
-        <Text style={styles.title}>Baby Care</Text>
+        <Text style={styles.title}>Binibaby</Text>
         <ActivityIndicator 
           size="large" 
           color="#4A90E2" 

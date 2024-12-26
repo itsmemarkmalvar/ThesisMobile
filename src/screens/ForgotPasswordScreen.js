@@ -12,12 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { forgotPasswordStyles } from '../styles/ForgotPasswordStyles';
 import axios from 'axios';
-
-const API_URL = Platform.select({
-  android: 'http://10.0.2.2:8000/api',
-  ios: 'http://localhost:8000/api',
-  default: 'http://10.0.2.2:8000/api'
-});
+import { API_URL } from '../config';
 
 const ForgotPasswordScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');

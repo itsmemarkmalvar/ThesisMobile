@@ -6,6 +6,7 @@ import ProfileScreen from './ProfileScreen';
 import BabyScreen from './BabyScreen';
 import SettingsScreen from './SettingsScreen';
 import ForgotPasswordScreen from './ForgotPasswordScreen';
+import GrowthTrackingScreen from './GrowthTrackingScreen';
 
 export {
   SplashScreen,
@@ -16,4 +17,5 @@ export {
   BabyScreen,
   SettingsScreen,
   ForgotPasswordScreen,
+  GrowthTrackingScreen,
 };

@@ -5,12 +5,14 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../config';
+import { MaterialIcons } from '@expo/vector-icons';
 
 // MeasurementItem Component
 const MeasurementItem = ({ label, value }) => (
@@ -20,7 +22,7 @@ const MeasurementItem = ({ label, value }) => (
   </View>
 );
 
-const BabyScreen = () => {
+const BabyScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [babyData, setBabyData] = useState(null);
 
@@ -48,6 +50,10 @@ const BabyScreen = () => {
     }
   };
 
+  const handleMilestonesPress = () => {
+    navigation.navigate('GrowthTracking', { initialTab: 'milestones' });
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -63,26 +69,48 @@ const BabyScreen = () => {
         style={styles.gradient}
       >
         <ScrollView style={styles.scrollView}>
-          {babyData && (
-            <>
-              <View style={styles.infoSection}>
-                <Text style={styles.name}>{babyData.name}</Text>
-                <Text style={styles.detail}>Gender: {babyData.gender}</Text>
-                <Text style={styles.detail}>
-                  Birth Date: {new Date(babyData.birth_date).toLocaleDateString()}
-                </Text>
+          <View style={styles.welcomeSection}>
+            <Text style={styles.welcomeText}>Welcome back, Test Data</Text>
+            <View style={styles.babyCard}>
+              <Text style={styles.babyName}>Test Baby</Text>
+              <View style={styles.measurementRow}>
+                <Text style={styles.measurement}>📏 20.00 cm</Text>
+                <Text style={styles.measurement}>⚖️ 20.00 kg</Text>
               </View>
-              
-              <View style={styles.measurementsSection}>
-                <Text style={styles.sectionTitle}>Current Measurements</Text>
-                <View style={styles.measurements}>
-                  <MeasurementItem label="Height" value={`${babyData.height} cm`} />
-                  <MeasurementItem label="Weight" value={`${babyData.weight} kg`} />
-                  <MeasurementItem label="Head Size" value={`${babyData.head_size} cm`} />
-                </View>
-              </View>
-            </>
-          )}
+            </View>
+          </View>
+
+          {/* Growth & Development Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Growth & Development</Text>
+            <View style={styles.buttonGrid}>
+              <TouchableOpacity 
+                style={styles.gridButton}
+                onPress={() => navigation.navigate('GrowthTracking')}
+              >
+                <MaterialIcons name="show-chart" size={24} color="#4A90E2" />
+                <Text style={styles.buttonText}>Growth</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.gridButton}
+                onPress={() => navigation.navigate('GrowthTracking', { initialTab: 'milestones' })}
+              >
+                <MaterialIcons name="emoji-events" size={24} color="#4A90E2" />
+                <Text style={styles.buttonText}>Milestones</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.gridButton}
+                onPress={() => {/* Handle Development press */}}
+              >
+                <MaterialIcons name="child-care" size={24} color="#4A90E2" />
+                <Text style={styles.buttonText}>Development</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* ... rest of your sections */}
         </ScrollView>
       </LinearGradient>
     </SafeAreaView>
@@ -170,6 +198,80 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     fontWeight: '600',
+  },
+  healthSection: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 15,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  health: {
+    gap: 10,
+  },
+  milestonesSection: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 15,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  milestones: {
+    gap: 10,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  buttonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  gridButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    width: '30%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+  },
+  buttonText: {
+    marginTop: 8,
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#333',
+    textAlign: 'center',
   },
 });
 
