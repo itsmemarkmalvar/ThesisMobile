@@ -87,71 +87,44 @@ const LoginScreen = ({ navigation }) => {
   };
 
   const handleLogin = async () => {
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      return;
+    }
 
     try {
       setLoading(true);
-      setErrors({});
       
-      const response = await axios.post(`${API_URL}/auth/login`, formData, {
+      const response = await axios.post(`${API_URL}/auth/login`, {
+        email: formData.email,
+        password: formData.password,
+      }, {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         }
       });
 
-      if (response.data.token) {
-        try {
-          // Clear any existing token first
-          await AsyncStorage.removeItem('userToken');
-          // Save new token
-          await AsyncStorage.setItem('userToken', response.data.token);
-          
-          // Verify token was saved
-          const savedToken = await AsyncStorage.getItem('userToken');
-          console.log('Token saved after login:', savedToken ? 'Yes' : 'No');
-          
-          // Navigate based on whether user has baby data
-          const babyResponse = await axios.get(`${API_URL}/baby`, {
-            headers: {
-              'Authorization': `Bearer ${response.data.token}`,
-              'Accept': 'application/json',
-            }
-          });
-          
-          if (babyResponse.data.data) {
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'MainApp' }],
-            });
-          } else {
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Onboarding' }],
-            });
-          }
-        } catch (error) {
-          if (error.response?.status === 404) {
-            // No baby data found, go to onboarding
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Onboarding' }],
-            });
-          } else {
-            console.error('Error checking baby data:', error);
-            Alert.alert('Error', 'Failed to verify user data');
-          }
-        }
+      // Store token and navigate without showing any alert
+      if (response.data.success) {
+        await AsyncStorage.setItem('userToken', response.data.token);
+        navigation.replace('MainApp');
+      } else {
+        // Only show alert for errors
+        Alert.alert('Error', response.data.message || 'Login failed');
       }
     } catch (error) {
-      if (error.response?.data?.errors) {
-        setErrors(error.response.data.errors);
-        const firstError = Object.values(error.response.data.errors)[0][0];
-        Alert.alert('Login Failed', firstError);
+      console.error('Login error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      if (error.response?.status === 404) {
+        Alert.alert('Error', 'Server endpoint not found.');
       } else if (error.response?.status === 401) {
-        Alert.alert('Login Failed', 'Invalid email or password');
+        Alert.alert('Error', 'Invalid email or password');
       } else {
-        Alert.alert('Error', 'Something went wrong. Please try again.');
+        Alert.alert('Error', 'Login failed. Please try again.');
       }
     } finally {
       setLoading(false);

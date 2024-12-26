@@ -17,34 +17,36 @@ const AppNavigator = () => {
   useEffect(() => {
     const checkAuthState = async () => {
       try {
-        // First clear any existing tokens to force login
-        await AsyncStorage.removeItem('userToken');
-        setInitialRoute('Auth'); // Always set to Auth initially
-        
-        /* Commenting out token check to force login flow
         const token = await AsyncStorage.getItem('userToken');
-        
+        console.log('Initial token check:', token); // Debug log
+
         if (token) {
+          // Verify token validity with backend
           try {
-            const response = await axios.get(`${API_URL}/baby`, {
+            const response = await axios.get(`${API_URL}/verify-token`, {
               headers: {
                 'Authorization': `Bearer ${token}`,
                 'Accept': 'application/json'
               }
             });
-
-            if (response.data.data) {
+            
+            if (response.data.success) {
               setInitialRoute('MainApp');
+            } else {
+              await AsyncStorage.removeItem('userToken');
+              setInitialRoute('Auth');
             }
           } catch (error) {
-            console.error('Error checking baby data:', error);
+            console.error('Token verification error:', error);
             await AsyncStorage.removeItem('userToken');
+            setInitialRoute('Auth');
           }
+        } else {
+          setInitialRoute('Auth');
         }
-        */
       } catch (error) {
-        console.error('Error checking auth state:', error);
-        setInitialRoute('Auth'); // Fallback to Auth on error
+        console.error('Auth state check error:', error);
+        setInitialRoute('Auth');
       } finally {
         setIsLoading(false);
       }

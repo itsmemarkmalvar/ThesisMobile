@@ -207,7 +207,9 @@ const HomeScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={['#FFE5E5', '#E5F1FF', '#E5FFE8']}
+        colors={['#FF9A9E', '#FAD0C4', '#FFF']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={styles.gradient}
       >
         <ScrollView style={styles.scrollView}>
