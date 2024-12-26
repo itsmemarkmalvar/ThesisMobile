@@ -1,7 +1,19 @@
-export { default as LoginScreen } from './LoginScreen';
-export { default as SignUpScreen } from './SignUpScreen';
-export { default as HomeScreen } from './HomeScreen';
-export { default as ProfileScreen } from './ProfileScreen';
-export { default as BabyScreen } from './BabyScreen';
-export { default as SettingsScreen } from './SettingsScreen';
-export { default as ForgotPasswordScreen } from './ForgotPasswordScreen';
+import SplashScreen from './SplashScreen';
+import LoginScreen from './LoginScreen';
+import SignUpScreen from './SignUpScreen';
+import HomeScreen from './HomeScreen';
+import ProfileScreen from './ProfileScreen';
+import BabyScreen from './BabyScreen';
+import SettingsScreen from './SettingsScreen';
+import ForgotPasswordScreen from './ForgotPasswordScreen';
+
+export {
+  SplashScreen,
+  LoginScreen,
+  SignUpScreen,
+  HomeScreen,
+  ProfileScreen,
+  BabyScreen,
+  SettingsScreen,
+  ForgotPasswordScreen,
+};

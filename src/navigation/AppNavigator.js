@@ -4,33 +4,57 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
 import OnboardingNavigator from './OnboardingNavigator';
+import axios from 'axios';
+import { API_URL } from '../config';
 
 const Stack = createStackNavigator();
 
 const AppNavigator = () => {
-  const [initialRoute, setInitialRoute] = useState('Auth');
+  const [initialRoute, setInitialRoute] = useState(null); // Start with null
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const checkToken = async () => {
+    const checkAuthState = async () => {
       try {
+        // First clear any existing tokens to force login
+        await AsyncStorage.removeItem('userToken');
+        setInitialRoute('Auth'); // Always set to Auth initially
+        
+        /* Commenting out token check to force login flow
         const token = await AsyncStorage.getItem('userToken');
-        console.log('Initial app token check:', !!token);
+        
         if (token) {
-          setInitialRoute('Onboarding');
+          try {
+            const response = await axios.get(`${API_URL}/baby`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+              }
+            });
+
+            if (response.data.data) {
+              setInitialRoute('MainApp');
+            }
+          } catch (error) {
+            console.error('Error checking baby data:', error);
+            await AsyncStorage.removeItem('userToken');
+          }
         }
+        */
       } catch (error) {
-        console.error('Error checking token:', error);
+        console.error('Error checking auth state:', error);
+        setInitialRoute('Auth'); // Fallback to Auth on error
       } finally {
         setIsLoading(false);
       }
     };
 
-    checkToken();
+    checkAuthState();
   }, []);
 
-  if (isLoading) {
-    return null; // Or a loading screen
+  // Show nothing while determining the initial route
+  if (isLoading || !initialRoute) {
+    return null;
   }
 
   return (
