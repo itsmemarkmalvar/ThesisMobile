@@ -7,6 +7,12 @@ import BabyScreen from '../screens/BabyScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import GrowthTrackingScreen from '../screens/GrowthTrackingScreen';
+import DevelopmentScreen from '../screens/DevelopmentScreen';
+import HealthScreen from '../screens/HealthScreen';
+import MedicineScreen from '../screens/MedicineScreen';
+import FeedingScreen from '../screens/FeedingScreen';
+import SleepScreen from '../screens/SleepScreen';
+import DiaperScreen from '../screens/DiaperScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -62,6 +68,12 @@ const MainNavigator = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="MainTabs" component={TabNavigator} />
     <Stack.Screen name="GrowthTracking" component={GrowthTrackingScreen} />
+    <Stack.Screen name="Development" component={DevelopmentScreen} />
+    <Stack.Screen name="Health" component={HealthScreen} />
+    <Stack.Screen name="Medicine" component={MedicineScreen} />
+    <Stack.Screen name="Feeding" component={FeedingScreen} />
+    <Stack.Screen name="Sleep" component={SleepScreen} />
+    <Stack.Screen name="Diaper" component={DiaperScreen} />
   </Stack.Navigator>
 );
 

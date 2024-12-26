@@ -72,10 +72,7 @@ const QuickActionButton = ({ icon, label, onPress, delay, color }) => {
 
 const CategorySection = ({ title, actions, startDelay = 0, color }) => (
   <View style={styles.categorySection}>
-    <LinearGradient
-      colors={[`${color}40`, `${color}20`, 'transparent']}
-      style={styles.categoryGradient}
-    >
+    <View style={styles.categoryContainer}>
       <Text style={styles.categoryTitle}>{title}</Text>
       <View style={styles.actionsGrid}>
         {actions.map((action, index) => (
@@ -87,7 +84,7 @@ const CategorySection = ({ title, actions, startDelay = 0, color }) => (
           />
         ))}
       </View>
-    </LinearGradient>
+    </View>
   </View>
 );
 
@@ -143,12 +140,12 @@ const HomeScreen = ({ navigation }) => {
         {
           icon: 'remove-red-eye',
           label: 'Milestones',
-          onPress: handleMilestonesPress,
+          onPress: () => navigation.navigate('GrowthTracking', { initialTab: 'milestones' }),
         },
         {
           icon: 'psychology',
           label: 'Development',
-          onPress: () => {/* TODO */},
+          onPress: () => navigation.navigate('Development'),
         },
       ]
     },
@@ -159,7 +156,7 @@ const HomeScreen = ({ navigation }) => {
         {
           icon: 'medical-services',
           label: 'Health',
-          onPress: () => {/* TODO */},
+          onPress: () => navigation.navigate('Health'),
         },
         {
           icon: 'event-available',
@@ -169,7 +166,7 @@ const HomeScreen = ({ navigation }) => {
         {
           icon: 'local-hospital',
           label: 'Medicine',
-          onPress: () => {/* TODO */},
+          onPress: () => navigation.navigate('Medicine'),
         },
       ]
     },
@@ -180,17 +177,17 @@ const HomeScreen = ({ navigation }) => {
         {
           icon: 'restaurant',
           label: 'Feeding',
-          onPress: () => {/* TODO */},
+          onPress: () => navigation.navigate('Feeding'),
         },
         {
           icon: 'night-shelter',
           label: 'Sleep',
-          onPress: () => {/* TODO */},
+          onPress: () => navigation.navigate('Sleep'),
         },
         {
           icon: 'baby-changing-station',
           label: 'Diaper',
-          onPress: () => {/* TODO */},
+          onPress: () => navigation.navigate('Diaper'),
         },
       ]
     }
@@ -328,10 +325,18 @@ const styles = StyleSheet.create({
   categorySection: {
     marginHorizontal: 15,
     marginBottom: 15,
-    borderRadius: 15,
-    overflow: 'hidden',
+    borderRadius: 20,
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
-  categoryGradient: {
+  categoryContainer: {
     padding: 15,
   },
   categoryTitle: {
@@ -358,6 +363,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 3,
   },
   actionLabel: {
     fontSize: 12,
