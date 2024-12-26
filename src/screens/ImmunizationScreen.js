@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -77,6 +79,9 @@ const ImmunizationScreen = ({ navigation }) => {
     }
   ]);
 
+  const [selectedVaccine, setSelectedVaccine] = useState(null);
+  const [infoModalVisible, setInfoModalVisible] = useState(false);
+
   const toggleVaccine = async (ageGroupId, vaccineId) => {
     try {
       const token = await AsyncStorage.getItem('userToken');
@@ -122,6 +127,99 @@ const ImmunizationScreen = ({ navigation }) => {
     }
   };
 
+  const VaccineInfoModal = ({ vaccine, visible, onClose }) => {
+    if (!vaccine) return null;
+
+    const vaccineInfo = {
+      bcg: {
+        fullName: 'Bacillus Calmette–Guérin vaccine',
+        description: 'Protects against tuberculosis',
+        sideEffects: 'May cause a small bump at injection site',
+        importance: 'Critical for preventing childhood TB'
+      },
+      // Add info for other vaccines...
+    };
+
+    const info = vaccineInfo[vaccine.id] || {};
+
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={visible}
+        onRequestClose={onClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{vaccine.name}</Text>
+              <TouchableOpacity onPress={onClose}>
+                <MaterialIcons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody}>
+              <View style={styles.infoSection}>
+                <Text style={styles.infoTitle}>About</Text>
+                <Text style={styles.infoText}>{info.fullName}</Text>
+              </View>
+              <View style={styles.infoSection}>
+                <Text style={styles.infoTitle}>Description</Text>
+                <Text style={styles.infoText}>{info.description}</Text>
+              </View>
+              <View style={styles.infoSection}>
+                <Text style={styles.infoTitle}>Side Effects</Text>
+                <Text style={styles.infoText}>{info.sideEffects}</Text>
+              </View>
+              <View style={styles.infoSection}>
+                <Text style={styles.infoTitle}>Importance</Text>
+                <Text style={styles.infoText}>{info.importance}</Text>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
+  const renderVaccineItem = (vaccine, ageGroup) => (
+    <TouchableOpacity
+      key={vaccine.id}
+      style={styles.vaccineItem}
+      onPress={() => toggleVaccine(ageGroup.id, vaccine.id)}
+    >
+      <View style={styles.vaccineContent}>
+        <MaterialIcons
+          name={vaccine.completed ? "check-circle" : "radio-button-unchecked"}
+          size={24}
+          color={vaccine.completed ? "#4CAF50" : "#BDBDBD"}
+          style={styles.vaccineIcon}
+        />
+        <View style={styles.vaccineDetails}>
+          <Text style={[
+            styles.vaccineName,
+            vaccine.completed && styles.vaccineCompleted
+          ]}>
+            {vaccine.name}
+          </Text>
+          {vaccine.completed && vaccine.date && (
+            <Text style={styles.vaccineDate}>
+              Completed on: {new Date(vaccine.date).toLocaleDateString()}
+            </Text>
+          )}
+        </View>
+        <TouchableOpacity
+          style={styles.infoButton}
+          onPress={() => {
+            setSelectedVaccine(vaccine);
+            setInfoModalVisible(true);
+          }}
+        >
+          <MaterialIcons name="info-outline" size={24} color="#4A90E2" />
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
@@ -144,33 +242,7 @@ const ImmunizationScreen = ({ navigation }) => {
             <View key={ageGroup.id} style={styles.ageGroupContainer}>
               <Text style={styles.ageGroupTitle}>{ageGroup.ageGroup}</Text>
               {ageGroup.vaccines.map((vaccine) => (
-                <TouchableOpacity
-                  key={vaccine.id}
-                  style={styles.vaccineItem}
-                  onPress={() => toggleVaccine(ageGroup.id, vaccine.id)}
-                >
-                  <View style={styles.vaccineContent}>
-                    <MaterialIcons
-                      name={vaccine.completed ? "check-circle" : "radio-button-unchecked"}
-                      size={24}
-                      color={vaccine.completed ? "#4CAF50" : "#BDBDBD"}
-                      style={styles.vaccineIcon}
-                    />
-                    <View style={styles.vaccineDetails}>
-                      <Text style={[
-                        styles.vaccineName,
-                        vaccine.completed && styles.vaccineCompleted
-                      ]}>
-                        {vaccine.name}
-                      </Text>
-                      {vaccine.completed && vaccine.date && (
-                        <Text style={styles.vaccineDate}>
-                          Completed on: {new Date(vaccine.date).toLocaleDateString()}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-                </TouchableOpacity>
+                renderVaccineItem(vaccine, ageGroup)
               ))}
             </View>
           ))}
@@ -265,6 +337,49 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: Dimensions.get('window').height * 0.8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+  },
+  modalBody: {
+    maxHeight: Dimensions.get('window').height * 0.6,
+  },
+  infoSection: {
+    marginBottom: 20,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  infoButton: {
+    padding: 8,
   },
 });
 
