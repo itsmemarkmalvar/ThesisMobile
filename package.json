@@ -21,6 +21,7 @@
     "axios": "^1.7.9",
     "date-fns": "^2.30.0",
     "expo": "~52.0.18",
+    "expo-facebook": "^12.2.0",
     "expo-file-system": "~18.0.6",
     "expo-linear-gradient": "^14.0.1",
     "expo-sharing": "~13.0.0",

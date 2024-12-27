@@ -21,6 +21,7 @@ import { loginStyles } from '../styles/LoginStyles';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
+import FacebookAuthService from '../services/FacebookAuthService';
 
 const { height } = Dimensions.get('window');
 
@@ -42,6 +43,23 @@ const LoginScreen = ({ navigation }) => {
   const backgroundOpacity = new Animated.Value(1);
 
   useEffect(() => {
+    // Initialize Facebook
+    const initializeFacebook = async () => {
+      try {
+        console.log('Starting Facebook initialization...');
+        await FacebookAuthService.init();
+        console.log('Facebook initialization completed successfully');
+      } catch (error) {
+        console.error('Facebook initialization error in LoginScreen:', {
+          message: error.message,
+          stack: error.stack
+        });
+        // Don't show alert for initialization error, just log it
+      }
+    };
+
+    initializeFacebook();
+
     const keyboardWillShow = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       () => {
@@ -126,6 +144,21 @@ const LoginScreen = ({ navigation }) => {
       } else {
         Alert.alert('Error', 'Login failed. Please try again.');
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFacebookLogin = async () => {
+    try {
+      setLoading(true);
+      const result = await FacebookAuthService.login();
+      if (result.success) {
+        navigation.replace('MainApp');
+      }
+    } catch (error) {
+      console.error('Facebook login error:', error);
+      Alert.alert('Error', 'Facebook login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -242,6 +275,17 @@ const LoginScreen = ({ navigation }) => {
                       <Text style={loginStyles.loginButtonText}>Log In</Text>
                     )}
                   </TouchableOpacity>
+
+                  <View style={loginStyles.socialButtonsContainer}>
+                    <TouchableOpacity
+                      style={[loginStyles.socialButton, loginStyles.facebookButton]}
+                      onPress={handleFacebookLogin}
+                      disabled={loading}
+                    >
+                      <FontAwesome5 name="facebook" size={20} color="#FFF" />
+                      <Text style={loginStyles.socialButtonText}>Continue with Facebook</Text>
+                    </TouchableOpacity>
+                  </View>
 
                   <TouchableOpacity 
                     style={loginStyles.forgotPasswordButton}

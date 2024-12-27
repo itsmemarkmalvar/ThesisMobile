@@ -264,4 +264,35 @@ export const loginStyles = StyleSheet.create({
     color: '#4A90E2',
     fontWeight: '600',
   },
+  socialButtonsContainer: {
+    marginTop: 20,
+    width: '100%',
+    paddingHorizontal: 20,
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  facebookButton: {
+    backgroundColor: '#1877F2',
+  },
+  socialButtonText: {
+    color: '#FFF',
+    marginLeft: 10,
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
 }); 
