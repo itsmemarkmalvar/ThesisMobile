@@ -43,23 +43,6 @@ const LoginScreen = ({ navigation }) => {
   const backgroundOpacity = new Animated.Value(1);
 
   useEffect(() => {
-    // Initialize Facebook
-    const initializeFacebook = async () => {
-      try {
-        console.log('Starting Facebook initialization...');
-        await FacebookAuthService.init();
-        console.log('Facebook initialization completed successfully');
-      } catch (error) {
-        console.error('Facebook initialization error in LoginScreen:', {
-          message: error.message,
-          stack: error.stack
-        });
-        // Don't show alert for initialization error, just log it
-      }
-    };
-
-    initializeFacebook();
-
     const keyboardWillShow = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       () => {
@@ -276,22 +259,33 @@ const LoginScreen = ({ navigation }) => {
                     )}
                   </TouchableOpacity>
 
-                  <View style={loginStyles.socialButtonsContainer}>
-                    <TouchableOpacity
-                      style={[loginStyles.socialButton, loginStyles.facebookButton]}
-                      onPress={handleFacebookLogin}
-                      disabled={loading}
-                    >
-                      <FontAwesome5 name="facebook" size={20} color="#FFF" />
-                      <Text style={loginStyles.socialButtonText}>Continue with Facebook</Text>
-                    </TouchableOpacity>
-                  </View>
-
                   <TouchableOpacity 
                     style={loginStyles.forgotPasswordButton}
                     onPress={() => navigation.navigate('ForgotPassword')}
                   >
                     <Text style={loginStyles.forgotPasswordText}>Forgot Password?</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Social Login Section */}
+                <View style={loginStyles.socialSection}>
+                  <Text style={loginStyles.orText}>OR</Text>
+                  <TouchableOpacity 
+                    style={loginStyles.facebookButton}
+                    onPress={handleFacebookLogin}
+                    disabled={loading}
+                  >
+                    <FontAwesome5 name="facebook" size={20} color="#FFFFFF" />
+                    <Text style={loginStyles.facebookButtonText}>
+                      Continue with Facebook
+                    </Text>
+                    {loading && (
+                      <ActivityIndicator 
+                        size="small" 
+                        color="#FFFFFF" 
+                        style={loginStyles.buttonLoader} 
+                      />
+                    )}
                   </TouchableOpacity>
                 </View>
               </View>

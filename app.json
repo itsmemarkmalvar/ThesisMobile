@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ThesisMobile",
-    "slug": "ThesisMobile",
+    "name": "BiniBaby",
+    "slug": "binibaby",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -17,7 +17,26 @@
       "bundleIdentifier": "com.binibaby.app",
       "infoPlist": {
         "NSPhotoLibraryAddUsageDescription": "Allow $(PRODUCT_NAME) to save photos",
-        "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos"
+        "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos",
+        "FacebookAppID": "1241435060269374",
+        "FacebookDisplayName": "BINIBABY",
+        "FacebookClientToken": "da5156fc8ec1b349e30fe4fe33d081b4",
+        "FacebookAutoLogAppEventsEnabled": false,
+        "FacebookAdvertiserIDCollectionEnabled": false,
+        "LSApplicationQueriesSchemes": [
+          "fbapi",
+          "fb-messenger-api",
+          "fbauth2",
+          "fbshareextension"
+        ],
+        "SKAdNetworkItems": [
+          {
+            "SKAdNetworkIdentifier": "v9wttpbfk9.skadnetwork"
+          },
+          {
+            "SKAdNetworkIdentifier": "n38lu8286q.skadnetwork"
+          }
+        ]
       }
     },
     "android": {
@@ -25,24 +44,41 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.binibaby.app"
+      "package": "com.binibaby.app",
+      "permissions": [
+        "INTERNET",
+        "android.permission.INTERNET"
+      ],
+      "facebookScheme": "fb1241435060269374",
+      "facebookAppId": "1241435060269374",
+      "facebookDisplayName": "BINIBABY",
+      "facebookClientToken": "da5156fc8ec1b349e30fe4fe33d081b4",
+      "facebookAutoLogAppEventsEnabled": false,
+      "facebookAdvertiserIDCollectionEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "scheme": "binibaby",
+    "scheme": "fb1241435060269374",
     "plugins": [
       [
-        "react-native-share",
+        "react-native-fbsdk-next",
         {
-          "platforms": ["ios", "android"]
+          "appID": "1241435060269374",
+          "clientToken": "da5156fc8ec1b349e30fe4fe33d081b4",
+          "displayName": "BINIBABY",
+          "scheme": "fb1241435060269374",
+          "advertiserIDCollectionEnabled": false,
+          "autoLogAppEventsEnabled": false,
+          "isAutoInitEnabled": false
         }
       ]
     ],
     "extra": {
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "ba1686cb-8740-4b30-9af4-b6bcce5ae74c"
       }
-    }
+    },
+    "owner": "itsmemarkmalvar"
   }
 }

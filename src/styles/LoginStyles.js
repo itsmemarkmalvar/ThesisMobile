@@ -76,22 +76,22 @@ export const loginStyles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   facebookButton: {
-    width: '100%',
-    height: 44,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#1877F2',
+    paddingVertical: 15,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    width: '100%',
     justifyContent: 'center',
-    marginBottom: 12,
+    elevation: 2,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 1,
+      height: 2,
     },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   phoneButton: {
     width: '100%',
@@ -205,6 +205,7 @@ export const loginStyles = StyleSheet.create({
   socialSection: {
     width: '100%',
     marginTop: 20,
+    paddingHorizontal: 20,
   },
   divider: {
     flexDirection: 'row',
@@ -294,5 +295,20 @@ export const loginStyles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  orText: {
+    color: '#666',
+    marginVertical: 15,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  facebookButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  buttonLoader: {
+    marginLeft: 10,
   },
 }); 

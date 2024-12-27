@@ -1,76 +1,68 @@
-import * as Facebook from 'expo-facebook';
+import * as WebBrowser from 'expo-web-browser';
 import axios from 'axios';
 import { API_URL } from '../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import { FACEBOOK_APP_ID } from '../config/facebook';
+import { Linking } from 'react-native';
 
-const FACEBOOK_APP_ID = '1241435060269374';
+WebBrowser.maybeCompleteAuthSession();
 
 class FacebookAuthService {
-    init = async () => {
-        try {
-            console.log('Initializing Facebook SDK...');
-            await Facebook.initializeAsync({
-                appId: FACEBOOK_APP_ID,
-                appName: 'BINIBABY',
-                // Add these required configurations
-                autoLogAppEvents: true,
-                clientToken: 'da5156fc8ec1b349e30fe4fe33d081b4',
-                scheme: Platform.select({
-                    ios: 'fb1241435060269374',
-                    android: 'fb1241435060269374'
-                })
-            });
-            console.log('Facebook SDK initialized successfully');
-        } catch (e) {
-            console.error('Facebook initialization detailed error:', {
-                message: e.message,
-                code: e.code,
-                stack: e.stack
-            });
-            throw new Error(`Failed to initialize Facebook SDK: ${e.message}`);
-        }
-    };
-
     login = async () => {
         try {
-            // First, try to log in with Facebook
-            const { type, token, expirationDate } = await Facebook.logInWithReadPermissionsAsync({
-                permissions: ['public_profile', 'email'],
-            });
+            const redirectUrl = `fb${FACEBOOK_APP_ID}://authorize`;
+            const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${FACEBOOK_APP_ID}&redirect_uri=${encodeURIComponent(redirectUrl)}&response_type=token&scope=public_profile,email&display=popup`;
 
-            if (type === 'success') {
-                // Get user data from Facebook
-                const response = await fetch(
-                    `https://graph.facebook.com/me?access_token=${token}&fields=id,name,email,picture.type(large)`
-                );
-                const userData = await response.json();
+            // Add event listener for handling the redirect
+            const handleRedirect = async (event) => {
+                if (event.url.startsWith(redirectUrl)) {
+                    Linking.removeEventListener('url', handleRedirect);
+                    const access_token = event.url.split('#access_token=')[1].split('&')[0];
 
-                // Call backend to verify and create/update user
-                const apiResponse = await axios.post(`${API_URL}/auth/facebook`, {
-                    token: token,
-                    userData: userData
-                });
+                    // Get user data using Facebook Graph API
+                    const response = await fetch(
+                        `https://graph.facebook.com/v18.0/me?access_token=${access_token}&fields=id,name,email,picture.type(large)`
+                    );
+                    const userData = await response.json();
+                    console.log('Facebook user data:', userData);
 
-                if (apiResponse.data.token) {
-                    // Store the authentication token
-                    await AsyncStorage.setItem('userToken', apiResponse.data.token);
-                    
-                    // Store user data
-                    await AsyncStorage.setItem('userData', JSON.stringify(apiResponse.data.user));
-                    
-                    return {
-                        success: true,
-                        user: apiResponse.data.user,
-                        token: apiResponse.data.token
-                    };
+                    // Call backend to verify and create/update user
+                    const apiResponse = await axios.post(`${API_URL}/auth/facebook`, {
+                        access_token,
+                        user_data: userData
+                    });
+
+                    if (apiResponse.data.token) {
+                        await AsyncStorage.setItem('userToken', apiResponse.data.token);
+                        await AsyncStorage.setItem('userData', JSON.stringify(apiResponse.data.user));
+                        
+                        return {
+                            success: true,
+                            user: apiResponse.data.user,
+                            token: apiResponse.data.token
+                        };
+                    }
+                    throw new Error('Failed to get authentication token from server');
                 }
-                throw new Error('Failed to get authentication token from server');
-            } else if (type === 'cancel') {
+            };
+
+            // Add event listener
+            Linking.addEventListener('url', handleRedirect);
+
+            // Open Facebook login page
+            const result = await WebBrowser.openBrowserAsync(authUrl);
+
+            if (result.type === 'cancel') {
+                Linking.removeEventListener('url', handleRedirect);
                 throw new Error('Facebook login was cancelled');
-            } else {
-                throw new Error('Facebook login failed');
             }
+
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    Linking.removeEventListener('url', handleRedirect);
+                    reject(new Error('Login timeout'));
+                }, 5 * 60 * 1000); // 5 minutes timeout
+            });
         } catch (error) {
             console.error('Facebook login error:', error);
             throw error;
@@ -79,7 +71,6 @@ class FacebookAuthService {
 
     logout = async () => {
         try {
-            await Facebook.logOutAsync();
             await AsyncStorage.removeItem('userToken');
             await AsyncStorage.removeItem('userData');
         } catch (error) {
