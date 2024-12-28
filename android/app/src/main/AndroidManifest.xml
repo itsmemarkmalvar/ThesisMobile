@@ -30,7 +30,7 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="fb1241435060269374"/>
+        <data android:scheme="fb1077985447392173"/>
         <data android:scheme="com.binibaby.app"/>
       </intent-filter>
     </activity>

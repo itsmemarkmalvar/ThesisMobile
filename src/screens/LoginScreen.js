@@ -21,7 +21,7 @@ import { loginStyles } from '../styles/LoginStyles';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
-import FacebookAuthService from '../services/FacebookAuthService';
+import FacebookAuthService, { useFacebookAuth } from '../services/FacebookAuthService';
 import { API_URL, APP_CONFIG } from '../config';
 
 const { height } = Dimensions.get('window');
@@ -36,6 +36,7 @@ const LoginScreen = ({ navigation }) => {
   const [errors, setErrors] = useState({});
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const backgroundOpacity = new Animated.Value(1);
+  const [request, response, promptAsync] = useFacebookAuth();
 
   useEffect(() => {
     const keyboardWillShow = Keyboard.addListener(
@@ -194,7 +195,7 @@ const LoginScreen = ({ navigation }) => {
   const handleFacebookLogin = async () => {
     try {
       setLoading(true);
-      const result = await FacebookAuthService.login();
+      const result = await FacebookAuthService.login(promptAsync);
       if (result.success) {
         navigation.replace('MainApp');
       }

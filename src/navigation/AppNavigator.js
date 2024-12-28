@@ -8,6 +8,7 @@ import SplashScreen from '../screens/SplashScreen';
 import axios from 'axios';
 import { API_URL } from '../config';
 import ImmunizationScreen from '../screens/ImmunizationScreen';
+import EditBabyScreen from '../screens/EditBabyScreen';
 
 const Stack = createStackNavigator();
 
@@ -96,6 +97,7 @@ const AppNavigator = () => {
         component={ImmunizationScreen}
         options={{ headerShown: false }}
       />
+      <Stack.Screen name="EditBaby" component={EditBabyScreen} />
     </Stack.Navigator>
   );
 };

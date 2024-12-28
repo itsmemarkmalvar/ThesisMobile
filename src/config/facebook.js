@@ -1,1 +1,1 @@
-export const FACEBOOK_APP_ID = '1241435060269374'; // Replace with your actual Facebook App ID 
+export const FACEBOOK_APP_ID = '1077985447392173'; // Facebook App ID 

@@ -9,6 +9,7 @@ import {
   Platform,
   SafeAreaView,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
@@ -17,12 +18,14 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config';
 import { APP_CONFIG } from '../config';
+import FacebookAuthService, { useFacebookAuth } from '../services/FacebookAuthService';
 
 
 const SignUpScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [request, response, promptAsync] = useFacebookAuth();
   
   // Test API connection when component mounts
   React.useEffect(() => {
@@ -170,6 +173,25 @@ const SignUpScreen = ({ navigation }) => {
       }
     } catch (error) {
       handleError(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFacebookSignUp = async () => {
+    try {
+      setLoading(true);
+      const result = await FacebookAuthService.login(promptAsync);
+      if (result.success) {
+        await AsyncStorage.setItem('hasCompletedOnboarding', 'false');
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Onboarding' }],
+        });
+      }
+    } catch (error) {
+      console.error('Facebook sign up error:', error);
+      Alert.alert('Error', 'Facebook sign up failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -333,9 +355,20 @@ const SignUpScreen = ({ navigation }) => {
                   <Text style={signUpStyles.socialButtonText}>Google</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={signUpStyles.socialButton}>
+                <TouchableOpacity 
+                  style={signUpStyles.socialButton}
+                  onPress={handleFacebookSignUp}
+                  disabled={loading}
+                >
                   <FontAwesome5 name="facebook" size={20} color="#1877F2" style={signUpStyles.socialButtonIcon} />
                   <Text style={signUpStyles.socialButtonText}>Facebook</Text>
+                  {loading && (
+                    <ActivityIndicator 
+                      size="small" 
+                      color="#1877F2" 
+                      style={signUpStyles.buttonLoader} 
+                    />
+                  )}
                 </TouchableOpacity>
               </View>
             </View>

@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   Dimensions,
   Platform,
+  Image,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,18 +17,39 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../config';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 // Get screen width
 const { width } = Dimensions.get('window');
 
-const BabyScreen = ({ navigation }) => {
+const BabyScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [babyData, setBabyData] = useState(null);
   const [error, setError] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please grant camera roll permissions to upload photos.');
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     fetchBabyData();
   }, []);
+
+  // Handle refresh from route params
+  useEffect(() => {
+    if (route?.params?.refresh) {
+      fetchBabyData();
+      // Clear the refresh parameter
+      navigation.setParams({ refresh: undefined });
+    }
+  }, [route?.params?.refresh]);
 
   const fetchBabyData = async () => {
     try {
@@ -46,16 +69,28 @@ const BabyScreen = ({ navigation }) => {
         }
       });
 
-      console.log('Baby data response:', response.data);
+      console.log('Baby data response:', {
+        status: response.status,
+        hasData: !!response.data.data,
+        hasPhoto: !!response.data.data?.photo_url
+      });
 
       // Check if response.data.data exists (this is the structure from your API)
       if (response.data.data) {
-        // Add parent name if not available in the response
-        const babyDataWithParent = {
+        // Validate photo_url if it exists
+        const babyDataWithValidation = {
           ...response.data.data,
-          parent_name: 'Parent' // You might want to get this from user data or another API
+          photo_url: response.data.data.photo_url || null,
+          parent_name: 'Parent'
         };
-        setBabyData(babyDataWithParent);
+
+        console.log('Processed baby data:', {
+          name: babyDataWithValidation.name,
+          hasPhoto: !!babyDataWithValidation.photo_url,
+          photoStart: babyDataWithValidation.photo_url?.substring(0, 30)
+        });
+
+        setBabyData(babyDataWithValidation);
         setError(null);
       } else {
         setError('No baby data available');
@@ -70,6 +105,113 @@ const BabyScreen = ({ navigation }) => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const resizeImage = async (uri) => {
+    try {
+      const manipulatedImage = await ImageManipulator.manipulateAsync(
+        uri,
+        [
+          { resize: { width: 500 } }, // Resize to width of 500px, height will adjust to maintain aspect ratio
+        ],
+        {
+          compress: 0.7, // 70% quality
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+      
+      console.log('Resized image:', {
+        uri: manipulatedImage.uri,
+        width: manipulatedImage.width,
+        height: manipulatedImage.height,
+      });
+      
+      return manipulatedImage;
+    } catch (error) {
+      console.error('Error resizing image:', error);
+      throw error;
+    }
+  };
+
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1, // Get full quality, we'll resize it ourselves
+      });
+
+      console.log('Image picker result:', {
+        cancelled: result.canceled,
+        type: result.assets?.[0]?.type,
+        size: result.assets?.[0]?.fileSize,
+      });
+
+      if (!result.canceled && result.assets?.[0]) {
+        const resizedImage = await resizeImage(result.assets[0].uri);
+        uploadImage(resizedImage);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+    }
+  };
+
+  const uploadImage = async (imageAsset) => {
+    try {
+      setUploading(true);
+      const token = await AsyncStorage.getItem('userToken');
+      
+      console.log('Preparing image for upload:', {
+        uri: imageAsset.uri,
+        width: imageAsset.width,
+        height: imageAsset.height,
+      });
+
+      // Create form data
+      const formData = new FormData();
+      formData.append('photo', {
+        uri: imageAsset.uri,
+        type: 'image/jpeg',
+        name: 'baby_photo.jpg',
+      });
+
+      console.log('Sending request to:', `${API_URL}/baby/upload-photo`);
+
+      const response = await axios.post(`${API_URL}/baby/upload-photo`, formData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
+          'Accept': 'application/json',
+        },
+        timeout: 60000,
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+      });
+
+      console.log('Upload response:', response.data);
+
+      if (response.data.success) {
+        // Refresh baby data to get updated photo URL
+        fetchBabyData();
+        Alert.alert('Success', 'Photo uploaded successfully!');
+      }
+    } catch (error) {
+      console.error('❌ Response error:', JSON.stringify({
+        code: error.code,
+        message: error.message,
+        response: error.response?.data,
+        url: error.config?.url
+      }, null, 2));
+      Alert.alert(
+        'Error',
+        'Failed to upload photo. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -128,19 +270,83 @@ const BabyScreen = ({ navigation }) => {
 
           {/* Profile Card */}
           <View style={styles.profileCard}>
-            <View style={styles.avatarContainer}>
-              <LinearGradient
-                colors={['#4A90E2', '#357ABD']}
-                style={styles.avatarGradient}
-              >
-                <MaterialIcons name="child-care" size={50} color="#FFF" />
-              </LinearGradient>
-              <View style={styles.nameContainer}>
-                <Text style={styles.babyName}>{babyData.name}</Text>
-                <Text style={styles.babyAge}>
-                  {calculateAge(babyData.birth_date)}
-                </Text>
-              </View>
+            <TouchableOpacity 
+              style={styles.avatarContainer}
+              onPress={pickImage}
+              disabled={uploading}
+            >
+              {babyData?.photo_url ? (
+                (() => {
+                  console.log('Baby photo data:', {
+                    photoExists: !!babyData.photo_url,
+                    photoLength: babyData.photo_url?.length,
+                    photoStart: babyData.photo_url?.substring(0, 50),
+                    photoEnd: babyData.photo_url?.substring(-50)
+                  });
+
+                  // Validate base64 format
+                  const isValidBase64 = (str) => {
+                    if (!str) return false;
+                    try {
+                      // Check if it's a data URL
+                      if (str.startsWith('data:image/')) {
+                        return true;
+                      }
+                      return false;
+                    } catch (e) {
+                      console.error('Base64 validation error:', e);
+                      return false;
+                    }
+                  };
+
+                  if (!isValidBase64(babyData.photo_url)) {
+                    console.log('Invalid base64 image data');
+                    return (
+                      <LinearGradient
+                        colors={['#4A90E2', '#357ABD']}
+                        style={styles.avatarGradient}
+                      >
+                        <MaterialIcons name="child-care" size={50} color="#FFF" />
+                      </LinearGradient>
+                    );
+                  }
+
+                  return (
+                    <Image
+                      source={{ uri: babyData.photo_url }}
+                      style={styles.avatarImage}
+                      resizeMode="cover"
+                      onLoadStart={() => console.log('Image loading started')}
+                      onLoadEnd={() => console.log('Image loading completed')}
+                      onError={(error) => {
+                        console.error('Image loading error:', error.nativeEvent.error);
+                      }}
+                    />
+                  );
+                })()
+              ) : (
+                <LinearGradient
+                  colors={['#4A90E2', '#357ABD']}
+                  style={styles.avatarGradient}
+                >
+                  <MaterialIcons name="child-care" size={50} color="#FFF" />
+                </LinearGradient>
+              )}
+              {uploading ? (
+                <View style={styles.uploadingOverlay}>
+                  <ActivityIndicator color="#FFF" />
+                </View>
+              ) : (
+                <View style={styles.cameraIconContainer}>
+                  <MaterialIcons name="camera-alt" size={20} color="#FFF" />
+                </View>
+              )}
+            </TouchableOpacity>
+            <View style={styles.nameContainer}>
+              <Text style={styles.babyName}>{babyData.name}</Text>
+              <Text style={styles.babyAge}>
+                {calculateAge(babyData.birth_date)}
+              </Text>
             </View>
 
             {/* Quick Stats */}
@@ -423,6 +629,31 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  avatarImage: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+  },
+  uploadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 45,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraIconContainer: {
+    position: 'absolute',
+    right: -5,
+    bottom: -5,
+    backgroundColor: '#4A90E2',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFF',
   },
 });
 
