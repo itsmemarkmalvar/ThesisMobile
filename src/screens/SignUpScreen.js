@@ -16,6 +16,7 @@ import { signUpStyles } from '../styles/SignUpStyles';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config';
+import { APP_CONFIG } from '../config';
 
 
 const SignUpScreen = ({ navigation }) => {
@@ -28,10 +29,36 @@ const SignUpScreen = ({ navigation }) => {
     const testConnection = async () => {
       try {
         console.log('Testing API connection...');
-        const response = await axios.get(`${API_URL}/test`);
+        console.log('API URL:', API_URL);
+        console.log('Running on:', Platform.OS);
+        console.log('Is real device:', APP_CONFIG.isRealDevice);
+        
+        const response = await axios.get(`${API_URL}/test`, {
+          timeout: 5000, // 5 second timeout
+          headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
         console.log('API Test Response:', response.data);
       } catch (error) {
-        console.error('API Test Error:', error.response?.data || error.message);
+        console.error('API Test Error Details:', {
+          message: error.message,
+          code: error.code,
+          response: error.response?.data,
+          config: {
+            url: error.config?.url,
+            method: error.config?.method,
+            headers: error.config?.headers
+          }
+        });
+        
+        // Show user-friendly error message
+        Alert.alert(
+          'Connection Error',
+          'Unable to connect to the server. Please check your internet connection and try again.',
+          [{ text: 'OK' }]
+        );
       }
     };
     testConnection();
@@ -48,6 +75,60 @@ const SignUpScreen = ({ navigation }) => {
   // Error state
   const [errors, setErrors] = useState({});
 
+  const handleError = (error) => {
+    console.error('Registration error:', error);
+    
+    if (error.response?.data?.errors) {
+      // Handle validation errors from the backend
+      const serverErrors = error.response.data.errors;
+      setErrors(serverErrors);
+      
+      // Show the first error message
+      const firstError = Object.values(serverErrors)[0];
+      Alert.alert('Registration Failed', firstError[0]);
+    } else if (error.response?.data?.message) {
+      // Handle specific error message from the backend
+      Alert.alert('Registration Failed', error.response.data.message);
+    } else {
+      // Handle general errors
+      Alert.alert(
+        'Registration Failed',
+        'Something went wrong. Please try again later.'
+      );
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    // Validate name
+    if (!formData.name.trim()) {
+      newErrors.name = 'Name is required';
+    }
+    
+    // Validate email
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email is invalid';
+    }
+    
+    // Validate password
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+    
+    // Validate password confirmation
+    if (formData.password !== formData.password_confirmation) {
+      newErrors.password_confirmation = 'Passwords do not match';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSignUp = async () => {
     // Clear any previous errors
     setErrors({});
@@ -57,15 +138,14 @@ const SignUpScreen = ({ navigation }) => {
       return;
     }
 
-    if (formData.password !== formData.password_confirmation) {
-      setErrors({ ...errors, password: 'Passwords do not match' });
+    if (!validateForm()) {
       return;
     }
 
     try {
       setLoading(true);
-      console.log('Sending request to:', `${API_URL}/auth/register`);
-      console.log('Request data:', formData);
+      console.log('Sending registration request to:', `${API_URL}/auth/register`);
+      console.log('Form data:', formData);
       
       const response = await axios.post(`${API_URL}/auth/register`, formData, {
         headers: {
@@ -75,58 +155,21 @@ const SignUpScreen = ({ navigation }) => {
         }
       });
       
-      console.log('Response:', response.data);
-      
+      console.log('Registration response:', response.data);
+
       if (response.data.token) {
-        try {
-          await AsyncStorage.setItem('userToken', response.data.token);
-          console.log('Token saved after registration:', response.data.token.substring(0, 10) + '...');
-          
-          // Navigate to Onboarding
-          navigation.replace('Onboarding');
-        } catch (error) {
-          console.error('Error saving token:', error);
-        }
+        await AsyncStorage.setItem('userToken', response.data.token);
+        await AsyncStorage.setItem('hasCompletedOnboarding', 'false');
+        // Navigate to Onboarding instead of MainApp for new users
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Onboarding' }],
+        });
+      } else {
+        Alert.alert('Error', 'Registration successful but no token received');
       }
     } catch (error) {
-      console.error('Registration error:', error.response?.data || error.message);
-      
-      if (error.response?.data?.errors) {
-        // Handle validation errors
-        setErrors(error.response.data.errors);
-        
-        // Show the first error message in an alert
-        const firstError = Object.values(error.response.data.errors)[0][0];
-        Alert.alert(
-          'Registration Failed',
-          firstError,
-          [{ text: 'OK' }]
-        );
-      } else {
-        // Handle other types of errors
-        Alert.alert(
-          'Error',
-          error.response?.data?.message || 'Something went wrong with registration. Please try again.'
-        );
-      }
-
-      if (error.response?.data?.errors?.email?.[0]?.includes('already been taken')) {
-        Alert.alert(
-          'Email Already Registered',
-          'This email is already registered. Would you like to log in instead?',
-          [
-            {
-              text: 'Go to Login',
-              onPress: () => navigation.goBack()
-            },
-            {
-              text: 'Try Again',
-              style: 'cancel'
-            }
-          ]
-        );
-        return;
-      }
+      handleError(error);
     } finally {
       setLoading(false);
     }

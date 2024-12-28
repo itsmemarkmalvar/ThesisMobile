@@ -7,10 +7,14 @@ import {
   TouchableOpacity,
   Switch,
   Platform,
+  Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CommonActions } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { API_URL } from '../config';
 
 const SettingItem = ({ icon, title, subtitle, onPress, rightElement }) => (
   <TouchableOpacity style={styles.settingItem} onPress={onPress}>
@@ -28,14 +32,50 @@ const SettingItem = ({ icon, title, subtitle, onPress, rightElement }) => (
 const SettingsScreen = ({ navigation }) => {
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
   const [darkMode, setDarkMode] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
 
-  const handleLogout = () => {
-    navigation.dispatch(
-      CommonActions.reset({
-        index: 0,
-        routes: [{ name: 'Auth' }],
-      })
-    );
+  const handleLogout = async () => {
+    try {
+      // Show loading indicator or disable the button
+      setLoading(true);
+
+      // Call the logout endpoint to invalidate the token
+      const token = await AsyncStorage.getItem('userToken');
+      if (token) {
+        try {
+          await axios.post(`${API_URL}/auth/logout`, {}, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          });
+        } catch (error) {
+          console.error('Logout API error:', error);
+          // Continue with local logout even if API call fails
+        }
+      }
+
+      // Clear all local storage data
+      await AsyncStorage.multiRemove([
+        'userToken',
+        'hasCompletedOnboarding',
+        'userData'
+      ]);
+
+      // Reset navigation to Auth screen
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'Auth' }],
+        })
+      );
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Error', 'Failed to logout. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -137,6 +177,7 @@ const SettingsScreen = ({ navigation }) => {
           <TouchableOpacity 
             style={styles.logoutButton}
             onPress={handleLogout}
+            disabled={loading}
           >
             <MaterialIcons name="logout" size={20} color="#FF4B4B" />
             <Text style={styles.logoutText}>Log Out</Text>

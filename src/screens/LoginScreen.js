@@ -22,14 +22,9 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import FacebookAuthService from '../services/FacebookAuthService';
+import { API_URL, APP_CONFIG } from '../config';
 
 const { height } = Dimensions.get('window');
-
-const API_URL = Platform.select({
-  android: 'http://10.0.2.2:8000/api',  // For Android Emulator
-  ios: 'http://localhost:8000/api',      // For iOS Simulator
-  default: 'http://10.0.2.2:8000/api'    // Default to Android
-});
 
 const LoginScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -95,37 +90,101 @@ const LoginScreen = ({ navigation }) => {
     try {
       setLoading(true);
       
-      const response = await axios.post(`${API_URL}/auth/login`, {
-        email: formData.email,
-        password: formData.password,
-      }, {
+      // Trim whitespace from email and password
+      const loginData = {
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password.trim()
+      };
+      
+      console.log('Login attempt details:', {
+        email: loginData.email,
+        emailLength: loginData.email.length,
+        passwordLength: loginData.password.length,
+        url: `${API_URL}/auth/login`,
+        passwordStart: loginData.password[0],
+        passwordEnd: loginData.password[loginData.password.length - 1]
+      });
+
+      // First, try to verify if the server is reachable
+      try {
+        const testResponse = await axios.get(`${API_URL}/test`);
+        console.log('Server test response:', testResponse.data);
+      } catch (testError) {
+        console.error('Server test failed:', testError.message);
+      }
+      
+      // Add request data logging
+      console.log('Sending login request with data:', {
+        email: loginData.email,
+        passwordLength: loginData.password.length
+      });
+      
+      // Proceed with login
+      const response = await axios.post(`${API_URL}/auth/login`, loginData, {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        validateStatus: function (status) {
+          return status >= 200 && status < 500; // Accept all responses to handle them manually
         }
       });
 
-      // Store token and navigate without showing any alert
-      if (response.data.success) {
+      console.log('Full response:', {
+        status: response.status,
+        data: response.data,
+        headers: response.headers
+      });
+
+      if (response.status === 200 && response.data.token) {
+        console.log('Login successful, storing token');
         await AsyncStorage.setItem('userToken', response.data.token);
-        navigation.replace('MainApp');
+        
+        // Clear any stored onboarding status if needed
+        const onboardingStatus = await AsyncStorage.getItem('hasCompletedOnboarding');
+        if (!onboardingStatus) {
+          await AsyncStorage.setItem('hasCompletedOnboarding', 'false');
+        }
+        
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainApp' }],
+        });
+      } else if (response.status === 401) {
+        // Try to get more details about the error
+        console.log('Authentication failed:', response.data);
+        Alert.alert(
+          'Login Failed',
+          'The email or password you entered is incorrect. Please double-check your credentials.'
+        );
       } else {
-        // Only show alert for errors
-        Alert.alert('Error', response.data.message || 'Login failed');
+        console.log('Unexpected response:', response.data);
+        Alert.alert('Error', 'An unexpected error occurred. Please try again.');
       }
     } catch (error) {
-      console.error('Login error details:', {
+      console.error('Detailed error:', {
         message: error.message,
         response: error.response?.data,
-        status: error.response?.status
+        status: error.response?.status,
+        url: error.config?.url,
+        data: error.config?.data // Log what was actually sent
       });
       
-      if (error.response?.status === 404) {
-        Alert.alert('Error', 'Server endpoint not found.');
-      } else if (error.response?.status === 401) {
-        Alert.alert('Error', 'Invalid email or password');
+      if (error.response?.status === 401) {
+        Alert.alert(
+          'Login Failed', 
+          'Please verify your email and password are correct.'
+        );
+      } else if (error.response?.status === 404) {
+        Alert.alert('Error', 'Unable to reach the login service. Please try again later.');
+      } else if (error.response?.status === 422) {
+        Alert.alert('Error', 'Please check your email and password format.');
       } else {
-        Alert.alert('Error', 'Login failed. Please try again.');
+        Alert.alert(
+          'Connection Error', 
+          'Unable to connect to the server. Please check your internet connection.'
+        );
       }
     } finally {
       setLoading(false);
@@ -269,20 +328,31 @@ const LoginScreen = ({ navigation }) => {
 
                 {/* Social Login Section */}
                 <View style={loginStyles.socialSection}>
-                  <Text style={loginStyles.orText}>OR</Text>
-                  <TouchableOpacity 
-                    style={loginStyles.facebookButton}
+                  <View style={loginStyles.divider}>
+                    <View style={loginStyles.dividerLine} />
+                    <Text style={loginStyles.dividerText}>or continue with</Text>
+                    <View style={loginStyles.dividerLine} />
+                  </View>
+                  
+                  {/* Facebook Login Button */}
+                  <TouchableOpacity
+                    style={[loginStyles.socialButton, loginStyles.facebookButton]}
                     onPress={handleFacebookLogin}
                     disabled={loading}
                   >
-                    <FontAwesome5 name="facebook" size={20} color="#FFFFFF" />
-                    <Text style={loginStyles.facebookButtonText}>
+                    <FontAwesome5 
+                      name="facebook" 
+                      size={24} 
+                      color="#1877F2" 
+                      style={loginStyles.socialButtonIcon} 
+                    />
+                    <Text style={[loginStyles.socialButtonText, loginStyles.facebookButtonText]}>
                       Continue with Facebook
                     </Text>
                     {loading && (
                       <ActivityIndicator 
                         size="small" 
-                        color="#FFFFFF" 
+                        color="#1877F2" 
                         style={loginStyles.buttonLoader} 
                       />
                     )}

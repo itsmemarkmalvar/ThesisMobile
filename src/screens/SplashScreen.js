@@ -1,55 +1,44 @@
-import React, { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import { API_URL } from '../config';
+import React from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
-const SplashScreen = ({ navigation }) => {
-  useEffect(() => {
-    checkToken();
+const SplashScreen = () => {
+  const [fadeAnim] = React.useState(new Animated.Value(0));
+  const [scaleAnim] = React.useState(new Animated.Value(0.3));
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 4,
+        useNativeDriver: true,
+      })
+    ]).start();
   }, []);
 
-  const checkToken = async () => {
-    try {
-      const token = await AsyncStorage.getItem('userToken');
-      console.log('Initial token check:', token);
-
-      if (!token) {
-        // If no token exists, navigate to Auth/Login
-        navigation.replace('Auth');
-        return;
-      }
-
-      // Only verify token if it exists
-      try {
-        const response = await axios.get(`${API_URL}/auth/user`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        });
-
-        if (response.data) {
-          navigation.replace('Main');
-        } else {
-          navigation.replace('Auth');
-        }
-      } catch (error) {
-        console.log('Token verification failed:', error);
-        // Clear invalid token
-        await AsyncStorage.removeItem('userToken');
-        navigation.replace('Auth');
-      }
-    } catch (error) {
-      console.log('Error checking token:', error);
-      navigation.replace('Auth');
-    }
-  };
-
   return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color="#FF9A9E" />
-    </View>
+    <LinearGradient
+      colors={['#FFB6C1', '#E6E6FA']}
+      style={styles.container}
+    >
+      <Animated.View 
+        style={[
+          styles.contentContainer, 
+          { 
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }]
+          }
+        ]}
+      >
+        <Text style={styles.title}>BabyTracker</Text>
+        <Text style={styles.subtitle}>Track your baby's growth</Text>
+      </Animated.View>
+    </LinearGradient>
   );
 };
 
@@ -58,7 +47,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+  },
+  contentContainer: {
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#4A4A4A',
+    marginBottom: 10,
+  },
+  subtitle: {
+    fontSize: 18,
+    color: '#666666',
+    opacity: 0.8,
   },
 });
 

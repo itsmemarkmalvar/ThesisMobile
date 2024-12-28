@@ -78,7 +78,7 @@ export const loginStyles = StyleSheet.create({
   facebookButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1877F2',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 15,
     paddingHorizontal: 24,
     borderRadius: 10,
@@ -226,20 +226,22 @@ export const loginStyles = StyleSheet.create({
     width: '100%',
     height: 48,
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: 8,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
-        shadowRadius: 3,
+        shadowRadius: 2,
       },
       android: {
-        elevation: 2,
+        elevation: 1,
       },
     }),
   },
@@ -287,14 +289,12 @@ export const loginStyles = StyleSheet.create({
     shadowRadius: 3.84,
   },
   facebookButton: {
-    backgroundColor: '#1877F2',
+    backgroundColor: '#FFFFFF',
   },
   socialButtonText: {
-    color: '#FFF',
-    marginLeft: 10,
     fontSize: 16,
-    fontWeight: '600',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    color: '#333333',
+    fontWeight: '500',
   },
   orText: {
     color: '#666',
@@ -303,12 +303,16 @@ export const loginStyles = StyleSheet.create({
     textAlign: 'center',
   },
   facebookButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 12,
+    color: '#1877F2',
   },
   buttonLoader: {
     marginLeft: 10,
+  },
+  socialButtonIcon: {
+    marginRight: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 }); 
