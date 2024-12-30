@@ -40,24 +40,63 @@ const BabyScreen = ({ navigation, route }) => {
 
   // Only fetch data if we don't have it
   useEffect(() => {
-    if (!babyData && !error) {
-      console.log('[BabyScreen] Initial fetch - no data available');
-      fetchBabyData().catch(error => {
-        console.error('[BabyScreen] Initial fetch error:', error);
-      });
-    }
+    let mounted = true;
+
+    const loadInitialData = async () => {
+      if (!babyData && !error) {
+        try {
+          console.log('[BabyScreen] Initial fetch - no data available');
+          await fetchBabyData();
+        } catch (error) {
+          console.error('[BabyScreen] Initial fetch error:', error);
+          if (mounted) {
+            // Show error alert only if it's not a network error
+            if (!error.message.includes('Network Error')) {
+              Alert.alert(
+                'Error',
+                'Failed to load baby data. Please check your connection and try again.'
+              );
+            }
+          }
+        }
+      }
+    };
+
+    loadInitialData();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // Only fetch on focus if data was updated
+  // Handle focus events and updates
   useEffect(() => {
+    let mounted = true;
+
+    const handleFocus = async (params) => {
+      if (!mounted) return;
+
+      if (params?.dataUpdated || params?.photoUpdated) {
+        try {
+          console.log('[BabyScreen] Fetching due to update:', params);
+          await fetchBabyData(true);
+        } catch (error) {
+          console.error('[BabyScreen] Focus fetch error:', error);
+          if (mounted) {
+            Alert.alert(
+              'Error',
+              'Failed to refresh data. Please try again.'
+            );
+          }
+        }
+      }
+    };
+
     const unsubscribe = navigation.addListener('focus', () => {
       const params = route.params;
+      handleFocus(params);
+      // Clear the parameters
       if (params?.dataUpdated || params?.photoUpdated) {
-        console.log('[BabyScreen] Fetching due to update:', params);
-        fetchBabyData(true).catch(error => {
-          console.error('[BabyScreen] Focus fetch error:', error);
-        });
-        // Clear the parameters
         navigation.setParams({
           dataUpdated: undefined,
           photoUpdated: undefined
@@ -65,7 +104,10 @@ const BabyScreen = ({ navigation, route }) => {
       }
     });
 
-    return unsubscribe;
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
   }, [navigation, route.params]);
 
   const resizeImage = async (uri) => {
@@ -172,18 +214,53 @@ const BabyScreen = ({ navigation, route }) => {
   const renderBabyImage = () => {
     // Validate base64 image URL
     const isValidBase64Image = (url) => {
-      if (!url) return false;
+      if (!url) {
+        console.log('No photo URL provided');
+        return false;
+      }
       try {
+        // Log the URL details
+        console.log('Validating image URL:', {
+          urlLength: url.length,
+          urlPrefix: url.substring(0, 50),
+          isBase64: url.startsWith('data:image/')
+        });
+
         // Check if it's a valid data URL format
-        if (!url.startsWith('data:image/')) return false;
+        if (!url.startsWith('data:image/')) {
+          console.log('URL does not start with data:image/');
+          return false;
+        }
+
         // Extract the base64 part
         const base64Match = url.match(/^data:image\/\w+;base64,(.+)$/);
-        if (!base64Match) return false;
-        // Check if the base64 part is not empty and valid
+        if (!base64Match) {
+          console.log('URL does not match base64 pattern');
+          return false;
+        }
+
+        // Get base64 data and add padding if needed
         const base64Data = base64Match[1];
-        return base64Data && base64Data.length > 0 && base64Data.length % 4 === 0;
+        const padding = base64Data.length % 4;
+        if (padding > 0) {
+          const paddedUrl = url.slice(0, url.lastIndexOf(',') + 1) + 
+            base64Data + '='.repeat(4 - padding);
+          
+          console.log('Base64 validation result:', {
+            originalLength: base64Data.length,
+            paddedLength: paddedUrl.length,
+            padding: 4 - padding
+          });
+          
+          return true;
+        }
+
+        return true;
       } catch (error) {
-        console.error('Error validating base64 image:', error);
+        console.error('Error validating base64 image:', {
+          error: error.message,
+          stack: error.stack
+        });
         return false;
       }
     };
@@ -200,19 +277,18 @@ const BabyScreen = ({ navigation, route }) => {
       </View>
     );
 
-    if (!babyData?.photo_url || imageError) {
+    if (!babyData?.photo_url) {
+      console.log('No photo URL in babyData');
       return renderPlaceholder("photo-camera");
     }
 
-    // Log the photo URL for debugging
-    console.log('Rendering image with URL:', {
-      urlLength: babyData.photo_url?.length,
-      urlPrefix: babyData.photo_url?.substring(0, 50),
-      isBase64: babyData.photo_url?.startsWith('data:image/'),
-      isValid: isValidBase64Image(babyData.photo_url)
-    });
+    if (imageError) {
+      console.log('Image error state is true');
+      return renderPlaceholder("broken-image");
+    }
 
-    if (!isValidBase64Image(babyData.photo_url)) {
+    const isValid = isValidBase64Image(babyData.photo_url);
+    if (!isValid) {
       console.error('Invalid base64 image format');
       return renderPlaceholder("broken-image");
     }
@@ -229,9 +305,15 @@ const BabyScreen = ({ navigation, route }) => {
             console.log('Image load started');
             setImageError(false);
           }}
-          onLoadEnd={() => console.log('Image load completed')}
+          onLoadEnd={() => {
+            console.log('Image load completed');
+          }}
           onError={(e) => {
-            console.error('Image loading error:', e.nativeEvent);
+            console.error('Image loading error:', {
+              error: e.nativeEvent,
+              urlLength: babyData.photo_url?.length,
+              urlPrefix: babyData.photo_url?.substring(0, 50)
+            });
             setImageError(true);
           }}
         />
