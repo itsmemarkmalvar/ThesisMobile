@@ -36,6 +36,7 @@ import {
 } from 'react-native-reanimated';
 
 const initialLayout = { width: Dimensions.get('window').width };
+const chartWidth = Dimensions.get('window').width - (Platform.OS === 'ios' ? 60 : 50);
 
 const GrowthTrackingScreen = ({ navigation, route }) => {
   const { updateBabyData } = useBaby();
@@ -118,10 +119,11 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
 
   const fetchGrowthData = async () => {
     try {
+      setLoading(true);
       const token = await AsyncStorage.getItem('userToken');
       if (!token) {
         console.log('No token found');
-        setLoading(false);
+        setGrowthData([]);
         return;
       }
 
@@ -133,11 +135,42 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
         }
       });
 
-      console.log('Growth data received:', response.data);
-      setGrowthData(response.data.data || []);
+      console.log('Raw API Response:', response.data);
+
+      if (response.data?.data) {
+        const formattedData = response.data.data
+          .filter(record => record && (record.height || record.weight || record.head_size))
+          .map(record => {
+            // Ensure date is properly formatted
+            let formattedDate;
+            if (record.created_at) {
+              formattedDate = new Date(record.created_at).toISOString().split('T')[0];
+            } else if (record.date_recorded) {
+              formattedDate = new Date(record.date_recorded).toISOString().split('T')[0];
+            } else {
+              formattedDate = new Date().toISOString().split('T')[0];
+            }
+
+            return {
+              ...record,
+              height: parseFloat(record.height) || 0,
+              weight: parseFloat(record.weight) || 0,
+              head_size: parseFloat(record.head_size) || 0,
+              date_recorded: formattedDate
+            };
+          })
+          .sort((a, b) => new Date(b.date_recorded) - new Date(a.date_recorded)); // Sort by newest first
+
+        console.log('Formatted Data:', formattedData);
+        setGrowthData(formattedData);
+      } else {
+        console.warn('No data in API response:', response.data);
+        setGrowthData([]);
+      }
     } catch (error) {
-      console.error('Error fetching growth data:', error);
+      console.error('Error fetching growth data:', error.response?.data || error);
       Alert.alert('Error', 'Failed to load growth data');
+      setGrowthData([]);
     } finally {
       setLoading(false);
     }
@@ -181,6 +214,12 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
       const height = parseFloat(newRecord.height);
       const weight = parseFloat(newRecord.weight);
       const headSize = parseFloat(newRecord.head_size);
+      const date = new Date(newRecord.date_recorded);
+
+      if (isNaN(date.getTime())) {
+        Alert.alert('Error', 'Please select a valid date');
+        return;
+      }
 
       if (isNaN(height) || height <= 0 || height > 200) {
         Alert.alert('Error', 'Please enter a valid height (0-200 cm)');
@@ -196,10 +235,10 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
       }
 
       const measurementData = {
-        height,
-        weight,
-        head_size: headSize,
-        date_recorded: newRecord.date_recorded.toISOString().split('T')[0],
+        height: height.toFixed(1),
+        weight: weight.toFixed(1),
+        head_size: headSize.toFixed(1),
+        date_recorded: date.toISOString().split('T')[0],
         notes: newRecord.notes.trim()
       };
 
@@ -212,16 +251,8 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
       });
 
       if (response.data.success) {
-        // Update local state
-        setGrowthData(prevData => [response.data.data, ...prevData]);
-        // Update baby data with latest measurements
-        updateBabyData({
-          height,
-          weight,
-          head_size: headSize,
-        });
+        await fetchGrowthData(); // Refresh data after successful addition
         setModalVisible(false);
-        // Clear form
         setNewRecord({
           height: '',
           weight: '',
@@ -238,75 +269,233 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
     }
   };
 
-  const renderChart = (data, title, unit) => {
-    if (!data || data.length === 0) {
+  const formatDate = (dateString) => {
+    try {
+      // First try parsing as ISO string
+      let date = new Date(dateString);
+      
+      // If invalid, try parsing as YYYY-MM-DD
+      if (isNaN(date.getTime()) && typeof dateString === 'string') {
+        const [year, month, day] = dateString.split('-').map(Number);
+        date = new Date(year, month - 1, day);
+      }
+      
+      if (isNaN(date.getTime())) {
+        console.log('Invalid date:', dateString);
+        return 'Invalid Date';
+      }
+      
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (e) {
+      console.error('Date parsing error:', e);
+      return 'Invalid Date';
+    }
+  };
+
+  const formatChartData = (data, unit) => {
+    console.log('Formatting chart data for unit:', unit, 'Data:', data);
+    
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      console.log('No data available for chart');
+      return {
+        labels: [],
+        datasets: [{ data: [] }]
+      };
+    }
+
+    try {
+      // Filter and sort the data
+      const validData = data
+        .filter(record => {
+          const isValid = record && record[unit] && record.date_recorded;
+          if (!isValid) {
+            console.log('Invalid record:', record);
+          }
+          return isValid;
+        })
+        .sort((a, b) => new Date(a.date_recorded) - new Date(b.date_recorded));
+
+      console.log('Valid data for chart:', validData);
+
+      if (validData.length === 0) {
+        return {
+          labels: [],
+          datasets: [{ data: [] }]
+        };
+      }
+
+      const chartData = {
+        labels: validData.map(record => {
+          const date = new Date(record.date_recorded);
+          const month = date.getMonth() + 1;
+          const day = date.getDate();
+          return `${month}/${day}`;
+        }),
+        datasets: [{
+          data: validData.map(record => parseFloat(record[unit]) || 0),
+          color: (opacity = 1) => `rgba(74, 144, 226, ${opacity})`,
+          strokeWidth: 2
+        }]
+      };
+
+      console.log('Chart data:', chartData);
+      return chartData;
+    } catch (error) {
+      console.error('Error formatting chart data:', error);
+      return {
+        labels: [],
+        datasets: [{ data: [] }]
+      };
+    }
+  };
+
+  const renderChartsTab = () => {
+    if (!growthData || growthData.length === 0) {
       return (
-        <View style={styles.chartContainer}>
-          <Text style={styles.chartTitle}>{title}</Text>
-          <Text style={styles.noDataText}>No data available</Text>
-        </View>
+        <EmptyState
+          title="No Growth Records Yet"
+          message="Start tracking your baby's growth by adding your first record"
+          icon="child-care"
+        />
       );
     }
 
-    const chartWidth = Dimensions.get('window').width - (Platform.OS === 'ios' ? 48 : 40);
-
-    const sortedData = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    const chartData = {
-      labels: sortedData.map(d => {
-        try {
-          const date = new Date(d.date);
-          if (isNaN(date.getTime())) {
-            console.log('Invalid date:', d.date);
-            return '';
-          }
-          return `${date.getMonth() + 1}/${date.getDate()}`;
-        } catch (error) {
-          console.error('Date parsing error:', error);
-          return '';
-        }
-      }),
-      datasets: [{
-        data: sortedData.map(d => {
-          const value = Number(d[unit.toLowerCase()]);
-          if (isNaN(value)) {
-            console.log('Invalid value for', unit, ':', d[unit.toLowerCase()]);
-            return 0;
-          }
-          return value;
-        })
-      }]
-    };
-
     return (
-      <View style={styles.chartContainer}>
-        <Text style={styles.chartTitle}>{title}</Text>
-        <LineChart
-          data={chartData}
-          width={chartWidth}
-          height={220}
-          chartConfig={{
-            backgroundColor: '#ffffff',
-            backgroundGradientFrom: '#ffffff',
-            backgroundGradientTo: '#ffffff',
-            decimalPlaces: 1,
-            color: (opacity = 1) => `rgba(74, 144, 226, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            style: {
-              borderRadius: 16
-            },
-            propsForDots: {
-              r: Platform.OS === 'ios' ? '4' : '6',
-              strokeWidth: Platform.OS === 'ios' ? '1.5' : '2',
-              stroke: '#4A90E2'
-            },
-            propsForLabels: {
-              fontSize: Platform.OS === 'ios' ? 10 : 12
-            }
-          }}
-          bezier
-          style={[styles.chart, Platform.OS === 'ios' && styles.chartIOS]}
-        />
+      <View style={styles.tabContainer}>
+        <ScrollView
+          style={styles.chartsScrollView}
+          contentContainerStyle={styles.chartsScrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#4A90E2"
+              colors={['#4A90E2']}
+            />
+          }
+        >
+          <View style={styles.chartCard}>
+            <Text style={styles.chartTitle}>Height Progress (cm)</Text>
+            <View style={styles.chartContainer}>
+              <LineChart
+                data={formatChartData(growthData, 'height')}
+                width={chartWidth}
+                height={220}
+                yAxisLabel=""
+                yAxisSuffix=" cm"
+                chartConfig={{
+                  backgroundColor: '#ffffff',
+                  backgroundGradientFrom: '#ffffff',
+                  backgroundGradientTo: '#ffffff',
+                  decimalPlaces: 1,
+                  color: (opacity = 1) => `rgba(74, 144, 226, ${opacity})`,
+                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                  style: {
+                    borderRadius: 16
+                  },
+                  propsForDots: {
+                    r: Platform.OS === 'ios' ? '4' : '6',
+                    strokeWidth: Platform.OS === 'ios' ? '1.5' : '2',
+                    stroke: '#4A90E2'
+                  },
+                  propsForLabels: {
+                    fontSize: Platform.OS === 'ios' ? 10 : 12
+                  }
+                }}
+                bezier
+                style={styles.chart}
+                withVerticalLines={false}
+                withHorizontalLines={true}
+                withDots={true}
+                withShadow={false}
+                segments={4}
+              />
+            </View>
+          </View>
+
+          <View style={styles.chartCard}>
+            <Text style={styles.chartTitle}>Weight Progress (kg)</Text>
+            <View style={styles.chartContainer}>
+              <LineChart
+                data={formatChartData(growthData, 'weight')}
+                width={chartWidth}
+                height={220}
+                yAxisLabel=""
+                yAxisSuffix=" kg"
+                chartConfig={{
+                  backgroundColor: '#ffffff',
+                  backgroundGradientFrom: '#ffffff',
+                  backgroundGradientTo: '#ffffff',
+                  decimalPlaces: 1,
+                  color: (opacity = 1) => `rgba(74, 144, 226, ${opacity})`,
+                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                  style: {
+                    borderRadius: 16
+                  },
+                  propsForDots: {
+                    r: Platform.OS === 'ios' ? '4' : '6',
+                    strokeWidth: Platform.OS === 'ios' ? '1.5' : '2',
+                    stroke: '#4A90E2'
+                  },
+                  propsForLabels: {
+                    fontSize: Platform.OS === 'ios' ? 10 : 12
+                  }
+                }}
+                bezier
+                style={styles.chart}
+                withVerticalLines={false}
+                withHorizontalLines={true}
+                withDots={true}
+                withShadow={false}
+                segments={4}
+              />
+            </View>
+          </View>
+
+          <View style={styles.chartCard}>
+            <Text style={styles.chartTitle}>Head Size Progress (cm)</Text>
+            <View style={styles.chartContainer}>
+              <LineChart
+                data={formatChartData(growthData, 'head_size')}
+                width={chartWidth}
+                height={220}
+                yAxisLabel=""
+                yAxisSuffix=" cm"
+                chartConfig={{
+                  backgroundColor: '#ffffff',
+                  backgroundGradientFrom: '#ffffff',
+                  backgroundGradientTo: '#ffffff',
+                  decimalPlaces: 1,
+                  color: (opacity = 1) => `rgba(74, 144, 226, ${opacity})`,
+                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                  style: {
+                    borderRadius: 16
+                  },
+                  propsForDots: {
+                    r: Platform.OS === 'ios' ? '4' : '6',
+                    strokeWidth: Platform.OS === 'ios' ? '1.5' : '2',
+                    stroke: '#4A90E2'
+                  },
+                  propsForLabels: {
+                    fontSize: Platform.OS === 'ios' ? 10 : 12
+                  }
+                }}
+                bezier
+                style={styles.chart}
+                withVerticalLines={false}
+                withHorizontalLines={true}
+                withDots={true}
+                withShadow={false}
+                segments={4}
+              />
+            </View>
+          </View>
+        </ScrollView>
       </View>
     );
   };
@@ -375,16 +564,7 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
         );
 
       case 'charts':
-        return (
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-          >
-            {renderChart(growthData, 'Height Progress (cm)', 'height')}
-            {renderChart(growthData, 'Weight Progress (kg)', 'weight')}
-            {renderChart(growthData, 'Head Size Progress (cm)', 'head_size')}
-          </ScrollView>
-        );
+        return renderChartsTab();
 
       case 'milestones':
         return (
@@ -468,7 +648,7 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
         <View style={styles.dateContainer}>
           <MaterialIcons name="event" size={20} color="#666" />
           <Text style={styles.dateText}>
-            {new Date(record.date).toLocaleDateString()}
+            {formatDate(record.date_recorded)}
           </Text>
         </View>
       </View>
@@ -1124,15 +1304,44 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: '#F5F8FF',
   },
-  scrollContent: {
-    flexGrow: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  tabView: {
+  chartsScrollView: {
     flex: 1,
+  },
+  chartsScrollContent: {
+    paddingVertical: 15,
+    paddingHorizontal: 15,
+  },
+  chartCard: {
+    backgroundColor: 'white',
+    borderRadius: 15,
+    padding: 15,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+    overflow: 'hidden',
+  },
+  chartTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 10,
+  },
+  chartContainer: {
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderRadius: 10,
+  },
+  chart: {
+    marginVertical: 8,
+    borderRadius: 10,
   },
   customTabBar: {
     flexDirection: 'row',
