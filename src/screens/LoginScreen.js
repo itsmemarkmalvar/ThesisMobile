@@ -23,6 +23,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import FacebookAuthService, { useFacebookAuth } from '../services/FacebookAuthService';
 import { API_URL, APP_CONFIG } from '../config';
+import ApiService from '../services/ApiService';
+import { useBaby } from '../context/BabyContext';
 
 const { height } = Dimensions.get('window');
 
@@ -37,6 +39,20 @@ const LoginScreen = ({ navigation }) => {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const backgroundOpacity = new Animated.Value(1);
   const [request, response, promptAsync] = useFacebookAuth();
+  const { clearBabyData, updateBabyData } = useBaby();
+
+  // Helper function to cache baby data
+  const cacheBabyData = async (data) => {
+    try {
+      await AsyncStorage.setItem('cachedBabyData', JSON.stringify({
+        data,
+        timestamp: Date.now()
+      }));
+      updateBabyData(data);
+    } catch (e) {
+      console.error('Error caching baby data:', e);
+    }
+  };
 
   useEffect(() => {
     const keyboardWillShow = Keyboard.addListener(
@@ -69,6 +85,60 @@ const LoginScreen = ({ navigation }) => {
     };
   }, []);
 
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      try {
+        const token = await AsyncStorage.getItem('userToken');
+        if (token) {
+          try {
+            // First verify token validity
+            await ApiService.get('/auth/user');
+            
+            // Then check if user has baby data
+            const babyResponse = await ApiService.get('/baby');
+            const hasExistingBaby = babyResponse.data?.data;
+            
+            if (hasExistingBaby) {
+              // Existing user with baby data - go straight to MainApp
+              await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+              await cacheBabyData(hasExistingBaby);
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainApp' }],
+              });
+            } else {
+              // Check cached data as fallback
+              const cachedData = await AsyncStorage.getItem('cachedBabyData');
+              if (cachedData) {
+                const { data } = JSON.parse(cachedData);
+                if (data) {
+                  await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'MainApp' }],
+                  });
+                  return;
+                }
+              }
+              // User logged in but no baby data - clear session and start fresh
+              await AsyncStorage.multiRemove(['userToken', 'hasCompletedOnboarding', 'cachedBabyData']);
+              await clearBabyData();
+            }
+          } catch (error) {
+            console.error('Session validation error:', error);
+            // If token is invalid or no baby data, clear everything
+            await AsyncStorage.multiRemove(['userToken', 'hasCompletedOnboarding', 'cachedBabyData']);
+            await clearBabyData();
+          }
+        }
+      } catch (error) {
+        console.error('Session check error:', error);
+      }
+    };
+
+    checkExistingSession();
+  }, []);
+
   const validateForm = () => {
     const newErrors = {};
     if (!formData.email) {
@@ -91,94 +161,73 @@ const LoginScreen = ({ navigation }) => {
     try {
       setLoading(true);
       
-      // Trim whitespace from email and password
       const loginData = {
         email: formData.email.trim().toLowerCase(),
         password: formData.password.trim()
       };
-      
-      console.log('Login attempt details:', {
-        email: loginData.email,
-        emailLength: loginData.email.length,
-        passwordLength: loginData.password.length,
-        url: `${API_URL}/auth/login`,
-        passwordStart: loginData.password[0],
-        passwordEnd: loginData.password[loginData.password.length - 1]
-      });
 
-      // First, try to verify if the server is reachable
-      try {
-        const testResponse = await axios.get(`${API_URL}/test`);
-        console.log('Server test response:', testResponse.data);
-      } catch (testError) {
-        console.error('Server test failed:', testError.message);
-      }
+      // Clear any existing data before login
+      await clearBabyData();
+      await AsyncStorage.multiRemove(['userToken', 'hasCompletedOnboarding', 'cachedBabyData']);
       
-      // Add request data logging
-      console.log('Sending login request with data:', {
-        email: loginData.email,
-        passwordLength: loginData.password.length
-      });
-      
-      // Proceed with login
-      const response = await axios.post(`${API_URL}/auth/login`, loginData, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        validateStatus: function (status) {
-          return status >= 200 && status < 500; // Accept all responses to handle them manually
-        }
-      });
+      const response = await ApiService.post('/auth/login', loginData);
 
-      console.log('Full response:', {
-        status: response.status,
-        data: response.data,
-        headers: response.headers
-      });
-
-      if (response.status === 200 && response.data.token) {
-        console.log('Login successful, storing token');
+      if (response.data.token) {
         await AsyncStorage.setItem('userToken', response.data.token);
         
-        // Clear any stored onboarding status if needed
-        const onboardingStatus = await AsyncStorage.getItem('hasCompletedOnboarding');
-        if (!onboardingStatus) {
-          await AsyncStorage.setItem('hasCompletedOnboarding', 'false');
+        // Check if user has baby data
+        try {
+          const babyResponse = await ApiService.get('/baby');
+          const hasExistingBaby = babyResponse.data?.data;
+          
+          if (hasExistingBaby) {
+            // Existing user - go straight to MainApp
+            // Set hasCompletedOnboarding to true since user has baby data
+            await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+            await cacheBabyData(hasExistingBaby);
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'MainApp' }],
+            });
+          } else {
+            // New user - go through onboarding
+            await AsyncStorage.removeItem('hasCompletedOnboarding');
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Onboarding' }],
+            });
+          }
+        } catch (error) {
+          console.error('Error checking baby data:', error);
+          // If error checking baby data, check cached data
+          const cachedData = await AsyncStorage.getItem('cachedBabyData');
+          if (cachedData) {
+            const { data } = JSON.parse(cachedData);
+            if (data) {
+              await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainApp' }],
+              });
+              return;
+            }
+          }
+          // No cached data, assume new user
+          await AsyncStorage.removeItem('hasCompletedOnboarding');
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Onboarding' }],
+          });
         }
-        
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'MainApp' }],
-        });
-      } else if (response.status === 401) {
-        // Try to get more details about the error
-        console.log('Authentication failed:', response.data);
-        Alert.alert(
-          'Login Failed',
-          'The email or password you entered is incorrect. Please double-check your credentials.'
-        );
-      } else {
-        console.log('Unexpected response:', response.data);
-        Alert.alert('Error', 'An unexpected error occurred. Please try again.');
       }
     } catch (error) {
-      console.error('Detailed error:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        url: error.config?.url,
-        data: error.config?.data // Log what was actually sent
-      });
+      console.error('Login error:', error);
       
       if (error.response?.status === 401) {
         Alert.alert(
           'Login Failed', 
           'Please verify your email and password are correct.'
         );
-      } else if (error.response?.status === 404) {
-        Alert.alert('Error', 'Unable to reach the login service. Please try again later.');
       } else if (error.response?.status === 422) {
         Alert.alert('Error', 'Please check your email and password format.');
       } else {
@@ -195,9 +244,55 @@ const LoginScreen = ({ navigation }) => {
   const handleFacebookLogin = async () => {
     try {
       setLoading(true);
+      // Clear any existing data before login
+      await clearBabyData();
+      await AsyncStorage.multiRemove(['userToken', 'hasCompletedOnboarding', 'cachedBabyData']);
+      
       const result = await FacebookAuthService.login(promptAsync);
       if (result.success) {
-        navigation.replace('MainApp');
+        // Check if user has baby data
+        try {
+          const babyResponse = await ApiService.get('/baby');
+          const hasExistingBaby = babyResponse.data?.data;
+          
+          if (hasExistingBaby) {
+            // Existing user - go straight to MainApp
+            await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+            await cacheBabyData(hasExistingBaby);
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'MainApp' }],
+            });
+          } else {
+            // New user - go through onboarding
+            await AsyncStorage.removeItem('hasCompletedOnboarding');
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Onboarding' }],
+            });
+          }
+        } catch (error) {
+          console.error('Error checking baby data:', error);
+          // If error checking baby data, check cached data
+          const cachedData = await AsyncStorage.getItem('cachedBabyData');
+          if (cachedData) {
+            const { data } = JSON.parse(cachedData);
+            if (data) {
+              await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainApp' }],
+              });
+              return;
+            }
+          }
+          // No cached data, assume new user
+          await AsyncStorage.removeItem('hasCompletedOnboarding');
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Onboarding' }],
+          });
+        }
       }
     } catch (error) {
       console.error('Facebook login error:', error);

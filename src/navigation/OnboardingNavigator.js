@@ -1,6 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   BabyNameGenderScreen,
   BabyBirthScreen,
@@ -9,19 +8,7 @@ import {
 
 const Stack = createStackNavigator();
 
-const OnboardingNavigator = ({ navigation }) => {
-  useEffect(() => {
-    const verifyToken = async () => {
-      const token = await AsyncStorage.getItem('userToken');
-      console.log('Onboarding token check:', !!token);
-      if (!token) {
-        navigation.replace('Auth');
-      }
-    };
-
-    verifyToken();
-  }, []);
-
+const OnboardingNavigator = () => {
   return (
     <Stack.Navigator
       screenOptions={{

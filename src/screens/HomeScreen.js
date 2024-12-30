@@ -95,22 +95,30 @@ const HomeScreen = ({ navigation }) => {
   const { babyData, loading, error, fetchBabyData } = useBaby();
   const [refreshing, setRefreshing] = React.useState(false);
   const [userData, setUserData] = React.useState(null);
+  const initialFetchAttempted = React.useRef(false);
 
-  // Initial data fetch only if we don't have data
+  // Initial data fetch
   useEffect(() => {
-    if (!babyData && !error) {
-      fetchBabyData();
-    }
+    const loadInitialData = async () => {
+      if (!initialFetchAttempted.current) {
+        initialFetchAttempted.current = true;
+        try {
+          await fetchBabyData(true); // Force fetch on initial load
+        } catch (error) {
+          console.error('Initial data fetch error:', error);
+        }
+      }
+    };
+
+    loadInitialData();
   }, []);
 
   // Add focus listener for navigation - only fetch if data was updated
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      // Check if we're returning from EditBaby screen
       const params = navigation.getState().routes.find(r => r.name === 'Home')?.params;
       if (params?.dataUpdated) {
         fetchBabyData(true); // Force fetch when data was updated
-        // Clear the parameter
         navigation.setParams({ dataUpdated: undefined });
       }
     });
@@ -129,7 +137,7 @@ const HomeScreen = ({ navigation }) => {
 
   const handleRetry = useCallback(async () => {
     try {
-      await fetchBabyData();
+      await fetchBabyData(true); // Force fetch on retry
     } catch (err) {
       console.error('Retry failed:', err);
     }
