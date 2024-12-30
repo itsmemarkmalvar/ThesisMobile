@@ -9,6 +9,14 @@ import EditBabyScreen from '../screens/EditBabyScreen';
 import HomeScreen from '../screens/HomeScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import GrowthTrackingScreen from '../screens/GrowthTrackingScreen';
+import DevelopmentScreen from '../screens/DevelopmentScreen';
+import HealthScreen from '../screens/HealthScreen';
+import MedicineScreen from '../screens/MedicineScreen';
+import FeedingScreen from '../screens/FeedingScreen';
+import SleepScreen from '../screens/SleepScreen';
+import DiaperScreen from '../screens/DiaperScreen';
+import ImmunizationScreen from '../screens/ImmunizationScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -27,6 +35,14 @@ const HomeStack = () => (
   >
     <Stack.Screen name="HomeMain" component={HomeScreen} />
     <Stack.Screen name="EditBaby" component={EditBabyScreen} />
+    <Stack.Screen name="GrowthTracking" component={GrowthTrackingScreen} />
+    <Stack.Screen name="Development" component={DevelopmentScreen} />
+    <Stack.Screen name="Health" component={HealthScreen} />
+    <Stack.Screen name="Medicine" component={MedicineScreen} />
+    <Stack.Screen name="Feeding" component={FeedingScreen} />
+    <Stack.Screen name="Sleep" component={SleepScreen} />
+    <Stack.Screen name="Diaper" component={DiaperScreen} />
+    <Stack.Screen name="Immunization" component={ImmunizationScreen} />
   </Stack.Navigator>
 );
 

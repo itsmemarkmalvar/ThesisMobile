@@ -144,7 +144,7 @@ const HomeScreen = ({ navigation }) => {
         {
           icon: 'remove-red-eye',
           label: 'Milestones',
-          onPress: () => navigation.navigate('Development'),
+          onPress: () => navigation.navigate('GrowthTracking', { initialTab: 'milestones' }),
         },
         {
           icon: 'psychology',
@@ -165,7 +165,7 @@ const HomeScreen = ({ navigation }) => {
         {
           icon: 'event-available',
           label: 'Vaccination',
-          onPress: () => navigation.navigate('Health'),
+          onPress: () => navigation.navigate('Immunization'),
         },
         {
           icon: 'local-hospital',
