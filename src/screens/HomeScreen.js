@@ -15,6 +15,9 @@ import { useBaby } from '../context/BabyContext';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { API_URL } from '../config';
 
 const { width } = Dimensions.get('window');
 const cardWidth = width * 0.9;
@@ -91,6 +94,7 @@ const CategorySection = ({ title, actions, startDelay = 0, color }) => (
 const HomeScreen = ({ navigation }) => {
   const { babyData, loading, error, fetchBabyData } = useBaby();
   const [refreshing, setRefreshing] = React.useState(false);
+  const [userData, setUserData] = React.useState(null);
 
   // Initial data fetch only if we don't have data
   useEffect(() => {
@@ -130,6 +134,30 @@ const HomeScreen = ({ navigation }) => {
       console.error('Retry failed:', err);
     }
   }, [fetchBabyData]);
+
+  // Add function to fetch user data
+  const fetchUserData = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) return;
+
+      const response = await axios.get(`${API_URL}/auth/user`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      setUserData(response.data);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    }
+  };
+
+  // Add useEffect to fetch user data
+  useEffect(() => {
+    fetchUserData();
+  }, []);
 
   const categories = {
     growth: {
@@ -267,7 +295,7 @@ const HomeScreen = ({ navigation }) => {
               style={styles.welcomeGradient}
             >
               <Text style={styles.welcomeText}>
-                Welcome back
+                Welcome back{userData?.name ? `, ${userData.name}` : ''}
               </Text>
               {babyData && (
                 <View style={styles.babyInfo}>

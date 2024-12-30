@@ -15,6 +15,7 @@ import {
   KeyboardAvoidingView,
   TouchableWithoutFeedback,
   Keyboard,
+  Dimensions,
 } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -34,7 +35,7 @@ import {
   Animated as ReAnimated
 } from 'react-native-reanimated';
 
-const initialLayout = { width: 320 };
+const initialLayout = { width: Dimensions.get('window').width };
 
 const GrowthTrackingScreen = ({ navigation, route }) => {
   const { updateBabyData } = useBaby();
@@ -50,34 +51,9 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
     notes: ''
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [index, setIndex] = useState(0);
-  const [routes] = useState([
-    { 
-      key: 'history', 
-      title: 'History',
-      icon: 'history' 
-    },
-    { 
-      key: 'charts', 
-      title: 'Charts',
-      icon: 'insert-chart' 
-    },
-    { 
-      key: 'milestones', 
-      title: 'Milestones',
-      icon: 'emoji-events'
-    },
-  ]);
-
-  const tabPosition = useSharedValue(0);
-  const sceneAnimation = useSharedValue(0);
-
-  const indicatorStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateX: withSpring(tabPosition.value * (initialLayout.width / 3)) }],
-      width: initialLayout.width / 3,
-    };
-  });
+  
+  // Simplified tab state
+  const [activeTab, setActiveTab] = useState('history');
 
   const [milestones, setMilestones] = useState([
     {
@@ -139,15 +115,6 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
   useEffect(() => {
     fetchGrowthData();
   }, []);
-
-  useEffect(() => {
-    if (route.params?.initialTab) {
-      const tabIndex = routes.findIndex(r => r.key === route.params.initialTab);
-      if (tabIndex !== -1) {
-        setIndex(tabIndex);
-      }
-    }
-  }, [route.params?.initialTab]);
 
   const fetchGrowthData = async () => {
     try {
@@ -281,8 +248,7 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
       );
     }
 
-    // Debug log to check data structure
-    console.log('Chart data:', data);
+    const chartWidth = Dimensions.get('window').width - (Platform.OS === 'ios' ? 48 : 40);
 
     const sortedData = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
 
@@ -312,15 +278,12 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
       }]
     };
 
-    // Debug log to check processed chart data
-    console.log('Processed chart data:', chartData);
-
     return (
       <View style={styles.chartContainer}>
         <Text style={styles.chartTitle}>{title}</Text>
         <LineChart
           data={chartData}
-          width={350}
+          width={chartWidth}
           height={220}
           chartConfig={{
             backgroundColor: '#ffffff',
@@ -333,13 +296,16 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
               borderRadius: 16
             },
             propsForDots: {
-              r: '6',
-              strokeWidth: '2',
+              r: Platform.OS === 'ios' ? '4' : '6',
+              strokeWidth: Platform.OS === 'ios' ? '1.5' : '2',
               stroke: '#4A90E2'
+            },
+            propsForLabels: {
+              fontSize: Platform.OS === 'ios' ? 10 : 12
             }
           }}
           bezier
-          style={styles.chart}
+          style={[styles.chart, Platform.OS === 'ios' && styles.chartIOS]}
         />
       </View>
     );
@@ -375,39 +341,126 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
     }
   }, []);
 
-  const renderHistoryTab = () => {
-    if (loading) return <LoadingState />;
-    
-    if (!growthData || growthData.length === 0) {
-      return (
-        <EmptyState
-          title="No Growth Records Yet"
-          message="Start tracking your baby's growth by adding your first record"
-          icon="child-care"
-        />
-      );
-    }
-    
-    return (
-      <ScrollView 
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#4A90E2"
-            colors={['#4A90E2']}
-            progressBackgroundColor="#ffffff"
-          />
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'history':
+        if (!growthData || growthData.length === 0) {
+          return (
+            <EmptyState
+              title="No Growth Records Yet"
+              message="Start tracking your baby's growth by adding your first record"
+              icon="child-care"
+            />
+          );
         }
-        style={styles.tabContent}
-      >
-        <View style={styles.historySection}>
-          <Text style={styles.sectionTitle}>Growth History</Text>
-          {growthData.map((record, index) => renderHistoryCard(record, index))}
-        </View>
-      </ScrollView>
-    );
+        return (
+          <ScrollView
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor="#4A90E2"
+                colors={['#4A90E2']}
+                progressBackgroundColor="#ffffff"
+              />
+            }
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+          >
+            <View style={styles.historySection}>
+              <Text style={styles.sectionTitle}>Growth History</Text>
+              {growthData.map((record, index) => renderHistoryCard(record, index))}
+            </View>
+          </ScrollView>
+        );
+
+      case 'charts':
+        return (
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {renderChart(growthData, 'Height Progress (cm)', 'height')}
+            {renderChart(growthData, 'Weight Progress (kg)', 'weight')}
+            {renderChart(growthData, 'Head Size Progress (cm)', 'head_size')}
+          </ScrollView>
+        );
+
+      case 'milestones':
+        return (
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {milestones.map((ageGroup) => (
+              <View key={ageGroup.id} style={styles.milestoneGroup}>
+                <Text style={styles.milestoneAgeTitle}>{ageGroup.age}</Text>
+                {ageGroup.milestones.map((milestone) => (
+                  <TouchableOpacity
+                    key={milestone.id}
+                    style={styles.milestoneItem}
+                    onPress={() => toggleMilestone(ageGroup.id, milestone.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.milestoneContent}>
+                      <MaterialIcons
+                        name={milestone.completed ? "check-circle" : "radio-button-unchecked"}
+                        size={24}
+                        color={milestone.completed ? "#4CAF50" : "#BDBDBD"}
+                        style={styles.milestoneIcon}
+                      />
+                      <Text style={[
+                        styles.milestoneText,
+                        milestone.completed && styles.milestoneTextCompleted
+                      ]}>
+                        {milestone.title}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ))}
+          </ScrollView>
+        );
+
+      default:
+        return null;
+    }
   };
+
+  const CustomTabBar = () => (
+    <View style={styles.customTabBar}>
+      {[
+        { key: 'history', title: 'History', icon: 'history' },
+        { key: 'charts', title: 'Charts', icon: 'insert-chart' },
+        { key: 'milestones', title: 'Milestones', icon: 'emoji-events' }
+      ].map((tab) => (
+        <TouchableOpacity
+          key={tab.key}
+          style={[
+            styles.tabButton,
+            activeTab === tab.key && styles.activeTabButton
+          ]}
+          onPress={() => setActiveTab(tab.key)}
+          activeOpacity={0.7}
+        >
+          <MaterialIcons
+            name={tab.icon}
+            size={24}
+            color={activeTab === tab.key ? '#4A90E2' : '#666666'}
+          />
+          <Text
+            style={[
+              styles.tabButtonText,
+              activeTab === tab.key && styles.activeTabButtonText
+            ]}
+          >
+            {tab.title}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
 
   const renderHistoryCard = (record, index) => (
     <View key={index} style={styles.historyCard}>
@@ -453,89 +506,6 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
     </View>
   );
 
-  const renderChartsTab = () => (
-    <ScrollView style={styles.tabContent}>
-      {renderChart(growthData, 'Height Progress (cm)', 'height')}
-      {renderChart(growthData, 'Weight Progress (kg)', 'weight')}
-      {renderChart(growthData, 'Head Size Progress (cm)', 'head_size')}
-    </ScrollView>
-  );
-
-  const renderMilestonesTab = () => (
-    <ScrollView style={styles.tabContent}>
-      {milestones.map((ageGroup) => (
-        <View key={ageGroup.id} style={styles.milestoneGroup}>
-          <Text style={styles.milestoneAgeTitle}>{ageGroup.age}</Text>
-          {ageGroup.milestones.map((milestone) => (
-            <TouchableOpacity
-              key={milestone.id}
-              style={styles.milestoneItem}
-              onPress={() => toggleMilestone(ageGroup.id, milestone.id)}
-            >
-              <View style={styles.milestoneContent}>
-                <MaterialIcons
-                  name={milestone.completed ? "check-circle" : "radio-button-unchecked"}
-                  size={24}
-                  color={milestone.completed ? "#4CAF50" : "#BDBDBD"}
-                  style={styles.milestoneIcon}
-                />
-                <Text style={[
-                  styles.milestoneText,
-                  milestone.completed && styles.milestoneTextCompleted
-                ]}>
-                  {milestone.title}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-      ))}
-    </ScrollView>
-  );
-
-  const renderScene = SceneMap({
-    history: renderHistoryTab,
-    charts: renderChartsTab,
-    milestones: renderMilestonesTab,
-  });
-
-  const renderTabBar = props => (
-    <View style={styles.tabBarWrapper}>
-      <TabBar
-        {...props}
-        style={styles.tabBar}
-        indicatorStyle={styles.indicator}
-        activeColor="#4A90E2"
-        inactiveColor="#666666"
-        renderLabel={({ route, focused, color }) => (
-          <View style={styles.tabLabelContainer}>
-            <MaterialIcons
-              name={route.icon}
-              size={24}
-              color={focused ? '#4A90E2' : '#666666'}
-              style={styles.tabIcon}
-            />
-            <Text style={[
-              styles.tabLabelText,
-              { color: focused ? '#4A90E2' : '#666666' }
-            ]}>
-              {route.title}
-            </Text>
-          </View>
-        )}
-      />
-    </View>
-  );
-
-  const handleIndexChange = (newIndex) => {
-    setIndex(newIndex);
-  };
-
-  useEffect(() => {
-    // Update tab position when index changes from outside (e.g., navigation params)
-    tabPosition.value = withSpring(index * (initialLayout.width / 3));
-  }, [index]);
-
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -558,7 +528,7 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
         colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
         style={styles.gradient}
       >
-        <View style={styles.header}>
+        <View style={[styles.header, Platform.OS === 'ios' && styles.headerIOS]}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
@@ -569,24 +539,21 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
           <View style={styles.headerRight} />
         </View>
 
-        <TabView
-          navigationState={{ index, routes }}
-          renderScene={renderScene}
-          onIndexChange={setIndex}
-          initialLayout={{ width: 320 }}
-          renderTabBar={renderTabBar}
-          style={styles.tabView}
-        />
+        <CustomTabBar />
+        
+        <View style={styles.contentContainer}>
+          {renderTabContent()}
+        </View>
 
         <TouchableOpacity
-          style={styles.fab}
+          style={[styles.fab, Platform.OS === 'ios' && styles.fabIOS]}
           onPress={() => setModalVisible(true)}
         >
           <MaterialIcons name="add" size={24} color="#FFF" />
         </TouchableOpacity>
 
         <Modal
-          animationType="none"
+          animationType={Platform.OS === 'ios' ? 'slide' : 'none'}
           transparent={true}
           visible={modalVisible}
           onRequestClose={() => setModalVisible(false)}
@@ -595,9 +562,13 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
           <KeyboardAvoidingView 
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             style={styles.modalContainer}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
           >
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-              <View style={[styles.modalContent, { minHeight: 450 }]}>
+              <View style={[
+                styles.modalContent,
+                { minHeight: Platform.OS === 'ios' ? 500 : 450 }
+              ]}>
                 <Text style={styles.modalTitle}>Add Growth Record</Text>
                 
                 <TextInput
@@ -708,7 +679,12 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    padding: 20,
+    backgroundColor: 'transparent',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingVertical: 16,
+    paddingHorizontal: Platform.OS === 'ios' ? 16 : 12,
   },
   loadingContainer: {
     flex: 1,
@@ -717,19 +693,20 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   chartContainer: {
-    marginHorizontal: 16,
-    marginBottom: 20,
+    marginHorizontal: Platform.OS === 'ios' ? 20 : 16,
+    marginBottom: Platform.OS === 'ios' ? 24 : 20,
     backgroundColor: 'white',
     borderRadius: 15,
-    padding: 16,
+    padding: Platform.OS === 'ios' ? 20 : 16,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
+    shadowOpacity: Platform.OS === 'ios' ? 0.15 : 0.1,
+    shadowRadius: Platform.OS === 'ios' ? 6 : 3.84,
     elevation: 5,
+    overflow: Platform.OS === 'ios' ? 'visible' : 'hidden',
   },
   chartTitle: {
     fontSize: 18,
@@ -741,10 +718,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginVertical: 8,
   },
+  chartIOS: {
+    marginHorizontal: -10, // Compensate for iOS padding issues
+  },
   fab: {
     position: 'absolute',
     right: 20,
-    bottom: 20,
+    bottom: Platform.OS === 'ios' ? 40 : 20,
     backgroundColor: '#4A90E2',
     width: 56,
     height: 56,
@@ -761,25 +741,31 @@ const styles = StyleSheet.create({
     shadowRadius: 4.65,
     transform: [{ scale: 1.1 }],
   },
+  fabIOS: {
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+  },
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    paddingHorizontal: 20,
+    paddingHorizontal: Platform.OS === 'ios' ? 24 : 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
   },
   modalContent: {
     backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: Platform.OS === 'ios' ? 24 : 20,
+    padding: Platform.OS === 'ios' ? 24 : 20,
     width: '100%',
+    maxHeight: Platform.OS === 'ios' ? '80%' : '90%',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowOpacity: Platform.OS === 'ios' ? 0.25 : 0.25,
+    shadowRadius: Platform.OS === 'ios' ? 8 : 4,
     elevation: 5,
   },
   modalTitle: {
@@ -792,9 +778,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
-    padding: 12,
+    padding: Platform.OS === 'ios' ? 14 : 12,
     marginBottom: 15,
-    fontSize: 16,
+    fontSize: Platform.OS === 'ios' ? 17 : 16,
     backgroundColor: '#fff',
   },
   notesInput: {
@@ -856,31 +842,46 @@ const styles = StyleSheet.create({
   tabContent: {
     flex: 1,
     backgroundColor: 'transparent',
-    paddingTop: 20,
+  },
+  historyScrollContent: {
+    flexGrow: 1,
+    paddingVertical: 16,
+    paddingHorizontal: Platform.OS === 'ios' ? 16 : 12,
+  },
+  chartsScrollContent: {
+    flexGrow: 1,
+    paddingVertical: 16,
+    paddingHorizontal: Platform.OS === 'ios' ? 16 : 12,
+  },
+  milestonesScrollContent: {
+    flexGrow: 1,
+    paddingVertical: 16,
+    paddingHorizontal: Platform.OS === 'ios' ? 16 : 12,
   },
   historySection: {
-    marginHorizontal: 16,
-    marginBottom: 20,
+    flex: 1,
+    marginHorizontal: Platform.OS === 'ios' ? 16 : 12,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 16,
+    color: '#333',
+    marginLeft: Platform.OS === 'ios' ? 4 : 0,
   },
   historyCard: {
     backgroundColor: '#fff',
-    borderRadius: 20,
-    marginHorizontal: 16,
+    borderRadius: Platform.OS === 'ios' ? 16 : 12,
     marginBottom: 16,
-    padding: 20,
-    elevation: 4,
+    padding: Platform.OS === 'ios' ? 20 : 16,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: Platform.OS === 'ios' ? 2 : 1,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOpacity: Platform.OS === 'ios' ? 0.1 : 0.08,
+    shadowRadius: Platform.OS === 'ios' ? 8 : 4,
+    elevation: 3,
   },
   historyCardHeader: {
     marginBottom: 20,
@@ -954,8 +955,8 @@ const styles = StyleSheet.create({
   },
   tabBarWrapper: {
     backgroundColor: 'white',
-    marginHorizontal: 16,
-    marginVertical: 8,
+    marginHorizontal: Platform.OS === 'ios' ? 20 : 16,
+    marginVertical: Platform.OS === 'ios' ? 12 : 8,
     borderRadius: 12,
     elevation: 3,
     shadowColor: '#000',
@@ -963,21 +964,24 @@ const styles = StyleSheet.create({
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
+    shadowOpacity: Platform.OS === 'ios' ? 0.2 : 0.15,
+    shadowRadius: Platform.OS === 'ios' ? 6 : 3,
+    overflow: Platform.OS === 'ios' ? 'visible' : 'hidden',
+    zIndex: 1,
   },
   tabBar: {
     backgroundColor: 'white',
     elevation: 0,
     shadowOpacity: 0,
-    height: 48,
+    height: Platform.OS === 'ios' ? 56 : 48,
     borderRadius: 12,
+    overflow: Platform.OS === 'ios' ? 'visible' : 'hidden',
   },
   tabLabelContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 8,
+    padding: Platform.OS === 'ios' ? 10 : 8,
   },
   tabIcon: {
     marginRight: 8,
@@ -990,9 +994,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#4A90E2',
     height: 3,
     borderRadius: 1.5,
+    zIndex: 2,
   },
   tabView: {
-    backgroundColor: 'transparent',
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -1002,6 +1007,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
+  },
+  headerIOS: {
+    paddingTop: 8,
+    height: 60,
   },
   backButton: {
     padding: 8,
@@ -1063,18 +1072,18 @@ const styles = StyleSheet.create({
   },
   milestoneGroup: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 16,
+    borderRadius: Platform.OS === 'ios' ? 16 : 12,
+    padding: Platform.OS === 'ios' ? 20 : 16,
+    marginHorizontal: Platform.OS === 'ios' ? 20 : 16,
+    marginBottom: Platform.OS === 'ios' ? 20 : 16,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 1,
+      height: Platform.OS === 'ios' ? 2 : 1,
     },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
+    shadowOpacity: Platform.OS === 'ios' ? 0.2 : 0.2,
+    shadowRadius: Platform.OS === 'ios' ? 6 : 1.41,
   },
   milestoneAgeTitle: {
     fontSize: 18,
@@ -1086,7 +1095,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F0F0F0',
   },
   milestoneItem: {
-    paddingVertical: 12,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
   },
@@ -1107,12 +1116,69 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     textDecorationStyle: 'solid',
   },
-  tabLabelContainer: {
+  sceneContainer: {
+    backgroundColor: 'transparent',
+  },
+  pagerIOS: {
+    overflow: 'visible',
+  },
+  tabContainer: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  tabView: {
+    flex: 1,
+  },
+  customTabBar: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 12,
+    padding: 4,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+  },
+  tabButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 8,
   },
-  tabLabelText: {
-    marginLeft: 8,
+  activeTabButton: {
+    backgroundColor: '#F5F8FF',
+  },
+  tabButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666666',
+    marginLeft: 4,
+  },
+  activeTabButtonText: {
+    color: '#4A90E2',
+  },
+  contentContainer: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
   },
 });
 
