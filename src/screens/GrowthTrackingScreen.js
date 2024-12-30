@@ -12,6 +12,9 @@ import {
   Alert,
   Pressable,
   RefreshControl,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,6 +25,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../config';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
+import { useBaby } from '../context/BabyContext';
 import {
   useSharedValue,
   useAnimatedStyle,
@@ -33,6 +37,7 @@ import {
 const initialLayout = { width: 320 };
 
 const GrowthTrackingScreen = ({ navigation, route }) => {
+  const { updateBabyData } = useBaby();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [growthData, setGrowthData] = useState([]);
@@ -195,6 +200,77 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
     }
   };
 
+  const handleAddMeasurement = async () => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem('userToken');
+
+      if (!token) {
+        navigation.replace('Auth');
+        return;
+      }
+
+      // Validate measurements
+      const height = parseFloat(newRecord.height);
+      const weight = parseFloat(newRecord.weight);
+      const headSize = parseFloat(newRecord.head_size);
+
+      if (isNaN(height) || height <= 0 || height > 200) {
+        Alert.alert('Error', 'Please enter a valid height (0-200 cm)');
+        return;
+      }
+      if (isNaN(weight) || weight <= 0 || weight > 50) {
+        Alert.alert('Error', 'Please enter a valid weight (0-50 kg)');
+        return;
+      }
+      if (isNaN(headSize) || headSize <= 0 || headSize > 100) {
+        Alert.alert('Error', 'Please enter a valid head size (0-100 cm)');
+        return;
+      }
+
+      const measurementData = {
+        height,
+        weight,
+        head_size: headSize,
+        date_recorded: newRecord.date_recorded.toISOString().split('T')[0],
+        notes: newRecord.notes.trim()
+      };
+
+      const response = await axios.post(`${API_URL}/growth/record`, measurementData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      });
+
+      if (response.data.success) {
+        // Update local state
+        setGrowthData(prevData => [response.data.data, ...prevData]);
+        // Update baby data with latest measurements
+        updateBabyData({
+          height,
+          weight,
+          head_size: headSize,
+        });
+        setModalVisible(false);
+        // Clear form
+        setNewRecord({
+          height: '',
+          weight: '',
+          head_size: '',
+          date_recorded: new Date(),
+          notes: ''
+        });
+      }
+    } catch (error) {
+      console.error('Error adding measurement:', error.response?.data || error.message);
+      Alert.alert('Error', 'Failed to add measurement. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renderChart = (data, title, unit) => {
     if (!data || data.length === 0) {
       return (
@@ -205,15 +281,39 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
       );
     }
 
+    // Debug log to check data structure
+    console.log('Chart data:', data);
+
+    const sortedData = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
+
     const chartData = {
-      labels: data.map(d => {
-        const date = new Date(d.date);
-        return `${date.getMonth() + 1}/${date.getDate()}`;
+      labels: sortedData.map(d => {
+        try {
+          const date = new Date(d.date);
+          if (isNaN(date.getTime())) {
+            console.log('Invalid date:', d.date);
+            return '';
+          }
+          return `${date.getMonth() + 1}/${date.getDate()}`;
+        } catch (error) {
+          console.error('Date parsing error:', error);
+          return '';
+        }
       }),
       datasets: [{
-        data: data.map(d => Number(d[unit.toLowerCase()]) || 0)
+        data: sortedData.map(d => {
+          const value = Number(d[unit.toLowerCase()]);
+          if (isNaN(value)) {
+            console.log('Invalid value for', unit, ':', d[unit.toLowerCase()]);
+            return 0;
+          }
+          return value;
+        })
       }]
     };
+
+    // Debug log to check processed chart data
+    console.log('Processed chart data:', chartData);
 
     return (
       <View style={styles.chartContainer}>
@@ -315,7 +415,7 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
         <View style={styles.dateContainer}>
           <MaterialIcons name="event" size={20} color="#666" />
           <Text style={styles.dateText}>
-            {new Date(record.date_recorded).toLocaleDateString()}
+            {new Date(record.date).toLocaleDateString()}
           </Text>
         </View>
       </View>
@@ -399,99 +499,11 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
     milestones: renderMilestonesTab,
   });
 
-  const TabItem = ({ route, focused, onPress }) => {
-    const scale = useSharedValue(1);
-    const opacity = useSharedValue(1);
-
-    const animatedStyles = useAnimatedStyle(() => {
-      return {
-        transform: [{ scale: scale.value }],
-        opacity: opacity.value,
-      };
-    });
-
-    const handlePressIn = () => {
-      scale.value = withSpring(0.95);
-      opacity.value = withTiming(0.8);
-    };
-
-    const handlePressOut = () => {
-      scale.value = withSpring(1);
-      opacity.value = withTiming(1);
-    };
-
-    const getTabColor = (focused) => {
-      switch (route.key) {
-        case 'history':
-          return focused ? '#4A90E2' : '#E8F1FB';
-        case 'charts':
-          return focused ? '#FF6B6B' : '#FFE8E8';
-        case 'milestones':
-          return focused ? '#4CAF50' : '#E8F5E9';
-        default:
-          return focused ? '#4A90E2' : '#E8F1FB';
-      }
-    };
-
-    const getIconColor = (focused) => {
-      switch (route.key) {
-        case 'history':
-          return focused ? '#FFFFFF' : '#4A90E2';
-        case 'charts':
-          return focused ? '#FFFFFF' : '#FF6B6B';
-        case 'milestones':
-          return focused ? '#FFFFFF' : '#4CAF50';
-        default:
-          return focused ? '#FFFFFF' : '#4A90E2';
-      }
-    };
-
-    return (
-      <Pressable
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        android_ripple={{ 
-          color: 'rgba(0, 0, 0, 0.1)',
-          borderless: true 
-        }}
-        style={({ pressed }) => [
-          styles.tabItem,
-          { backgroundColor: getTabColor(focused) },
-          focused && styles.tabItemActive,
-          pressed && styles.tabItemPressed
-        ]}
-      >
-        <ReAnimated.View style={[styles.tabItemContent, animatedStyles]}>
-          <MaterialIcons
-            name={route.icon}
-            size={24}
-            color={getIconColor(focused)}
-            style={styles.tabIcon}
-          />
-          <Text
-            style={[
-              styles.tabLabel,
-              { 
-                color: getIconColor(focused),
-                fontWeight: focused ? '700' : '600',
-                fontSize: 13
-              }
-            ]}
-          >
-            {route.title}
-          </Text>
-        </ReAnimated.View>
-      </Pressable>
-    );
-  };
-
   const renderTabBar = props => (
     <View style={styles.tabBarWrapper}>
       <TabBar
         {...props}
         style={styles.tabBar}
-        labelStyle={styles.tabLabel}
         indicatorStyle={styles.indicator}
         activeColor="#4A90E2"
         inactiveColor="#666666"
@@ -517,97 +529,12 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
 
   const handleIndexChange = (newIndex) => {
     setIndex(newIndex);
-    sceneAnimation.value = withSpring(newIndex, {
-      damping: 20,
-      stiffness: 90
-    });
   };
 
-  const AddRecordModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={modalVisible}
-      onRequestClose={() => setModalVisible(false)}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Add Growth Record</Text>
-          
-          <TextInput
-            style={styles.input}
-            placeholder="Height (cm)"
-            keyboardType="decimal-pad"
-            value={newRecord.height}
-            onChangeText={(text) => setNewRecord({...newRecord, height: text})}
-          />
-          
-          <TextInput
-            style={styles.input}
-            placeholder="Weight (kg)"
-            keyboardType="decimal-pad"
-            value={newRecord.weight}
-            onChangeText={(text) => setNewRecord({...newRecord, weight: text})}
-          />
-          
-          <TextInput
-            style={styles.input}
-            placeholder="Head Size (cm)"
-            keyboardType="decimal-pad"
-            value={newRecord.head_size}
-            onChangeText={(text) => setNewRecord({...newRecord, head_size: text})}
-          />
-          
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <Text style={styles.dateButtonText}>
-              {newRecord.date_recorded.toLocaleDateString()}
-            </Text>
-          </TouchableOpacity>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={newRecord.date_recorded}
-              mode="date"
-              display="default"
-              onChange={(event, selectedDate) => {
-                setShowDatePicker(false);
-                if (selectedDate) {
-                  setNewRecord({...newRecord, date_recorded: selectedDate});
-                }
-              }}
-            />
-          )}
-          
-          <TextInput
-            style={[styles.input, styles.notesInput]}
-            placeholder="Notes"
-            multiline
-            value={newRecord.notes}
-            onChangeText={(text) => setNewRecord({...newRecord, notes: text})}
-          />
-
-          <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={styles.buttonText}>Cancel</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.button, styles.saveButton]}
-              onPress={handleAddRecord}
-            >
-              <Text style={styles.buttonText}>Save</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
+  useEffect(() => {
+    // Update tab position when index changes from outside (e.g., navigation params)
+    tabPosition.value = withSpring(index * (initialLayout.width / 3));
+  }, [index]);
 
   if (loading) {
     return (
@@ -658,7 +585,115 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
           <MaterialIcons name="add" size={24} color="#FFF" />
         </TouchableOpacity>
 
-        <AddRecordModal />
+        <Modal
+          animationType="none"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+          statusBarTranslucent={true}
+        >
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.modalContainer}
+          >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <View style={[styles.modalContent, { minHeight: 450 }]}>
+                <Text style={styles.modalTitle}>Add Growth Record</Text>
+                
+                <TextInput
+                  style={styles.input}
+                  placeholder="Height (cm)"
+                  keyboardType="decimal-pad"
+                  value={newRecord.height}
+                  onChangeText={(text) => {
+                    if (/^\d*\.?\d*$/.test(text)) {
+                      setNewRecord(prev => ({...prev, height: text}));
+                    }
+                  }}
+                  maxLength={5}
+                />
+                
+                <TextInput
+                  style={styles.input}
+                  placeholder="Weight (kg)"
+                  keyboardType="decimal-pad"
+                  value={newRecord.weight}
+                  onChangeText={(text) => {
+                    if (/^\d*\.?\d*$/.test(text)) {
+                      setNewRecord(prev => ({...prev, weight: text}));
+                    }
+                  }}
+                  maxLength={5}
+                />
+                
+                <TextInput
+                  style={styles.input}
+                  placeholder="Head Size (cm)"
+                  keyboardType="decimal-pad"
+                  value={newRecord.head_size}
+                  onChangeText={(text) => {
+                    if (/^\d*\.?\d*$/.test(text)) {
+                      setNewRecord(prev => ({...prev, head_size: text}));
+                    }
+                  }}
+                  maxLength={5}
+                />
+                
+                <TouchableOpacity
+                  style={styles.dateButton}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Text style={styles.dateButtonText}>
+                    {newRecord.date_recorded.toLocaleDateString()}
+                  </Text>
+                </TouchableOpacity>
+
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={newRecord.date_recorded}
+                    mode="date"
+                    display="default"
+                    onChange={(event, selectedDate) => {
+                      setShowDatePicker(false);
+                      if (selectedDate) {
+                        setNewRecord(prev => ({...prev, date_recorded: selectedDate}));
+                      }
+                    }}
+                    maximumDate={new Date()}
+                  />
+                )}
+                
+                <TextInput
+                  style={[styles.input, styles.notesInput]}
+                  placeholder="Notes (optional)"
+                  multiline
+                  value={newRecord.notes}
+                  onChangeText={(text) => setNewRecord(prev => ({...prev, notes: text}))}
+                />
+
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity
+                    style={[styles.button, styles.cancelButton]}
+                    onPress={() => setModalVisible(false)}
+                  >
+                    <Text style={styles.buttonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.button, styles.saveButton]}
+                    onPress={handleAddMeasurement}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color="#FFF" />
+                    ) : (
+                      <Text style={styles.buttonText}>Save</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </KeyboardAvoidingView>
+        </Modal>
       </LinearGradient>
     </SafeAreaView>
   );
@@ -731,12 +766,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: 20,
   },
   modalContent: {
     backgroundColor: 'white',
     borderRadius: 20,
     padding: 20,
-    width: '90%',
+    width: '100%',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -756,9 +792,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
-    padding: 10,
+    padding: 12,
     marginBottom: 15,
     fontSize: 16,
+    backgroundColor: '#fff',
   },
   notesInput: {
     height: 100,
@@ -933,23 +970,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     elevation: 0,
     shadowOpacity: 0,
-    height: 60,
+    height: 48,
     borderRadius: 12,
   },
   tabLabelContainer: {
-    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 8,
   },
-  tabLabelText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 4,
-    textAlign: 'center',
-  },
   tabIcon: {
-    marginBottom: 4,
+    marginRight: 8,
+  },
+  tabLabelText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   indicator: {
     backgroundColor: '#4A90E2',
@@ -1071,6 +1106,13 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     textDecorationLine: 'line-through',
     textDecorationStyle: 'solid',
+  },
+  tabLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tabLabelText: {
+    marginLeft: 8,
   },
 });
 

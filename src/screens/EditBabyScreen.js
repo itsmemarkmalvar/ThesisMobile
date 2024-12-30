@@ -25,9 +25,6 @@ const EditBabyScreen = ({ route, navigation }) => {
     name: babyData.name,
     gender: babyData.gender,
     birth_date: new Date(babyData.birth_date),
-    height: babyData.height.toString(),
-    weight: babyData.weight.toString(),
-    head_size: babyData.head_size.toString(),
   });
   const [errors, setErrors] = useState({});
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -38,10 +35,7 @@ const EditBabyScreen = ({ route, navigation }) => {
     const hasChanges = 
       formData.name !== babyData.name ||
       formData.gender !== babyData.gender ||
-      formData.birth_date.toISOString().split('T')[0] !== new Date(babyData.birth_date).toISOString().split('T')[0] ||
-      parseFloat(formData.height) !== babyData.height ||
-      parseFloat(formData.weight) !== babyData.weight ||
-      parseFloat(formData.head_size) !== babyData.head_size;
+      formData.birth_date.toISOString().split('T')[0] !== new Date(babyData.birth_date).toISOString().split('T')[0];
     
     setHasUnsavedChanges(hasChanges);
   }, [formData, babyData]);
@@ -89,30 +83,6 @@ const EditBabyScreen = ({ route, navigation }) => {
       newErrors.birth_date = 'Birth date cannot be in the future';
     }
 
-    // Height validation
-    const height = parseFloat(formData.height);
-    if (isNaN(height) || height <= 0) {
-      newErrors.height = 'Please enter a valid height';
-    } else if (height > 200) {
-      newErrors.height = 'Height seems too large';
-    }
-
-    // Weight validation
-    const weight = parseFloat(formData.weight);
-    if (isNaN(weight) || weight <= 0) {
-      newErrors.weight = 'Please enter a valid weight';
-    } else if (weight > 50) {
-      newErrors.weight = 'Weight seems too large';
-    }
-
-    // Head size validation
-    const headSize = parseFloat(formData.head_size);
-    if (isNaN(headSize) || headSize <= 0) {
-      newErrors.head_size = 'Please enter a valid head size';
-    } else if (headSize > 100) {
-      newErrors.head_size = 'Head size seems too large';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -135,12 +105,9 @@ const EditBabyScreen = ({ route, navigation }) => {
       const updateData = {
         ...formData,
         birth_date: formData.birth_date.toISOString().split('T')[0],
-        height: parseFloat(formData.height),
-        weight: parseFloat(formData.weight),
-        head_size: parseFloat(formData.head_size),
       };
 
-      const response = await axios.put(`${API_URL}/baby`, updateData, {
+      const response = await axios.put(`${API_URL}/baby/profile`, updateData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -258,51 +225,6 @@ const EditBabyScreen = ({ route, navigation }) => {
               maximumDate={new Date()}
             />
           )}
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Height (cm)</Text>
-          <TextInput
-            style={[styles.input, errors.height && styles.inputError]}
-            value={formData.height}
-            onChangeText={(text) => {
-              setFormData(prev => ({ ...prev, height: text }));
-              setErrors(prev => ({ ...prev, height: undefined }));
-            }}
-            keyboardType="decimal-pad"
-            placeholder="Height in centimeters"
-          />
-          {errors.height && <Text style={styles.errorText}>{errors.height}</Text>}
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Weight (kg)</Text>
-          <TextInput
-            style={[styles.input, errors.weight && styles.inputError]}
-            value={formData.weight}
-            onChangeText={(text) => {
-              setFormData(prev => ({ ...prev, weight: text }));
-              setErrors(prev => ({ ...prev, weight: undefined }));
-            }}
-            keyboardType="decimal-pad"
-            placeholder="Weight in kilograms"
-          />
-          {errors.weight && <Text style={styles.errorText}>{errors.weight}</Text>}
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Head Size (cm)</Text>
-          <TextInput
-            style={[styles.input, errors.head_size && styles.inputError]}
-            value={formData.head_size}
-            onChangeText={(text) => {
-              setFormData(prev => ({ ...prev, head_size: text }));
-              setErrors(prev => ({ ...prev, head_size: undefined }));
-            }}
-            keyboardType="decimal-pad"
-            placeholder="Head circumference in centimeters"
-          />
-          {errors.head_size && <Text style={styles.errorText}>{errors.head_size}</Text>}
         </View>
       </ScrollView>
 

@@ -401,7 +401,10 @@ const BabyScreen = ({ navigation, route }) => {
             </View>
 
             {/* Quick Stats */}
-            <View style={styles.statsContainer}>
+            <TouchableOpacity 
+              style={styles.statsContainer}
+              onPress={() => navigation.navigate('GrowthTracking')}
+            >
               <View style={styles.statItem}>
                 <MaterialIcons name="straighten" size={24} color="#4A90E2" />
                 <Text style={styles.statValue}>{babyData.height}</Text>
@@ -419,7 +422,7 @@ const BabyScreen = ({ navigation, route }) => {
                 <Text style={styles.statValue}>{babyData.head_size}</Text>
                 <Text style={styles.statLabel}>cm</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           </View>
 
           {/* Details Cards */}
@@ -604,12 +607,14 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-evenly',
     alignItems: 'center',
     backgroundColor: 'rgba(248, 250, 255, 0.95)',
     borderRadius: 20,
-    padding: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 10,
     marginTop: 24,
+    marginHorizontal: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -617,28 +622,26 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   statItem: {
-    flex: 1,
     alignItems: 'center',
+    width: '30%',
   },
   statDivider: {
-    width: 1.5,
-    height: '70%',
+    width: 1,
+    height: '60%',
     backgroundColor: 'rgba(224, 224, 224, 0.8)',
-    borderRadius: 1,
   },
   statValue: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#333',
-    marginTop: 10,
-    letterSpacing: 0.5,
+    marginTop: 8,
+    letterSpacing: 0.3,
   },
   statLabel: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#666',
-    marginTop: 5,
     fontWeight: '500',
-    letterSpacing: 0.3,
+    marginTop: 4,
   },
   detailsContainer: {
     padding: 16,
@@ -752,6 +755,21 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 12,
     backgroundColor: 'rgba(248, 250, 255, 0.9)',
+  },
+  updateIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(248, 250, 255, 0.9)',
+    borderRadius: 12,
+    padding: 8,
+    marginTop: 10,
+  },
+  updateText: {
+    fontSize: 14,
+    color: '#4A90E2',
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });
 
