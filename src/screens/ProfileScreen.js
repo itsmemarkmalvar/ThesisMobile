@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Modal,
+  Modal as RNModal,
   TextInput,
   Platform,
 } from 'react-native';
@@ -19,6 +19,22 @@ import axios from 'axios';
 import { API_URL } from '../config';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
+
+const CustomModal = ({ visible, onClose, title, children }) => (
+  <RNModal
+    animationType="slide"
+    transparent={true}
+    visible={visible}
+    onRequestClose={onClose}
+  >
+    <View style={styles.modalContainer}>
+      <View style={styles.modalContent}>
+        <Text style={styles.modalTitle}>{title}</Text>
+        {children}
+      </View>
+    </View>
+  </RNModal>
+);
 
 const ProfileScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
@@ -119,17 +135,46 @@ const ProfileScreen = ({ navigation, route }) => {
     setModalVisible(true);
   };
 
-  const onDateChange = (event, selectedDate) => {
+  const onDateChange = async (event, selectedDate) => {
     if (Platform.OS === 'android') {
       setShowDatePicker(false);
     }
     
     if (selectedDate) {
       setDate(selectedDate);
-      setEditValue(selectedDate.toISOString().split('T')[0]);
-      handleUpdate();
+      const formattedDate = selectedDate.toISOString().split('T')[0];
+      setEditValue(formattedDate);
+      
+      try {
+        setFieldLoading(prev => ({ ...prev, [editField]: true }));
+        const token = await AsyncStorage.getItem('userToken');
+        if (!token) throw new Error('No token found');
+
+        const response = await axios.put(
+          `${API_URL}/auth/user/update`,
+          { [editField]: formattedDate },
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
+            }
+          }
+        );
+
+        if (response.data.user) {
+          setUserData(response.data.user);
+          Alert.alert('Success', 'Birthday updated successfully');
+        } else {
+          await fetchUserData(); // Fetch updated data if not included in response
+        }
+      } catch (error) {
+        console.error('Error updating birthday:', error);
+        Alert.alert('Error', 'Failed to update birthday');
+      } finally {
+        setFieldLoading(prev => ({ ...prev, [editField]: false }));
+        setModalVisible(false);
+      }
     }
-    setModalVisible(false);
   };
 
   const handleUpdate = async () => {
@@ -240,99 +285,108 @@ const ProfileScreen = ({ navigation, route }) => {
           )}
         </ScrollView>
 
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={modalVisible}
-          onRequestClose={() => {
-            setModalVisible(false);
-            setShowDatePicker(false);
-          }}
+        <CustomModal
+          visible={modalVisible && editField !== 'birthday' && editField !== 'gender'}
+          onClose={() => setModalVisible(false)}
+          title={`Edit ${editField?.replace('_', ' ').charAt(0).toUpperCase() + editField?.slice(1)}`}
         >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>
-                {editField === 'birthday' ? 'Select Birthday' : 
-                  `Edit ${editField?.replace('_', ' ').charAt(0).toUpperCase() + editField?.slice(1)}`}
-              </Text>
-              
-              {editField === 'birthday' && (
-                <>
-                  {(Platform.OS === 'ios' || showDatePicker) && (
-                    <View style={styles.datePickerContainer}>
-                      <DateTimePicker
-                        value={date}
-                        mode="date"
-                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                        onChange={onDateChange}
-                        style={styles.datePicker}
-                        maximumDate={new Date()} // Prevent future dates
-                      />
-                      {Platform.OS === 'ios' && (
-                        <Text style={styles.selectedDate}>
-                          Selected: {formatDate(editValue)}
-                        </Text>
-                      )}
-                    </View>
-                  )}
-                  {Platform.OS === 'android' && !showDatePicker && (
-                    <Text style={styles.selectedDate}>
-                      Selected: {formatDate(editValue)}
-                    </Text>
-                  )}
-                </>
-              )}
-
-              {editField === 'gender' ? (
-                <Picker
-                  selectedValue={editValue}
-                  onValueChange={(itemValue) => setEditValue(itemValue)}
-                  style={styles.picker}
-                >
-                  <Picker.Item label="Select Gender" value="" />
-                  <Picker.Item label="Male" value="male" />
-                  <Picker.Item label="Female" value="female" />
-                </Picker>
-              ) : (
-                <TextInput
-                  style={styles.modalInput}
-                  value={editValue}
-                  onChangeText={setEditValue}
-                  placeholder={`Enter ${editField?.replace('_', ' ')}`}
-                  keyboardType={
-                    editField === 'phone_number' || editField === 'postal_code' 
-                      ? 'numeric' 
-                      : 'default'
-                  }
-                  maxLength={
-                    editField === 'phone_number' 
-                      ? 11 
-                      : editField === 'postal_code'
-                        ? 4
-                        : undefined
-                  }
-                />
-              )}
-
-              <View style={styles.modalButtons}>
-                <TouchableOpacity 
-                  style={[styles.modalButton, styles.cancelButton]}
-                  onPress={() => {
-                    setModalVisible(false);
-                  }}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.modalButton, styles.saveButton]}
-                  onPress={handleUpdate}
-                >
-                  <Text style={styles.saveButtonText}>Save</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+          <TextInput
+            style={styles.modalInput}
+            value={editValue}
+            onChangeText={setEditValue}
+            placeholder={`Enter ${editField?.replace('_', ' ')}`}
+            keyboardType={
+              editField === 'phone_number' || editField === 'postal_code' 
+                ? 'numeric' 
+                : 'default'
+            }
+            maxLength={
+              editField === 'phone_number' 
+                ? 11 
+                : editField === 'postal_code'
+                  ? 4
+                  : undefined
+            }
+          />
+          <View style={styles.modalButtons}>
+            <TouchableOpacity 
+              style={[styles.modalButton, styles.cancelButton]}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.modalButton, styles.saveButton]}
+              onPress={handleUpdate}
+            >
+              <Text style={styles.saveButtonText}>Save</Text>
+            </TouchableOpacity>
           </View>
-        </Modal>
+        </CustomModal>
+
+        <CustomModal
+          visible={modalVisible && editField === 'birthday'}
+          onClose={() => setModalVisible(false)}
+          title="Select Birthday"
+        >
+          <View style={styles.datePickerContainer}>
+            <DateTimePicker
+              value={date}
+              mode="date"
+              display="spinner"
+              onChange={onDateChange}
+              style={styles.datePicker}
+              maximumDate={new Date()}
+            />
+          </View>
+          <View style={styles.modalButtons}>
+            <TouchableOpacity 
+              style={[styles.modalButton, styles.cancelButton]}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.modalButton, styles.saveButton]}
+              onPress={handleUpdate}
+            >
+              <Text style={styles.saveButtonText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </CustomModal>
+
+        <CustomModal
+          visible={modalVisible && editField === 'gender'}
+          onClose={() => setModalVisible(false)}
+          title="Edit Gender"
+        >
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={editValue}
+              onValueChange={(itemValue) => setEditValue(itemValue)}
+              style={styles.picker}
+              itemStyle={styles.pickerItem}
+            >
+              <Picker.Item label="Select Gender" value="" />
+              <Picker.Item label="Male" value="male" />
+              <Picker.Item label="Female" value="female" />
+            </Picker>
+          </View>
+          <View style={styles.modalButtons}>
+            <TouchableOpacity 
+              style={[styles.modalButton, styles.cancelButton]}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.modalButton, styles.saveButton]}
+              onPress={handleUpdate}
+            >
+              <Text style={styles.saveButtonText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </CustomModal>
       </LinearGradient>
     </SafeAreaView>
   );
@@ -347,6 +401,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
   },
   loadingContainer: {
     flex: 1,
@@ -356,6 +411,7 @@ const styles = StyleSheet.create({
   profileHeader: {
     alignItems: 'center',
     padding: 20,
+    paddingTop: Platform.OS === 'ios' ? 40 : 20,
   },
   avatarContainer: {
     width: 120,
@@ -365,14 +421,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 15,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   name: {
     fontSize: 24,
@@ -389,14 +451,20 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     margin: 15,
     padding: 15,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   sectionTitle: {
     fontSize: 18,
@@ -431,24 +499,29 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 20,
   },
   modalContent: {
     backgroundColor: '#FFF',
-    borderRadius: 15,
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
     padding: 20,
-    width: '100%',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: {
+          width: 0,
+          height: -2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
   },
   modalTitle: {
     fontSize: 18,
@@ -461,18 +534,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#DDD',
     borderRadius: 8,
-    padding: 12,
+    padding: Platform.OS === 'ios' ? 12 : 8,
     fontSize: 16,
     marginBottom: 20,
+    minHeight: Platform.OS === 'ios' ? 44 : 40,
   },
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginTop: 10,
   },
   modalButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    padding: 15,
+    borderRadius: 10,
     marginHorizontal: 5,
   },
   cancelButton: {
@@ -493,23 +568,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  picker: {
-    width: '100%',
+  pickerContainer: {
+    backgroundColor: '#f8f8f8',
+    borderRadius: 10,
     marginBottom: 20,
   },
+  picker: {
+    width: '100%',
+    height: 80,
+  },
+  pickerItem: {
+    fontSize: 16,
+    height: 40,
+  },
   datePickerContainer: {
-    alignItems: 'center',
+    backgroundColor: '#f8f8f8',
+    borderRadius: 10,
     marginBottom: 20,
   },
   datePicker: {
-    width: Platform.OS === 'ios' ? '100%' : 'auto',
-    backgroundColor: 'white',
-  },
-  selectedDate: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
+    width: '100%',
+    height: 200,
   },
 });
 
