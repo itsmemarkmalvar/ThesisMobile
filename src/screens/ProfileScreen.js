@@ -135,45 +135,53 @@ const ProfileScreen = ({ navigation, route }) => {
     setModalVisible(true);
   };
 
-  const onDateChange = async (event, selectedDate) => {
+  const onDateChange = (event, selectedDate) => {
     if (Platform.OS === 'android') {
-      setShowDatePicker(false);
-    }
-    
-    if (selectedDate) {
-      setDate(selectedDate);
-      const formattedDate = selectedDate.toISOString().split('T')[0];
-      setEditValue(formattedDate);
-      
-      try {
-        setFieldLoading(prev => ({ ...prev, [editField]: true }));
-        const token = await AsyncStorage.getItem('userToken');
-        if (!token) throw new Error('No token found');
-
-        const response = await axios.put(
-          `${API_URL}/auth/user/update`,
-          { [editField]: formattedDate },
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/json'
-            }
-          }
-        );
-
-        if (response.data.user) {
-          setUserData(response.data.user);
-          Alert.alert('Success', 'Birthday updated successfully');
-        } else {
-          await fetchUserData(); // Fetch updated data if not included in response
-        }
-      } catch (error) {
-        console.error('Error updating birthday:', error);
-        Alert.alert('Error', 'Failed to update birthday');
-      } finally {
-        setFieldLoading(prev => ({ ...prev, [editField]: false }));
-        setModalVisible(false);
+      setModalVisible(false);
+      if (selectedDate) {
+        setDate(selectedDate);
+        const formattedDate = selectedDate.toISOString().split('T')[0];
+        setEditValue(formattedDate);
+        handleDateSave();
       }
+    } else {
+      if (selectedDate) {
+        setDate(selectedDate);
+        const formattedDate = selectedDate.toISOString().split('T')[0];
+        setEditValue(formattedDate);
+      }
+    }
+  };
+
+  const handleDateSave = async () => {
+    try {
+      setFieldLoading(prev => ({ ...prev, [editField]: true }));
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) throw new Error('No token found');
+
+      const response = await axios.put(
+        `${API_URL}/auth/user/update`,
+        { [editField]: editValue },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.user) {
+        setUserData(response.data.user);
+        Alert.alert('Success', 'Birthday updated successfully');
+      } else {
+        await fetchUserData();
+      }
+    } catch (error) {
+      console.error('Error updating birthday:', error);
+      Alert.alert('Error', 'Failed to update birthday');
+    } finally {
+      setFieldLoading(prev => ({ ...prev, [editField]: false }));
+      setModalVisible(false);
     }
   };
 
@@ -202,12 +210,10 @@ const ProfileScreen = ({ navigation, route }) => {
 
       console.log('Update response:', response.data);
 
-      // Check if we have user data in the response
       if (response.data.user) {
         setUserData(response.data.user);
         Alert.alert('Success', 'Profile updated successfully');
       } else {
-        // If we don't have user data in the response, fetch it
         await fetchUserData();
       }
     } catch (error) {
@@ -329,30 +335,42 @@ const ProfileScreen = ({ navigation, route }) => {
           onClose={() => setModalVisible(false)}
           title="Select Birthday"
         >
-          <View style={styles.datePickerContainer}>
+          {Platform.OS === 'ios' ? (
+            <View style={styles.modalContent}>
+              <DateTimePicker
+                value={date}
+                mode="date"
+                display="spinner"
+                onChange={onDateChange}
+                style={styles.iosDatePicker}
+                maximumDate={new Date()}
+                textColor="black"
+                themeVariant="light"
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity 
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setModalVisible(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.modalButton, styles.saveButton]}
+                  onPress={handleDateSave}
+                >
+                  <Text style={styles.saveButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
             <DateTimePicker
               value={date}
               mode="date"
               display="spinner"
               onChange={onDateChange}
-              style={styles.datePicker}
               maximumDate={new Date()}
             />
-          </View>
-          <View style={styles.modalButtons}>
-            <TouchableOpacity 
-              style={[styles.modalButton, styles.cancelButton]}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.modalButton, styles.saveButton]}
-              onPress={handleUpdate}
-            >
-              <Text style={styles.saveButtonText}>Save</Text>
-            </TouchableOpacity>
-          </View>
+          )}
         </CustomModal>
 
         <CustomModal
@@ -360,32 +378,52 @@ const ProfileScreen = ({ navigation, route }) => {
           onClose={() => setModalVisible(false)}
           title="Edit Gender"
         >
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={editValue}
-              onValueChange={(itemValue) => setEditValue(itemValue)}
-              style={styles.picker}
-              itemStyle={styles.pickerItem}
-            >
-              <Picker.Item label="Select Gender" value="" />
-              <Picker.Item label="Male" value="male" />
-              <Picker.Item label="Female" value="female" />
-            </Picker>
-          </View>
-          <View style={styles.modalButtons}>
-            <TouchableOpacity 
-              style={[styles.modalButton, styles.cancelButton]}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.modalButton, styles.saveButton]}
-              onPress={handleUpdate}
-            >
-              <Text style={styles.saveButtonText}>Save</Text>
-            </TouchableOpacity>
-          </View>
+          {Platform.OS === 'ios' ? (
+            <View style={styles.modalContent}>
+              <View style={styles.pickerWrapper}>
+                <Picker
+                  selectedValue={editValue}
+                  onValueChange={setEditValue}
+                  style={styles.iosPicker}
+                  itemStyle={styles.iosPickerItem}
+                >
+                  <Picker.Item label="Select Gender" value="" color="#000000" />
+                  <Picker.Item label="Male" value="male" color="#000000" />
+                  <Picker.Item label="Female" value="female" color="#000000" />
+                </Picker>
+              </View>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity 
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setModalVisible(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.modalButton, styles.saveButton]}
+                  onPress={handleUpdate}
+                >
+                  <Text style={styles.saveButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={editValue}
+                onValueChange={(value) => {
+                  setEditValue(value);
+                  setModalVisible(false);
+                  handleUpdate();
+                }}
+                style={styles.picker}
+              >
+                <Picker.Item label="Select Gender" value="" />
+                <Picker.Item label="Male" value="male" />
+                <Picker.Item label="Female" value="female" />
+              </Picker>
+            </View>
+          )}
         </CustomModal>
       </LinearGradient>
     </SafeAreaView>
@@ -508,20 +546,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 15,
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 40 : 20,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: {
-          width: 0,
-          height: -2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
   },
   modalTitle: {
     fontSize: 18,
@@ -569,26 +593,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   pickerContainer: {
-    backgroundColor: '#f8f8f8',
+    backgroundColor: 'white',
     borderRadius: 10,
     marginBottom: 20,
   },
   picker: {
     width: '100%',
-    height: 80,
+    height: 50,
   },
-  pickerItem: {
-    fontSize: 16,
-    height: 40,
+  iosDatePicker: {
+    width: '100%',
+    height: 200,
   },
-  datePickerContainer: {
-    backgroundColor: '#f8f8f8',
+  iosPicker: {
+    width: '100%',
+    height: 200,
+  },
+  pickerWrapper: {
+    backgroundColor: 'white',
     borderRadius: 10,
     marginBottom: 20,
   },
-  datePicker: {
-    width: '100%',
-    height: 200,
+  iosPickerItem: {
+    fontSize: 16,
+    color: '#000000',
   },
 });
 
