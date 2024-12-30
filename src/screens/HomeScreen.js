@@ -279,7 +279,7 @@ const HomeScreen = ({ navigation }) => {
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statItem}>
-                      <MaterialIcons name="fitness-center" size={16} color="#666" />
+                      <MaterialIcons name="monitor-weight" size={16} color="#666" />
                       <Text style={styles.statText}>{babyData.weight} kg</Text>
                     </View>
                   </View>

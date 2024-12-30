@@ -430,7 +430,7 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
         <View style={[styles.divider, { backgroundColor: '#F0F0F0' }]} />
         <View style={styles.measurementItem}>
           <View style={[styles.measurementIcon, { backgroundColor: '#FFF3E0' }]}>
-            <MaterialIcons name="fitness-center" size={24} color="#F57C00" />
+            <MaterialIcons name="monitor-weight" size={24} color="#F57C00" />
           </View>
           <Text style={styles.measurementValue}>{record.weight} kg</Text>
           <Text style={styles.measurementLabel}>Weight</Text>
