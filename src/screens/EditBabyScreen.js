@@ -16,9 +16,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../config';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useBaby } from '../context/BabyContext';
 
 const EditBabyScreen = ({ route, navigation }) => {
-  const { babyData } = route.params;
+  const { babyData, updateBabyData, fetchBabyData } = useBaby();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: babyData.name,
@@ -56,18 +57,9 @@ const EditBabyScreen = ({ route, navigation }) => {
         },
       });
 
-      if (response.data) {
-        Alert.alert('Success', 'Baby information updated successfully!', [
-          {
-            text: 'OK',
-            onPress: () => {
-              navigation.navigate('MainApp', {
-                screen: 'Baby',
-                params: { refresh: Date.now() }
-              });
-            }
-          }
-        ]);
+      if (response.data.success) {
+        updateBabyData(response.data.data);
+        navigation.navigate('Home', { dataUpdated: true });
       }
     } catch (error) {
       console.error('Error updating baby:', error.response?.data || error.message);

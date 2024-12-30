@@ -19,15 +19,15 @@ import { API_URL } from '../config';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { useBaby } from '../context/BabyContext';
 
 // Get screen width
 const { width } = Dimensions.get('window');
 
 const BabyScreen = ({ navigation, route }) => {
-  const [loading, setLoading] = useState(true);
-  const [babyData, setBabyData] = useState(null);
-  const [error, setError] = useState(null);
+  const { babyData, loading, error, fetchBabyData, updateBabyData } = useBaby();
   const [uploading, setUploading] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -38,90 +38,48 @@ const BabyScreen = ({ navigation, route }) => {
     })();
   }, []);
 
+  // Only fetch data if we don't have it
   useEffect(() => {
-    fetchBabyData();
+    if (!babyData && !error) {
+      console.log('[BabyScreen] Initial fetch - no data available');
+      fetchBabyData().catch(error => {
+        console.error('[BabyScreen] Initial fetch error:', error);
+      });
+    }
   }, []);
 
-  // Handle refresh from route params
+  // Only fetch on focus if data was updated
   useEffect(() => {
-    if (route?.params?.refresh) {
-      fetchBabyData();
-      // Clear the refresh parameter
-      navigation.setParams({ refresh: undefined });
-    }
-  }, [route?.params?.refresh]);
-
-  const fetchBabyData = async () => {
-    try {
-      const token = await AsyncStorage.getItem('userToken');
-      console.log('Retrieved token:', token);
-
-      if (!token) {
-        console.log('No token found, redirecting to login');
-        navigation.replace('Auth');
-        return;
-      }
-
-      const response = await axios.get(`${API_URL}/baby`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      });
-
-      console.log('Baby data response:', {
-        status: response.status,
-        hasData: !!response.data.data,
-        hasPhoto: !!response.data.data?.photo_url
-      });
-
-      // Check if response.data.data exists (this is the structure from your API)
-      if (response.data.data) {
-        // Validate photo_url if it exists
-        const babyDataWithValidation = {
-          ...response.data.data,
-          photo_url: response.data.data.photo_url || null,
-          parent_name: 'Parent'
-        };
-
-        console.log('Processed baby data:', {
-          name: babyDataWithValidation.name,
-          hasPhoto: !!babyDataWithValidation.photo_url,
-          photoStart: babyDataWithValidation.photo_url?.substring(0, 30)
+    const unsubscribe = navigation.addListener('focus', () => {
+      const params = route.params;
+      if (params?.dataUpdated || params?.photoUpdated) {
+        console.log('[BabyScreen] Fetching due to update:', params);
+        fetchBabyData(true).catch(error => {
+          console.error('[BabyScreen] Focus fetch error:', error);
         });
+        // Clear the parameters
+        navigation.setParams({
+          dataUpdated: undefined,
+          photoUpdated: undefined
+        });
+      }
+    });
 
-        setBabyData(babyDataWithValidation);
-        setError(null);
-      } else {
-        setError('No baby data available');
-      }
-    } catch (error) {
-      console.error('Error fetching baby data:', error.response || error);
-      if (error.response?.status === 401) {
-        await AsyncStorage.removeItem('userToken');
-        navigation.replace('Auth');
-      } else {
-        setError('Error loading baby data');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+    return unsubscribe;
+  }, [navigation, route.params]);
 
   const resizeImage = async (uri) => {
     try {
       const manipulatedImage = await ImageManipulator.manipulateAsync(
         uri,
-        [
-          { resize: { width: 500 } }, // Resize to width of 500px, height will adjust to maintain aspect ratio
-        ],
+        [{ resize: { width: 500 } }],
         {
-          compress: 0.7, // 70% quality
+          compress: 0.7,
           format: ImageManipulator.SaveFormat.JPEG,
         }
       );
       
-      console.log('Resized image:', {
+      console.log('Image resized:', {
         uri: manipulatedImage.uri,
         width: manipulatedImage.width,
         height: manipulatedImage.height,
@@ -140,18 +98,12 @@ const BabyScreen = ({ navigation, route }) => {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 1, // Get full quality, we'll resize it ourselves
-      });
-
-      console.log('Image picker result:', {
-        cancelled: result.canceled,
-        type: result.assets?.[0]?.type,
-        size: result.assets?.[0]?.fileSize,
+        quality: 1,
       });
 
       if (!result.canceled && result.assets?.[0]) {
         const resizedImage = await resizeImage(result.assets[0].uri);
-        uploadImage(resizedImage);
+        await uploadImage(resizedImage);
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -164,21 +116,22 @@ const BabyScreen = ({ navigation, route }) => {
       setUploading(true);
       const token = await AsyncStorage.getItem('userToken');
       
-      console.log('Preparing image for upload:', {
+      if (!imageAsset?.uri) {
+        throw new Error('Invalid image data');
+      }
+
+      console.log('Preparing image upload:', {
         uri: imageAsset.uri,
         width: imageAsset.width,
         height: imageAsset.height,
       });
 
-      // Create form data
       const formData = new FormData();
       formData.append('photo', {
         uri: imageAsset.uri,
         type: 'image/jpeg',
         name: 'baby_photo.jpg',
       });
-
-      console.log('Sending request to:', `${API_URL}/baby/upload-photo`);
 
       const response = await axios.post(`${API_URL}/baby/upload-photo`, formData, {
         headers: {
@@ -187,31 +140,87 @@ const BabyScreen = ({ navigation, route }) => {
           'Accept': 'application/json',
         },
         timeout: 60000,
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
       });
 
-      console.log('Upload response:', response.data);
+      console.log('Upload response:', {
+        success: response.data.success,
+        hasPhotoUrl: !!response.data.photo_url
+      });
 
       if (response.data.success) {
-        // Refresh baby data to get updated photo URL
-        fetchBabyData();
+        setImageError(false);
+        // Instead of fetching immediately, set a flag to fetch on next focus
+        navigation.setParams({ photoUpdated: true });
+        navigation.navigate('Baby', { photoUpdated: true });
         Alert.alert('Success', 'Photo uploaded successfully!');
+      } else {
+        throw new Error('Upload failed: ' + (response.data.message || 'Unknown error'));
       }
     } catch (error) {
-      console.error('❌ Response error:', JSON.stringify({
-        code: error.code,
+      console.error('Upload error:', {
         message: error.message,
-        response: error.response?.data,
-        url: error.config?.url
-      }, null, 2));
-      Alert.alert(
-        'Error',
-        'Failed to upload photo. Please try again.',
-        [{ text: 'OK' }]
-      );
+        response: error.response?.data
+      });
+      Alert.alert('Error', 'Failed to upload photo. Please try again.');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const renderBabyImage = () => {
+    if (!babyData?.photo_url || imageError) {
+      return (
+        <View style={[styles.photoPlaceholder, { width: 120, height: 120, borderRadius: 60 }]}>
+          <LinearGradient
+            colors={['#FF9A9E', '#FAD0C4']}
+            style={{ width: '100%', height: '100%', borderRadius: 60, justifyContent: 'center', alignItems: 'center' }}
+          >
+            <MaterialIcons name="photo-camera" size={40} color="#FFF" />
+          </LinearGradient>
+        </View>
+      );
+    }
+
+    // Log the photo URL for debugging
+    console.log('Rendering image with URL:', {
+      urlLength: babyData.photo_url?.length,
+      urlPrefix: babyData.photo_url?.substring(0, 50),
+      isBase64: babyData.photo_url?.startsWith('data:image/')
+    });
+
+    return (
+      <View style={{ width: 120, height: 120, borderRadius: 60, overflow: 'hidden' }}>
+        <Image
+          source={{ 
+            uri: babyData.photo_url,
+            cache: 'reload' // Force image reload
+          }}
+          style={{ width: '100%', height: '100%' }}
+          onLoadStart={() => console.log('Image load started')}
+          onLoadEnd={() => console.log('Image load completed')}
+          onError={(e) => {
+            console.error('Image loading error:', {
+              error: e.nativeEvent.error,
+              url: babyData.photo_url?.substring(0, 50)
+            });
+            setImageError(true);
+          }}
+        />
+        {uploading && (
+          <View style={styles.uploadingOverlay}>
+            <ActivityIndicator size="large" color="#FFF" />
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const handleRetry = async () => {
+    try {
+      console.log('[BabyScreen] Manual retry requested');
+      await fetchBabyData(true);
+    } catch (error) {
+      console.error('[BabyScreen] Retry error:', error);
     }
   };
 
@@ -229,7 +238,7 @@ const BabyScreen = ({ navigation, route }) => {
         <Text style={styles.errorText}>{error || 'No baby data available'}</Text>
         <TouchableOpacity 
           style={styles.retryButton}
-          onPress={fetchBabyData}
+          onPress={handleRetry}
         >
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
@@ -249,99 +258,30 @@ const BabyScreen = ({ navigation, route }) => {
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
         >
-          {/* Modern Header with Blur Effect */}
-          <View style={styles.headerContainer}>
-            <View style={styles.header}>
-              <TouchableOpacity 
-                style={styles.backButton}
-                onPress={() => navigation.goBack()}
-              >
-                <MaterialIcons name="arrow-back-ios" size={24} color="#333" />
-              </TouchableOpacity>
-              <Text style={styles.headerTitle}>Baby Details</Text>
-              <TouchableOpacity 
-                style={styles.editButton}
-                onPress={() => navigation.navigate('EditBaby', { babyData })}
-              >
-                <MaterialIcons name="edit" size={22} color="#4A90E2" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
           {/* Profile Card */}
           <View style={styles.profileCard}>
-            <TouchableOpacity 
-              style={styles.avatarContainer}
-              onPress={pickImage}
-              disabled={uploading}
-            >
-              {babyData?.photo_url ? (
-                (() => {
-                  console.log('Baby photo data:', {
-                    photoExists: !!babyData.photo_url,
-                    photoLength: babyData.photo_url?.length,
-                    photoStart: babyData.photo_url?.substring(0, 50),
-                    photoEnd: babyData.photo_url?.substring(-50)
-                  });
-
-                  // Validate base64 format
-                  const isValidBase64 = (str) => {
-                    if (!str) return false;
-                    try {
-                      // Check if it's a data URL
-                      if (str.startsWith('data:image/')) {
-                        return true;
-                      }
-                      return false;
-                    } catch (e) {
-                      console.error('Base64 validation error:', e);
-                      return false;
-                    }
-                  };
-
-                  if (!isValidBase64(babyData.photo_url)) {
-                    console.log('Invalid base64 image data');
-                    return (
-                      <LinearGradient
-                        colors={['#4A90E2', '#357ABD']}
-                        style={styles.avatarGradient}
-                      >
-                        <MaterialIcons name="child-care" size={50} color="#FFF" />
-                      </LinearGradient>
-                    );
-                  }
-
-                  return (
-                    <Image
-                      source={{ uri: babyData.photo_url }}
-                      style={styles.avatarImage}
-                      resizeMode="cover"
-                      onLoadStart={() => console.log('Image loading started')}
-                      onLoadEnd={() => console.log('Image loading completed')}
-                      onError={(error) => {
-                        console.error('Image loading error:', error.nativeEvent.error);
-                      }}
-                    />
-                  );
-                })()
-              ) : (
-                <LinearGradient
-                  colors={['#4A90E2', '#357ABD']}
-                  style={styles.avatarGradient}
+            <View style={styles.photoContainer}>
+              {renderBabyImage()}
+              {!uploading && (
+                <TouchableOpacity 
+                  style={styles.editPhotoButton} 
+                  onPress={pickImage}
+                  disabled={uploading}
                 >
-                  <MaterialIcons name="child-care" size={50} color="#FFF" />
-                </LinearGradient>
+                  <MaterialIcons 
+                    name="add-a-photo" 
+                    size={22} 
+                    color="#FFF" 
+                  />
+                </TouchableOpacity>
               )}
-              {uploading ? (
+              {uploading && (
                 <View style={styles.uploadingOverlay}>
-                  <ActivityIndicator color="#FFF" />
-                </View>
-              ) : (
-                <View style={styles.cameraIconContainer}>
-                  <MaterialIcons name="camera-alt" size={20} color="#FFF" />
+                  <ActivityIndicator size="large" color="#FFF" />
                 </View>
               )}
-            </TouchableOpacity>
+            </View>
+
             <View style={styles.nameContainer}>
               <Text style={styles.babyName}>{babyData.name}</Text>
               <Text style={styles.babyAge}>
@@ -375,7 +315,15 @@ const BabyScreen = ({ navigation, route }) => {
           <View style={styles.detailsContainer}>
             {/* Basic Info Card */}
             <View style={styles.detailCard}>
-              <Text style={styles.cardTitle}>Basic Information</Text>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>Basic Information</Text>
+                <TouchableOpacity 
+                  style={styles.editButton}
+                  onPress={() => navigation.navigate('EditBaby', { babyData })}
+                >
+                  <MaterialIcons name="edit-note" size={24} color="#4A90E2" />
+                </TouchableOpacity>
+              </View>
               <View style={styles.cardContent}>
                 <View style={styles.infoRow}>
                   <MaterialIcons name="cake" size={20} color="#4A90E2" />
@@ -471,136 +419,177 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-  },
-  headerContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     paddingTop: Platform.OS === 'ios' ? 0 : 16,
-    borderBottomRightRadius: 30,
-    borderBottomLeftRadius: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
   },
   profileCard: {
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     margin: 16,
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 25,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 14,
+    elevation: 10,
+  },
+  photoContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+    position: 'relative',
+  },
+  photoPlaceholder: {
+    backgroundColor: 'rgba(240, 240, 240, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
   },
-  avatarContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  avatarGradient: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+  editPhotoButton: {
+    position: 'absolute',
+    right: -8,
+    bottom: -8,
+    backgroundColor: '#4A90E2',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    borderWidth: 3,
+    borderColor: '#FFF',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  uploadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backdropFilter: 'blur(2px)',
   },
   nameContainer: {
     alignItems: 'center',
+    marginBottom: 20,
   },
   babyName: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 4,
+    marginBottom: 6,
+    letterSpacing: 0.5,
   },
   babyAge: {
-    fontSize: 16,
+    fontSize: 17,
     color: '#666',
     fontWeight: '500',
+    letterSpacing: 0.3,
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#F8FAFF',
-    borderRadius: 15,
-    padding: 16,
-    marginTop: 20,
+    backgroundColor: 'rgba(248, 250, 255, 0.95)',
+    borderRadius: 20,
+    padding: 20,
+    marginTop: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   statItem: {
     flex: 1,
     alignItems: 'center',
   },
   statDivider: {
-    width: 1,
-    height: '80%',
-    backgroundColor: '#E0E0E0',
+    width: 1.5,
+    height: '70%',
+    backgroundColor: 'rgba(224, 224, 224, 0.8)',
+    borderRadius: 1,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#333',
-    marginTop: 8,
+    marginTop: 10,
+    letterSpacing: 0.5,
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#666',
-    marginTop: 4,
+    marginTop: 5,
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
   detailsContainer: {
     padding: 16,
+    paddingTop: 8,
   },
   detailCard: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 25,
+    padding: 24,
+    marginBottom: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: '#333',
-    marginBottom: 16,
+    letterSpacing: 0.5,
+    flex: 1,
+  },
+  editButton: {
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(74, 144, 226, 0.1)',
+    marginLeft: 12,
   },
   cardContent: {
-    gap: 16,
+    gap: 18,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(248, 250, 255, 0.7)',
+    borderRadius: 15,
+    padding: 16,
   },
   infoTextContainer: {
-    marginLeft: 16,
+    marginLeft: 18,
     flex: 1,
   },
   infoLabel: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#666',
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
   infoValue: {
-    fontSize: 16,
+    fontSize: 17,
     color: '#333',
-    fontWeight: '500',
-    marginTop: 2,
+    fontWeight: '600',
+    marginTop: 4,
+    letterSpacing: 0.3,
   },
   loadingContainer: {
     flex: 1,
@@ -635,13 +624,6 @@ const styles = StyleSheet.create({
     height: 90,
     borderRadius: 45,
   },
-  uploadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 45,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   cameraIconContainer: {
     position: 'absolute',
     right: -5,
@@ -654,6 +636,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#FFF',
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(248, 250, 255, 0.9)',
   },
 });
 

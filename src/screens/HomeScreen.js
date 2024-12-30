@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
+  Dimensions,
   Animated,
   Pressable,
-  Dimensions,
 } from 'react-native';
+import { useBaby } from '../context/BabyContext';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import { API_URL } from '../config';
 
 const { width } = Dimensions.get('window');
 const cardWidth = width * 0.9;
@@ -89,43 +89,47 @@ const CategorySection = ({ title, actions, startDelay = 0, color }) => (
 );
 
 const HomeScreen = ({ navigation }) => {
-  const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState(null);
-  const [babyData, setBabyData] = useState(null);
+  const { babyData, loading, error, fetchBabyData } = useBaby();
+  const [refreshing, setRefreshing] = React.useState(false);
 
+  // Initial data fetch only if we don't have data
   useEffect(() => {
-    fetchUserAndBabyData();
+    if (!babyData && !error) {
+      fetchBabyData();
+    }
   }, []);
 
-  const fetchUserAndBabyData = async () => {
+  // Add focus listener for navigation - only fetch if data was updated
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      // Check if we're returning from EditBaby screen
+      const params = navigation.getState().routes.find(r => r.name === 'Home')?.params;
+      if (params?.dataUpdated) {
+        fetchBabyData(true); // Force fetch when data was updated
+        // Clear the parameter
+        navigation.setParams({ dataUpdated: undefined });
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      if (!token) throw new Error('No token found');
-
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json'
-      };
-
-      // Fetch both user and baby data
-      const [userResponse, babyResponse] = await Promise.all([
-        axios.get(`${API_URL}/auth/user`, { headers }),
-        axios.get(`${API_URL}/baby`, { headers })
-      ]);
-
-      setUserData(userResponse.data);
-      setBabyData(babyResponse.data.data);
-
-    } catch (error) {
-      console.error('Error fetching data:', error);
+      await fetchBabyData(true); // Force fetch on manual refresh
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, [fetchBabyData]);
 
-  const handleMilestonesPress = () => {
-    navigation.navigate('GrowthTracking', { initialTab: 'milestones' });
-  };
+  const handleRetry = useCallback(async () => {
+    try {
+      await fetchBabyData();
+    } catch (err) {
+      console.error('Retry failed:', err);
+    }
+  }, [fetchBabyData]);
 
   const categories = {
     growth: {
@@ -140,7 +144,7 @@ const HomeScreen = ({ navigation }) => {
         {
           icon: 'remove-red-eye',
           label: 'Milestones',
-          onPress: () => navigation.navigate('GrowthTracking', { initialTab: 'milestones' }),
+          onPress: () => navigation.navigate('Development'),
         },
         {
           icon: 'psychology',
@@ -161,7 +165,7 @@ const HomeScreen = ({ navigation }) => {
         {
           icon: 'event-available',
           label: 'Vaccination',
-          onPress: () => navigation.navigate('Immunization'),
+          onPress: () => navigation.navigate('Health'),
         },
         {
           icon: 'local-hospital',
@@ -193,11 +197,46 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4A90E2" />
-      </View>
+      <SafeAreaView style={styles.container}>
+        <LinearGradient
+          colors={['#FF9A9E', '#FAD0C4', '#FFF']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradient}
+        >
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#4A90E2" />
+          </View>
+        </LinearGradient>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !babyData) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <LinearGradient
+          colors={['#FF9A9E', '#FAD0C4', '#FFF']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradient}
+        >
+          <View style={styles.errorContainer}>
+            <MaterialIcons name="error-outline" size={48} color="#FF6B6B" />
+            <Text style={styles.errorText}>
+              {error || 'No baby data available. Please add your baby\'s information.'}
+            </Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={handleRetry}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+      </SafeAreaView>
     );
   }
 
@@ -209,7 +248,18 @@ const HomeScreen = ({ navigation }) => {
         end={{ x: 1, y: 1 }}
         style={styles.gradient}
       >
-        <ScrollView style={styles.scrollView}>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#4A90E2']}
+              tintColor="#4A90E2"
+            />
+          }
+        >
           {/* Welcome Card */}
           <View style={styles.welcomeCard}>
             <LinearGradient
@@ -217,8 +267,7 @@ const HomeScreen = ({ navigation }) => {
               style={styles.welcomeGradient}
             >
               <Text style={styles.welcomeText}>
-                Welcome back,
-                <Text style={styles.nameText}> {userData?.name}</Text>
+                Welcome back
               </Text>
               {babyData && (
                 <View style={styles.babyInfo}>
@@ -258,6 +307,7 @@ const HomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F5F8FF',
   },
   gradient: {
     flex: 1,
@@ -269,6 +319,30 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#666',
+    marginVertical: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#4A90E2',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    elevation: 2,
+  },
+  retryButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   welcomeCard: {
     margin: 15,
@@ -289,10 +363,6 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 20,
     color: '#333',
-  },
-  nameText: {
-    fontWeight: 'bold',
-    color: '#4A90E2',
   },
   babyInfo: {
     marginTop: 15,
