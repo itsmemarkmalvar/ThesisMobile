@@ -142,67 +142,96 @@ const BabyScreen = ({ navigation, route }) => {
         timeout: 60000,
       });
 
-      console.log('Upload response:', {
-        success: response.data.success,
-        hasPhotoUrl: !!response.data.photo_url
-      });
+      console.log('Upload response:', response.data);
 
-      if (response.data.success) {
+      // Check if the response has data and photo_url
+      if (response.data && response.data.photo_url) {
         setImageError(false);
-        // Instead of fetching immediately, set a flag to fetch on next focus
-        navigation.setParams({ photoUpdated: true });
-        navigation.navigate('Baby', { photoUpdated: true });
-        Alert.alert('Success', 'Photo uploaded successfully!');
+        // Update local state immediately
+        updateBabyData({ ...babyData, photo_url: response.data.photo_url });
+        Alert.alert('Success', response.data.message || 'Photo uploaded successfully!');
+      } else if (response.data && response.data.message) {
+        throw new Error(response.data.message);
       } else {
-        throw new Error('Upload failed: ' + (response.data.message || 'Unknown error'));
+        throw new Error('Failed to upload photo: No response data');
       }
     } catch (error) {
       console.error('Upload error:', {
         message: error.message,
-        response: error.response?.data
+        response: error.response?.data || 'No response data'
       });
-      Alert.alert('Error', 'Failed to upload photo. Please try again.');
+      Alert.alert(
+        'Error', 
+        error.response?.data?.message || error.message || 'Failed to upload photo. Please try again.'
+      );
     } finally {
       setUploading(false);
     }
   };
 
   const renderBabyImage = () => {
+    // Validate base64 image URL
+    const isValidBase64Image = (url) => {
+      if (!url) return false;
+      try {
+        // Check if it's a valid data URL format
+        if (!url.startsWith('data:image/')) return false;
+        // Extract the base64 part
+        const base64Match = url.match(/^data:image\/\w+;base64,(.+)$/);
+        if (!base64Match) return false;
+        // Check if the base64 part is not empty and valid
+        const base64Data = base64Match[1];
+        return base64Data && base64Data.length > 0 && base64Data.length % 4 === 0;
+      } catch (error) {
+        console.error('Error validating base64 image:', error);
+        return false;
+      }
+    };
+
+    // Render placeholder for no image or error
+    const renderPlaceholder = (icon = "photo-camera") => (
+      <View style={[styles.photoPlaceholder, { width: 120, height: 120, borderRadius: 60 }]}>
+        <LinearGradient
+          colors={['#FF9A9E', '#FAD0C4']}
+          style={{ width: '100%', height: '100%', borderRadius: 60, justifyContent: 'center', alignItems: 'center' }}
+        >
+          <MaterialIcons name={icon} size={40} color="#FFF" />
+        </LinearGradient>
+      </View>
+    );
+
     if (!babyData?.photo_url || imageError) {
-      return (
-        <View style={[styles.photoPlaceholder, { width: 120, height: 120, borderRadius: 60 }]}>
-          <LinearGradient
-            colors={['#FF9A9E', '#FAD0C4']}
-            style={{ width: '100%', height: '100%', borderRadius: 60, justifyContent: 'center', alignItems: 'center' }}
-          >
-            <MaterialIcons name="photo-camera" size={40} color="#FFF" />
-          </LinearGradient>
-        </View>
-      );
+      return renderPlaceholder("photo-camera");
     }
 
     // Log the photo URL for debugging
     console.log('Rendering image with URL:', {
       urlLength: babyData.photo_url?.length,
       urlPrefix: babyData.photo_url?.substring(0, 50),
-      isBase64: babyData.photo_url?.startsWith('data:image/')
+      isBase64: babyData.photo_url?.startsWith('data:image/'),
+      isValid: isValidBase64Image(babyData.photo_url)
     });
+
+    if (!isValidBase64Image(babyData.photo_url)) {
+      console.error('Invalid base64 image format');
+      return renderPlaceholder("broken-image");
+    }
 
     return (
       <View style={{ width: 120, height: 120, borderRadius: 60, overflow: 'hidden' }}>
         <Image
           source={{ 
             uri: babyData.photo_url,
-            cache: 'reload' // Force image reload
+            cache: 'reload'
           }}
           style={{ width: '100%', height: '100%' }}
-          onLoadStart={() => console.log('Image load started')}
+          onLoadStart={() => {
+            console.log('Image load started');
+            setImageError(false);
+          }}
           onLoadEnd={() => console.log('Image load completed')}
           onError={(e) => {
-            console.error('Image loading error:', {
-              error: e.nativeEvent.error,
-              url: babyData.photo_url?.substring(0, 50)
-            });
+            console.error('Image loading error:', e.nativeEvent);
             setImageError(true);
           }}
         />

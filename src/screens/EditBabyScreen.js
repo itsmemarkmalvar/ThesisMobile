@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useBaby } from '../context/BabyContext';
 
 const EditBabyScreen = ({ route, navigation }) => {
-  const { babyData, updateBabyData, fetchBabyData } = useBaby();
+  const { babyData, updateBabyData } = useBaby();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: babyData.name,
@@ -29,9 +29,100 @@ const EditBabyScreen = ({ route, navigation }) => {
     weight: babyData.weight.toString(),
     head_size: babyData.head_size.toString(),
   });
+  const [errors, setErrors] = useState({});
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Check for unsaved changes
+  useEffect(() => {
+    const hasChanges = 
+      formData.name !== babyData.name ||
+      formData.gender !== babyData.gender ||
+      formData.birth_date.toISOString().split('T')[0] !== new Date(babyData.birth_date).toISOString().split('T')[0] ||
+      parseFloat(formData.height) !== babyData.height ||
+      parseFloat(formData.weight) !== babyData.weight ||
+      parseFloat(formData.head_size) !== babyData.head_size;
+    
+    setHasUnsavedChanges(hasChanges);
+  }, [formData, babyData]);
+
+  // Handle back navigation
+  useEffect(() => {
+    const handleBackPress = () => {
+      if (hasUnsavedChanges) {
+        Alert.alert(
+          'Discard Changes?',
+          'You have unsaved changes. Are you sure you want to go back?',
+          [
+            { text: "Don't leave", style: 'cancel', onPress: () => {} },
+            {
+              text: 'Discard',
+              style: 'destructive',
+              onPress: () => navigation.goBack(),
+            },
+          ]
+        );
+        return true;
+      }
+      return false;
+    };
+
+    navigation.addListener('beforeRemove', (e) => {
+      if (!hasUnsavedChanges) return;
+      e.preventDefault();
+      handleBackPress();
+    });
+  }, [navigation, hasUnsavedChanges]);
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    // Name validation
+    if (!formData.name.trim()) {
+      newErrors.name = 'Name is required';
+    } else if (formData.name.length > 50) {
+      newErrors.name = 'Name must be less than 50 characters';
+    }
+
+    // Birth date validation
+    if (formData.birth_date > new Date()) {
+      newErrors.birth_date = 'Birth date cannot be in the future';
+    }
+
+    // Height validation
+    const height = parseFloat(formData.height);
+    if (isNaN(height) || height <= 0) {
+      newErrors.height = 'Please enter a valid height';
+    } else if (height > 200) {
+      newErrors.height = 'Height seems too large';
+    }
+
+    // Weight validation
+    const weight = parseFloat(formData.weight);
+    if (isNaN(weight) || weight <= 0) {
+      newErrors.weight = 'Please enter a valid weight';
+    } else if (weight > 50) {
+      newErrors.weight = 'Weight seems too large';
+    }
+
+    // Head size validation
+    const headSize = parseFloat(formData.head_size);
+    if (isNaN(headSize) || headSize <= 0) {
+      newErrors.head_size = 'Please enter a valid head size';
+    } else if (headSize > 100) {
+      newErrors.head_size = 'Head size seems too large';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleUpdate = async () => {
+    if (!validateForm()) {
+      Alert.alert('Validation Error', 'Please check the form for errors');
+      return;
+    }
+
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem('userToken');
@@ -73,6 +164,7 @@ const EditBabyScreen = ({ route, navigation }) => {
     setShowDatePicker(false);
     if (selectedDate) {
       setFormData(prev => ({ ...prev, birth_date: selectedDate }));
+      setErrors(prev => ({ ...prev, birth_date: undefined }));
     }
   };
 
@@ -81,9 +173,7 @@ const EditBabyScreen = ({ route, navigation }) => {
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => navigation.navigate('MainApp', {
-            screen: 'Baby'
-          })}
+          onPress={() => navigation.goBack()}
         >
           <MaterialIcons name="arrow-back-ios" size={24} color="#333" />
         </TouchableOpacity>
@@ -95,11 +185,16 @@ const EditBabyScreen = ({ route, navigation }) => {
         <View style={styles.formGroup}>
           <Text style={styles.label}>Name</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, errors.name && styles.inputError]}
             value={formData.name}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
+            onChangeText={(text) => {
+              setFormData(prev => ({ ...prev, name: text }));
+              setErrors(prev => ({ ...prev, name: undefined }));
+            }}
             placeholder="Baby's name"
+            maxLength={50}
           />
+          {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
         </View>
 
         <View style={styles.formGroup}>
@@ -145,7 +240,7 @@ const EditBabyScreen = ({ route, navigation }) => {
         <View style={styles.formGroup}>
           <Text style={styles.label}>Birth Date</Text>
           <TouchableOpacity
-            style={styles.dateButton}
+            style={[styles.dateButton, errors.birth_date && styles.inputError]}
             onPress={() => setShowDatePicker(true)}
           >
             <MaterialIcons name="calendar-today" size={24} color="#4A90E2" />
@@ -153,6 +248,7 @@ const EditBabyScreen = ({ route, navigation }) => {
               {formData.birth_date.toLocaleDateString()}
             </Text>
           </TouchableOpacity>
+          {errors.birth_date && <Text style={styles.errorText}>{errors.birth_date}</Text>}
           {showDatePicker && (
             <DateTimePicker
               value={formData.birth_date}
@@ -167,46 +263,63 @@ const EditBabyScreen = ({ route, navigation }) => {
         <View style={styles.formGroup}>
           <Text style={styles.label}>Height (cm)</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, errors.height && styles.inputError]}
             value={formData.height}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, height: text }))}
+            onChangeText={(text) => {
+              setFormData(prev => ({ ...prev, height: text }));
+              setErrors(prev => ({ ...prev, height: undefined }));
+            }}
             keyboardType="decimal-pad"
             placeholder="Height in centimeters"
           />
+          {errors.height && <Text style={styles.errorText}>{errors.height}</Text>}
         </View>
 
         <View style={styles.formGroup}>
           <Text style={styles.label}>Weight (kg)</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, errors.weight && styles.inputError]}
             value={formData.weight}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, weight: text }))}
+            onChangeText={(text) => {
+              setFormData(prev => ({ ...prev, weight: text }));
+              setErrors(prev => ({ ...prev, weight: undefined }));
+            }}
             keyboardType="decimal-pad"
             placeholder="Weight in kilograms"
           />
+          {errors.weight && <Text style={styles.errorText}>{errors.weight}</Text>}
         </View>
 
         <View style={styles.formGroup}>
           <Text style={styles.label}>Head Size (cm)</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, errors.head_size && styles.inputError]}
             value={formData.head_size}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, head_size: text }))}
+            onChangeText={(text) => {
+              setFormData(prev => ({ ...prev, head_size: text }));
+              setErrors(prev => ({ ...prev, head_size: undefined }));
+            }}
             keyboardType="decimal-pad"
             placeholder="Head circumference in centimeters"
           />
+          {errors.head_size && <Text style={styles.errorText}>{errors.head_size}</Text>}
         </View>
       </ScrollView>
 
       <TouchableOpacity
-        style={[styles.updateButton, loading && styles.updateButtonDisabled]}
+        style={[
+          styles.updateButton,
+          (loading || !hasUnsavedChanges) && styles.updateButtonDisabled
+        ]}
         onPress={handleUpdate}
-        disabled={loading}
+        disabled={loading || !hasUnsavedChanges}
       >
         {loading ? (
           <ActivityIndicator color="#FFF" />
         ) : (
-          <Text style={styles.updateButtonText}>Update Information</Text>
+          <Text style={styles.updateButtonText}>
+            {hasUnsavedChanges ? 'Update Information' : 'No Changes'}
+          </Text>
         )}
       </TouchableOpacity>
     </SafeAreaView>
@@ -243,7 +356,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   formGroup: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   label: {
     fontSize: 16,
@@ -253,11 +366,22 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: '#FFF',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 14,
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#E5E5E5',
+    color: '#333',
+  },
+  inputError: {
+    borderColor: '#FF6B6B',
+    backgroundColor: '#FFF5F5',
+  },
+  errorText: {
+    color: '#FF6B6B',
+    fontSize: 14,
+    marginTop: 6,
+    marginLeft: 4,
   },
   genderContainer: {
     flexDirection: 'row',
@@ -268,8 +392,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
+    padding: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#4A90E2',
     backgroundColor: '#FFF',
@@ -288,8 +412,8 @@ const styles = StyleSheet.create({
   },
   dateButton: {
     backgroundColor: '#FFF',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
@@ -304,11 +428,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#4A90E2',
     margin: 16,
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   updateButtonDisabled: {
-    opacity: 0.5,
+    backgroundColor: '#A8C9F0',
   },
   updateButtonText: {
     color: '#FFF',
