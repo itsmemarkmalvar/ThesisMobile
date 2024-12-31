@@ -34,12 +34,13 @@ import {
   withTiming,
   Animated as ReAnimated
 } from 'react-native-reanimated';
+import MilestoneService from '../services/MilestoneService';
 
 const initialLayout = { width: Dimensions.get('window').width };
 const chartWidth = Dimensions.get('window').width - (Platform.OS === 'ios' ? 60 : 50);
 
 const GrowthTrackingScreen = ({ navigation, route }) => {
-  const { updateBabyData } = useBaby();
+  const { babyData, updateBabyData } = useBaby();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [growthData, setGrowthData] = useState([]);
@@ -56,62 +57,123 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
   // Simplified tab state
   const [activeTab, setActiveTab] = useState('history');
 
-  const [milestones, setMilestones] = useState([
-    {
-      id: 1,
-      age: '0-3 months',
-      milestones: [
-        { id: 1, title: 'Lifts head during tummy time', completed: false },
-        { id: 2, title: 'Follows moving objects with eyes', completed: false },
-        { id: 3, title: 'Recognizes familiar faces', completed: false },
-      ]
-    },
-    {
-      id: 2,
-      age: '4-6 months',
-      milestones: [
-        { id: 4, title: 'Rolls over in both directions', completed: false },
-        { id: 5, title: 'Begins to sit without support', completed: false },
-        { id: 6, title: 'Responds to own name', completed: false },
-      ]
-    },
-    {
-      id: 3,
-      age: '7-9 months',
-      milestones: [
-        { id: 7, title: 'Stands holding on', completed: false },
-        { id: 8, title: 'Can get into sitting position', completed: false },
-        { id: 9, title: 'Learns to crawl', completed: false },
-      ]
-    },
-    {
-      id: 4,
-      age: '10-12 months',
-      milestones: [
-        { id: 10, title: 'Pulls up to stand', completed: false },
-        { id: 11, title: 'Walks holding on to furniture', completed: false },
-        { id: 12, title: 'Says first words', completed: false },
-      ]
-    }
-  ]);
+  const [milestones, setMilestones] = useState([]);
+  const [milestonesLoading, setMilestonesLoading] = useState(true);
+  const [milestonesError, setMilestonesError] = useState(null);
 
-  const toggleMilestone = (ageGroupId, milestoneId) => {
-    setMilestones(prevMilestones => 
-      prevMilestones.map(ageGroup => {
-        if (ageGroup.id === ageGroupId) {
-          return {
-            ...ageGroup,
-            milestones: ageGroup.milestones.map(milestone => 
-              milestone.id === milestoneId
-                ? { ...milestone, completed: !milestone.completed }
-                : milestone
-            )
-          };
+  const fetchMilestones = async () => {
+    if (!babyData?.id) {
+      setMilestonesError('No baby selected');
+      setMilestonesLoading(false);
+      return;
+    }
+
+    try {
+      setMilestonesLoading(true);
+      setMilestonesError(null);
+      
+      // First try to get existing milestones
+      const response = await MilestoneService.getMilestones(babyData.id);
+      console.log('Milestones response:', response);
+      
+      if (!response.success || !response.data || response.data.length === 0) {
+        console.log('No milestones found, initializing...');
+        // Initialize milestones if none exist
+        const initResponse = await MilestoneService.initializeMilestones(babyData.id);
+        console.log('Initialize response:', initResponse);
+        
+        if (initResponse.success) {
+          // Fetch milestones again after initialization
+          const newResponse = await MilestoneService.getMilestones(babyData.id);
+          console.log('New milestones response:', newResponse);
+          
+          if (newResponse.success && newResponse.data) {
+            const groupedMilestones = groupMilestonesByCategory(newResponse.data);
+            setMilestones(groupedMilestones);
+          } else {
+            setMilestonesError('Failed to load milestones after initialization');
+          }
+        } else {
+          setMilestonesError('Failed to initialize milestones');
         }
-        return ageGroup;
-      })
-    );
+      } else {
+        const groupedMilestones = groupMilestonesByCategory(response.data);
+        setMilestones(groupedMilestones);
+      }
+    } catch (error) {
+      console.error('Error in fetchMilestones:', error);
+      setMilestonesError('Failed to load milestones');
+      setMilestones([]);
+    } finally {
+      setMilestonesLoading(false);
+    }
   };
+
+  const groupMilestonesByCategory = (milestonesData) => {
+    if (!Array.isArray(milestonesData)) {
+      console.warn('Invalid milestones data:', milestonesData);
+      return [];
+    }
+
+    return milestonesData.reduce((acc, milestone) => {
+      const category = acc.find(g => g.age === milestone.category);
+      if (category) {
+        category.milestones.push({
+          id: milestone.id,
+          title: milestone.title,
+          completed: milestone.completed,
+          notes: milestone.notes
+        });
+      } else {
+        acc.push({
+          id: acc.length + 1,
+          age: milestone.category,
+          milestones: [{
+            id: milestone.id,
+            title: milestone.title,
+            completed: milestone.completed,
+            notes: milestone.notes
+          }]
+        });
+      }
+      return acc;
+    }, []);
+  };
+
+  const toggleMilestone = async (ageGroupId, milestoneId) => {
+    if (!babyData?.id) {
+      Alert.alert('Error', 'No baby selected');
+      return;
+    }
+
+    try {
+      const response = await MilestoneService.toggleMilestone(babyData.id, milestoneId);
+      if (response.success) {
+        setMilestones(prevMilestones => 
+          prevMilestones.map(ageGroup => {
+            if (ageGroup.id === ageGroupId) {
+              return {
+                ...ageGroup,
+                milestones: ageGroup.milestones.map(milestone => 
+                  milestone.id === milestoneId
+                    ? { ...milestone, completed: !milestone.completed }
+                    : milestone
+                )
+              };
+            }
+            return ageGroup;
+          })
+        );
+      }
+    } catch (error) {
+      console.error('Error toggling milestone:', error);
+      Alert.alert('Error', 'Failed to update milestone');
+    }
+  };
+
+  useEffect(() => {
+    fetchMilestones();
+  }, []);
 
   useEffect(() => {
     fetchGrowthData();
@@ -571,35 +633,78 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
           <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={milestonesLoading}
+                onRefresh={fetchMilestones}
+                tintColor="#4A90E2"
+                colors={['#4A90E2']}
+              />
+            }
           >
-            {milestones.map((ageGroup) => (
-              <View key={ageGroup.id} style={styles.milestoneGroup}>
-                <Text style={styles.milestoneAgeTitle}>{ageGroup.age}</Text>
-                {ageGroup.milestones.map((milestone) => (
-                  <TouchableOpacity
-                    key={milestone.id}
-                    style={styles.milestoneItem}
-                    onPress={() => toggleMilestone(ageGroup.id, milestone.id)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.milestoneContent}>
-                      <MaterialIcons
-                        name={milestone.completed ? "check-circle" : "radio-button-unchecked"}
-                        size={24}
-                        color={milestone.completed ? "#4CAF50" : "#BDBDBD"}
-                        style={styles.milestoneIcon}
-                      />
-                      <Text style={[
-                        styles.milestoneText,
-                        milestone.completed && styles.milestoneTextCompleted
-                      ]}>
-                        {milestone.title}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
+            {milestonesError ? (
+              <View style={styles.errorContainer}>
+                <MaterialIcons name="error-outline" size={48} color="#FF6B6B" />
+                <Text style={styles.errorText}>{milestonesError}</Text>
+                <TouchableOpacity
+                  style={styles.retryButton}
+                  onPress={fetchMilestones}
+                >
+                  <Text style={styles.retryButtonText}>Retry</Text>
+                </TouchableOpacity>
               </View>
-            ))}
+            ) : milestonesLoading && !refreshing ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#4A90E2" />
+                <Text style={styles.loadingText}>Loading milestones...</Text>
+              </View>
+            ) : !Array.isArray(milestones) || milestones.length === 0 ? (
+              <View style={styles.emptyStateContainer}>
+                <MaterialIcons name="emoji-events" size={64} color="#BDBDBD" />
+                <Text style={styles.emptyStateTitle}>No Milestones Yet</Text>
+                <Text style={styles.emptyStateMessage}>
+                  Track your baby's developmental milestones here
+                </Text>
+                <TouchableOpacity
+                  style={styles.retryButton}
+                  onPress={fetchMilestones}
+                >
+                  <Text style={styles.retryButtonText}>Initialize Milestones</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              milestones.map((ageGroup) => (
+                <View key={ageGroup.id} style={styles.milestoneGroup}>
+                  <Text style={styles.milestoneAgeTitle}>{ageGroup.age}</Text>
+                  {ageGroup.milestones && ageGroup.milestones.map((milestone) => (
+                    <TouchableOpacity
+                      key={milestone.id}
+                      style={styles.milestoneItem}
+                      onPress={() => toggleMilestone(ageGroup.id, milestone.id)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.milestoneContent}>
+                        <MaterialIcons
+                          name={milestone.completed ? "check-circle" : "radio-button-unchecked"}
+                          size={24}
+                          color={milestone.completed ? "#4CAF50" : "#BDBDBD"}
+                          style={styles.milestoneIcon}
+                        />
+                        <Text style={[
+                          styles.milestoneText,
+                          milestone.completed && styles.milestoneTextCompleted
+                        ]}>
+                          {milestone.title}
+                        </Text>
+                      </View>
+                      {milestone.notes && (
+                        <Text style={styles.milestoneNotes}>{milestone.notes}</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ))
+            )}
           </ScrollView>
         );
 
@@ -1388,6 +1493,42 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingVertical: 16,
     paddingHorizontal: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    marginTop: 50,
+  },
+  errorText: {
+    fontSize: 18,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  retryButton: {
+    backgroundColor: '#4A90E2',
+    padding: 12,
+    borderRadius: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  retryButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  milestoneNotes: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
   },
 });
 
