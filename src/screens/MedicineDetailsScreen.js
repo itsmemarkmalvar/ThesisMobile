@@ -6,7 +6,8 @@ import {
     ScrollView,
     TouchableOpacity,
     ActivityIndicator,
-    Alert
+    Alert,
+    StatusBar
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Card, Icon } from '@rneui/themed';
@@ -78,6 +79,44 @@ const MedicineDetailsScreen = ({ route, navigation }) => {
                     }
                 }
             ]
+        );
+    };
+
+    const formatTime = (timeString) => {
+        try {
+            // Create a base date for today
+            const baseDate = new Date();
+            // Split the time string into hours and minutes
+            const [hours, minutes] = timeString.split(':');
+            // Set the time components
+            baseDate.setHours(parseInt(hours, 10));
+            baseDate.setMinutes(parseInt(minutes, 10));
+            // Format the time
+            return format(baseDate, 'h:mm a');
+        } catch (error) {
+            console.error('Error formatting time:', error);
+            return timeString; // Return original string if formatting fails
+        }
+    };
+
+    const renderSchedule = (schedule) => {
+        return (
+            <View key={schedule.id} style={styles.scheduleItem}>
+                <View style={styles.scheduleContent}>
+                    <View style={styles.timeContainer}>
+                        <Icon name="access-time" size={18} color="#FF9A9E" />
+                        <Text style={styles.scheduleTime}>{formatTime(schedule.time)}</Text>
+                    </View>
+                    <View style={styles.scheduleDetails}>
+                        <Text style={styles.scheduleDosage}>{schedule.dosage}</Text>
+                        <Text style={styles.scheduleFrequency}>
+                            {schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)}
+                            {schedule.days_of_week && ` • ${schedule.days_of_week}`}
+                        </Text>
+                        {schedule.notes && <Text style={styles.scheduleNotes}>{schedule.notes}</Text>}
+                    </View>
+                </View>
+            </View>
         );
     };
 
@@ -228,29 +267,7 @@ const MedicineDetailsScreen = ({ route, navigation }) => {
                                 </Text>
                             </View>
                         ) : (
-                            schedules.map((schedule) => (
-                                <View key={schedule.id} style={styles.scheduleItem}>
-                                    <View style={styles.scheduleTime}>
-                                        <Icon name="access-time" size={20} color="#FF9A9E" />
-                                        <Text style={styles.timeText}>
-                                            {format(new Date(`2000-01-01 ${schedule.time}`), 'h:mm a')}
-                                        </Text>
-                                    </View>
-                                    <View style={styles.scheduleDetails}>
-                                        <Text style={styles.dosageText}>{schedule.dosage}</Text>
-                                        <Text style={styles.frequencyText}>
-                                            {schedule.frequency}
-                                            {schedule.days_of_week && ` • ${schedule.days_of_week}`}
-                                        </Text>
-                                    </View>
-                                    <TouchableOpacity
-                                        style={styles.scheduleAction}
-                                        onPress={() => {/* Handle schedule edit */}}
-                                    >
-                                        <Icon name="more-vert" size={20} color="#8F9BB3" />
-                                    </TouchableOpacity>
-                                </View>
-                            ))
+                            schedules.map((schedule) => renderSchedule(schedule))
                         )}
                     </Card>
                 </ScrollView>
@@ -348,17 +365,22 @@ const styles = StyleSheet.create({
         lineHeight: 24
     },
     schedulesCard: {
-        marginHorizontal: 16,
-        marginBottom: 24,
-        borderRadius: 12,
-        padding: 16,
-        elevation: 3
+        borderRadius: 15,
+        padding: 15,
+        marginHorizontal: 15,
+        marginBottom: 20,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        backgroundColor: '#FFFFFF'
     },
     scheduleHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 16
+        marginBottom: 15
     },
     cardTitle: {
         fontSize: 18,
@@ -366,53 +388,65 @@ const styles = StyleSheet.create({
         color: '#2E3A59'
     },
     addScheduleButton: {
-        padding: 8,
-        marginRight: -8
+        padding: 5
     },
     scheduleItem: {
+        backgroundColor: '#F8F9FC',
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 10
+    },
+    scheduleContent: {
+        flexDirection: 'row',
+        alignItems: 'flex-start'
+    },
+    timeContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F8F9FC',
-        padding: 12,
+        marginRight: 12,
+        backgroundColor: '#FFF',
+        padding: 8,
         borderRadius: 8,
-        marginBottom: 8
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1
     },
     scheduleTime: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginRight: 12
-    },
-    timeText: {
-        marginLeft: 4,
         fontSize: 14,
+        fontWeight: '500',
         color: '#2E3A59',
-        fontWeight: '500'
+        marginLeft: 4
     },
     scheduleDetails: {
         flex: 1
     },
-    dosageText: {
-        fontSize: 14,
+    scheduleDosage: {
+        fontSize: 16,
+        fontWeight: '500',
         color: '#2E3A59',
-        fontWeight: '500'
+        marginBottom: 4
     },
-    frequencyText: {
-        fontSize: 12,
+    scheduleFrequency: {
+        fontSize: 14,
         color: '#8F9BB3',
-        marginTop: 2
+        marginBottom: 4
     },
-    scheduleAction: {
-        padding: 4
+    scheduleNotes: {
+        fontSize: 14,
+        color: '#8F9BB3',
+        fontStyle: 'italic'
     },
     emptySchedules: {
         alignItems: 'center',
-        padding: 24
+        padding: 20
     },
     emptyText: {
         fontSize: 16,
+        fontWeight: '500',
         color: '#2E3A59',
-        fontWeight: '600',
-        marginBottom: 4
+        marginBottom: 8
     },
     emptySubText: {
         fontSize: 14,

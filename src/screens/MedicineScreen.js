@@ -7,7 +7,8 @@ import {
     TouchableOpacity,
     RefreshControl,
     ActivityIndicator,
-    Alert
+    Alert,
+    StatusBar
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Card, Icon } from '@rneui/themed';

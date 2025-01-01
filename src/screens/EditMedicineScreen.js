@@ -6,7 +6,8 @@ import {
     ScrollView,
     TouchableOpacity,
     TextInput,
-    Alert
+    Alert,
+    StatusBar
 } from 'react-native';
 import { Icon } from '@rneui/themed';
 import { LinearGradient } from 'expo-linear-gradient';

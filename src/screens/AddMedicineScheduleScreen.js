@@ -6,7 +6,8 @@ import {
     ScrollView,
     TouchableOpacity,
     TextInput,
-    Alert
+    Alert,
+    StatusBar
 } from 'react-native';
 import { Icon } from '@rneui/themed';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -40,7 +41,14 @@ const AddMedicineScheduleScreen = ({ route, navigation }) => {
     const [selectedDays, setSelectedDays] = useState([]);
     const [notes, setNotes] = useState('');
     const [loading, setLoading] = useState(false);
-    const [isTimePickerVisible, setTimePickerVisible] = useState(false);
+    const [timePickerVisible, setTimePickerVisible] = useState(false);
+
+    const handleTimeConfirm = (selectedTime) => {
+        setTimePickerVisible(false);
+        if (selectedTime) {
+            setTime(selectedTime);
+        }
+    };
 
     const handleSave = async () => {
         if (!dosage.trim()) {
@@ -60,22 +68,27 @@ const AddMedicineScheduleScreen = ({ route, navigation }) => {
 
         try {
             setLoading(true);
+            const timeDate = new Date(time);
+            const formattedTime = format(timeDate, 'HH:mm');
+            console.log('Formatted time:', formattedTime);
+
             const scheduleData = {
-                time: format(time, 'HH:mm:ss'),
+                time: formattedTime,
                 dosage: dosage.trim(),
                 frequency: frequency.toLowerCase(),
-                days_of_week: frequency === 'weekly' ? selectedDays.join(',') : null,
+                days_of_week: frequency === 'weekly' ? selectedDays : null,
                 notes: notes.trim()
             };
 
+            console.log('Schedule data:', scheduleData);
             await MedicineService.createSchedule(medicineId, scheduleData);
             navigation.goBack();
         } catch (error) {
             console.error('Error saving schedule:', error);
-            Alert.alert(
-                'Error',
-                error.response?.data?.message || 'Failed to save schedule'
-            );
+            const errorMessage = error.response?.data?.errors?.time?.[0] || 
+                               error.response?.data?.message || 
+                               'Failed to save schedule';
+            Alert.alert('Error', errorMessage);
         } finally {
             setLoading(false);
         }
@@ -206,12 +219,9 @@ const AddMedicineScheduleScreen = ({ route, navigation }) => {
                 </ScrollView>
 
                 <DateTimePickerModal
-                    isVisible={isTimePickerVisible}
+                    isVisible={timePickerVisible}
                     mode="time"
-                    onConfirm={(selectedTime) => {
-                        setTime(selectedTime);
-                        setTimePickerVisible(false);
-                    }}
+                    onConfirm={handleTimeConfirm}
                     onCancel={() => setTimePickerVisible(false)}
                 />
             </LinearGradient>

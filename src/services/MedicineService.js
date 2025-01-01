@@ -71,10 +71,17 @@ export class MedicineService {
 
     static async createSchedule(medicineId, scheduleData) {
         try {
-            const response = await ApiService.post(`/medicines/${medicineId}/schedules`, scheduleData);
+            console.log('Creating schedule with data:', scheduleData); // Debug log
+            const response = await ApiService.post(`/medicines/${medicineId}/schedules`, {
+                ...scheduleData,
+                time: scheduleData.time // Ensure time is in HH:mm:00 format
+            });
             return response.data;
         } catch (error) {
             console.error('Error creating schedule:', error);
+            if (error.response?.data?.errors) {
+                console.error('Validation errors:', error.response.data.errors);
+            }
             throw error;
         }
     }
