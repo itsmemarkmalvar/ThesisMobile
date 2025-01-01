@@ -17,6 +17,14 @@ import FeedingScreen from '../screens/FeedingScreen';
 import SleepScreen from '../screens/SleepScreen';
 import DiaperScreen from '../screens/DiaperScreen';
 import ImmunizationScreen from '../screens/ImmunizationScreen';
+import AddFeedingScreen from '../screens/AddFeedingScreen';
+import EditFeedingScreen from '../screens/EditFeedingScreen';
+import AddSleepScreen from '../screens/AddSleepScreen';
+import EditSleepScreen from '../screens/EditSleepScreen';
+import AddMedicineScreen from '../screens/AddMedicineScreen';
+import MedicineDetailsScreen from '../screens/MedicineDetailsScreen';
+import AddMedicineScheduleScreen from '../screens/AddMedicineScheduleScreen';
+import EditMedicineScreen from '../screens/EditMedicineScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -38,11 +46,69 @@ const HomeStack = () => (
     <Stack.Screen name="GrowthTracking" component={GrowthTrackingScreen} />
     <Stack.Screen name="Development" component={DevelopmentScreen} />
     <Stack.Screen name="Health" component={HealthScreen} />
-    <Stack.Screen name="Medicine" component={MedicineScreen} />
+    <Stack.Screen
+        name="Medicine"
+        component={MedicineScreen}
+        options={{
+            headerShown: false
+        }}
+    />
     <Stack.Screen name="Feeding" component={FeedingScreen} />
-    <Stack.Screen name="Sleep" component={SleepScreen} />
+    <Stack.Screen
+        name="Sleep"
+        component={SleepScreen}
+        options={{
+            headerShown: false
+        }}
+    />
     <Stack.Screen name="Diaper" component={DiaperScreen} />
     <Stack.Screen name="Immunization" component={ImmunizationScreen} />
+    <Stack.Screen name="AddFeeding" component={AddFeedingScreen} />
+    <Stack.Screen name="EditFeeding" component={EditFeedingScreen} />
+    <Stack.Screen
+        name="AddSleep"
+        component={AddSleepScreen}
+        options={{
+            title: 'Add Sleep Log',
+            headerShown: true
+        }}
+    />
+    <Stack.Screen
+        name="EditSleep"
+        component={EditSleepScreen}
+        options={{
+            title: 'Edit Sleep Log',
+            headerShown: true
+        }}
+    />
+    <Stack.Screen
+        name="AddMedicine"
+        component={AddMedicineScreen}
+        options={{
+            headerShown: false
+        }}
+    />
+    <Stack.Screen
+        name="MedicineDetails"
+        component={MedicineDetailsScreen}
+        options={{
+            headerShown: false
+        }}
+    />
+    <Stack.Screen
+        name="EditMedicine"
+        component={EditMedicineScreen}
+        options={{
+            headerShown: false
+        }}
+    />
+    <Stack.Screen
+        name="AddMedicineSchedule"
+        component={AddMedicineScheduleScreen}
+        options={{
+            headerShown: false
+        }}
+    />
   </Stack.Navigator>
 );
 

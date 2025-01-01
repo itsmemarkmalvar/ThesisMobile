@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useCallback, useRef, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService from '../services/ApiService';
+import NetInfo from '@react-native-community/netinfo';
 
 const BabyContext = createContext();
 const MAX_RETRIES = 3;
@@ -25,10 +26,15 @@ export const BabyProvider = ({ children }) => {
   // Cache baby data locally
   const cacheBabyData = async (data) => {
     try {
-      await AsyncStorage.setItem('cachedBabyData', JSON.stringify({
+      const cacheData = {
         data,
-        timestamp: Date.now()
-      }));
+        timestamp: Date.now(),
+        version: '1.0' // Add versioning for future cache structure changes
+      };
+      await AsyncStorage.setItem('cachedBabyData', JSON.stringify(cacheData));
+      
+      // Also store last sync time
+      await AsyncStorage.setItem('lastBabyDataSync', Date.now().toString());
     } catch (e) {
       console.error('Error caching baby data:', e);
     }
@@ -39,9 +45,14 @@ export const BabyProvider = ({ children }) => {
     try {
       const cached = await AsyncStorage.getItem('cachedBabyData');
       if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        // Only use cache if it's less than 5 minutes old
-        if (Date.now() - timestamp < 5 * 60 * 1000) {
+        const { data, timestamp, version } = JSON.parse(cached);
+        // Use cache if:
+        // 1. Less than 30 minutes old (increased from 5 minutes)
+        // 2. We're offline (no internet connection)
+        const isRecent = Date.now() - timestamp < 30 * 60 * 1000;
+        const hasNetwork = await NetInfo.fetch().then(state => state.isConnected);
+        
+        if (isRecent || !hasNetwork) {
           if (mountedRef.current) {
             setBabyData(data);
             setLastFetchTime(timestamp);
@@ -50,8 +61,8 @@ export const BabyProvider = ({ children }) => {
         }
       }
       return false;
-    } catch (e) {
-      console.error('Error loading cached data:', e);
+    } catch (error) {
+      console.error('Error loading cached data:', error);
       return false;
     }
   };
