@@ -25,6 +25,21 @@ import AddMedicineScreen from '../screens/AddMedicineScreen';
 import MedicineDetailsScreen from '../screens/MedicineDetailsScreen';
 import AddMedicineScheduleScreen from '../screens/AddMedicineScheduleScreen';
 import EditMedicineScreen from '../screens/EditMedicineScreen';
+import AppointmentDetailsScreen from '../screens/AppointmentDetailsScreen';
+import EditAppointmentScreen from '../screens/EditAppointmentScreen';
+import HealthRecordsScreen from '../screens/HealthRecordsScreen';
+import AddHealthRecordScreen from '../screens/AddHealthRecordScreen';
+import EditHealthRecordScreen from '../screens/EditHealthRecordScreen';
+import HealthRecordDetailsScreen from '../screens/HealthRecordDetailsScreen';
+import SymptomsScreen from '../screens/SymptomsScreen';
+import AddSymptomScreen from '../screens/AddSymptomScreen';
+import EditSymptomScreen from '../screens/EditSymptomScreen';
+import DoctorVisitsScreen from '../screens/DoctorVisitsScreen';
+import AddDoctorVisitScreen from '../screens/AddDoctorVisitScreen';
+import EditDoctorVisitScreen from '../screens/EditDoctorVisitScreen';
+import DoctorVisitDetailsScreen from '../screens/DoctorVisitDetailsScreen';
+import AppointmentsScreen from '../screens/AppointmentsScreen';
+import AddAppointmentScreen from '../screens/AddAppointmentScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -46,6 +61,14 @@ const HomeStack = () => (
     <Stack.Screen name="GrowthTracking" component={GrowthTrackingScreen} />
     <Stack.Screen name="Development" component={DevelopmentScreen} />
     <Stack.Screen name="Health" component={HealthScreen} />
+    <Stack.Screen name="DoctorVisits" component={DoctorVisitsScreen} />
+    <Stack.Screen name="AddDoctorVisit" component={AddDoctorVisitScreen} />
+    <Stack.Screen name="EditDoctorVisit" component={EditDoctorVisitScreen} />
+    <Stack.Screen name="DoctorVisitDetails" component={DoctorVisitDetailsScreen} />
+    <Stack.Screen name="Appointments" component={AppointmentsScreen} />
+    <Stack.Screen name="AddAppointment" component={AddAppointmentScreen} />
+    <Stack.Screen name="AppointmentDetails" component={AppointmentDetailsScreen} />
+    <Stack.Screen name="EditAppointment" component={EditAppointmentScreen} />
     <Stack.Screen
         name="Medicine"
         component={MedicineScreen}
@@ -108,6 +131,41 @@ const HomeStack = () => (
         options={{
             headerShown: false
         }}
+    />
+    <Stack.Screen
+        name="HealthRecords"
+        component={HealthRecordsScreen}
+        options={{ headerShown: false }}
+    />
+    <Stack.Screen
+        name="AddHealthRecord"
+        component={AddHealthRecordScreen}
+        options={{ headerShown: false }}
+    />
+    <Stack.Screen
+        name="EditHealthRecord"
+        component={EditHealthRecordScreen}
+        options={{ headerShown: false }}
+    />
+    <Stack.Screen
+        name="HealthRecordDetails"
+        component={HealthRecordDetailsScreen}
+        options={{ headerShown: false }}
+    />
+    <Stack.Screen
+        name="Symptoms"
+        component={SymptomsScreen}
+        options={{ headerShown: false }}
+    />
+    <Stack.Screen
+        name="AddSymptom"
+        component={AddSymptomScreen}
+        options={{ headerShown: false }}
+    />
+    <Stack.Screen
+        name="EditSymptom"
+        component={EditSymptomScreen}
+        options={{ headerShown: false }}
     />
   </Stack.Navigator>
 );
