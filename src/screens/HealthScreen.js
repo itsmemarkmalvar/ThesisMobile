@@ -50,17 +50,22 @@ const HealthScreen = () => {
   const fetchData = async (search = '') => {
     try {
       setError(null);
-      const [appointments, records, visits, symptoms] = await Promise.all([
-        HealthService.getUpcomingAppointments(1, search),
+      const [appointmentsResponse, records, visits, symptoms] = await Promise.all([
+        HealthService.getUpcomingAppointments(),
         HealthService.getHealthRecords(1, search),
         HealthService.getDoctorVisits(1, search),
         HealthService.getSymptoms(null, null, null, 'active')
       ]);
       
-      setUpcomingAppointments(appointments?.data || []);
+      console.log('Raw appointments response:', appointmentsResponse);
+      
+      // Handle the appointments response directly (not nested under data)
+      setUpcomingAppointments(Array.isArray(appointmentsResponse) ? appointmentsResponse : []);
       setRecentHealthRecords(records?.data || []);
       setRecentDoctorVisits(visits?.data || []);
       setActiveSymptoms(symptoms?.data || []);
+
+      console.log('Processed appointments:', Array.isArray(appointmentsResponse) ? appointmentsResponse : []);
     } catch (err) {
       setError('Failed to load health data');
       console.error('Error fetching health data:', err);
@@ -187,8 +192,8 @@ const HealthScreen = () => {
                         <Text variant="titleMedium">
                           {format(new Date(appointment.appointment_date), 'MMM d, yyyy h:mm a')}
                         </Text>
-                        <Text variant="bodyMedium">Dr. {appointment.doctor_name}</Text>
-                        <Text variant="bodySmall">{appointment.purpose}</Text>
+                        <Text variant="bodyMedium">{appointment.doctor_name || 'Doctor not specified'}</Text>
+                        <Text variant="bodySmall">{appointment.purpose || 'No purpose specified'}</Text>
                       </Card.Content>
                     </Card>
                   ))}
