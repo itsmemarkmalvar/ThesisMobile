@@ -17,7 +17,7 @@ const AddDiaperNoteModal = ({ visible, onClose, onSave, initialType = 'wet' }) =
 
   const handleSave = () => {
     onSave({
-      type: selectedType,
+      type: selectedType || initialType,
       time: selectedTime,
       notes: notes.trim(),
     });

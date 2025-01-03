@@ -88,7 +88,7 @@ const DiaperStats = ({ diaperLogs, selectedDate }) => {
             }]
           }}
           width={Dimensions.get('window').width - 64}
-          height={180}
+          height={160}
           chartConfig={{
             backgroundColor: '#fff',
             backgroundGradientFrom: '#fff',
@@ -100,12 +100,24 @@ const DiaperStats = ({ diaperLogs, selectedDate }) => {
               borderRadius: 16,
             },
             propsForDots: {
-              r: '6',
+              r: '4',
               strokeWidth: '2',
               stroke: '#4A90E2'
+            },
+            propsForLabels: {
+              fontSize: 10
             }
           }}
-          style={styles.chart}
+          style={{
+            marginVertical: 8,
+            borderRadius: 16,
+            paddingRight: 16
+          }}
+          withInnerLines={false}
+          withOuterLines={true}
+          withVerticalLines={false}
+          withHorizontalLines={true}
+          withShadow={false}
           bezier
         />
       </View>
@@ -115,11 +127,11 @@ const DiaperStats = ({ diaperLogs, selectedDate }) => {
 
 const styles = StyleSheet.create({
   container: {
-    margin: 16,
-    padding: 16,
     backgroundColor: 'white',
-    borderRadius: 12,
-    ...shadowStyles.medium,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    ...shadowStyles.small,
   },
   title: {
     fontSize: 18,
@@ -130,7 +142,10 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 24,
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEE',
   },
   statItem: {
     alignItems: 'center',
@@ -138,7 +153,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#4A90E2',
+    color: '#333',
   },
   statLabel: {
     fontSize: 14,
@@ -146,17 +161,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   chartContainer: {
-    marginTop: 16,
+    marginTop: 8,
   },
   chartTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#333',
-    marginBottom: 12,
-  },
-  chart: {
-    marginVertical: 8,
-    borderRadius: 16,
+    marginBottom: 8,
   },
 });
 
