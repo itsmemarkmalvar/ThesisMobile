@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Modal,
   Dimensions,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -16,9 +17,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../config';
+import VaccineCalendar from '../components/VaccineCalendar';
+import { setupNotifications, scheduleVaccineReminder, cancelVaccineReminder } from '../utils/notifications';
+import ReminderSettings from '../components/ReminderSettings';
 
 const ImmunizationScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [showReminderSettings, setShowReminderSettings] = useState(false);
+  const [reminderEnabled, setReminderEnabled] = useState(true);
+  const [selectedVaccine, setSelectedVaccine] = useState(null);
+  const [infoModalVisible, setInfoModalVisible] = useState(false);
   const [vaccines, setVaccines] = useState([
     {
       id: 1,
@@ -79,8 +88,14 @@ const ImmunizationScreen = ({ navigation }) => {
     }
   ]);
 
-  const [selectedVaccine, setSelectedVaccine] = useState(null);
-  const [infoModalVisible, setInfoModalVisible] = useState(false);
+  useEffect(() => {
+    setupNotifications();
+  }, []);
+
+  const handleDayPress = (day) => {
+    // Handle calendar day press
+    console.log('Selected day:', day);
+  };
 
   const toggleVaccine = async (ageGroupId, vaccineId) => {
     try {
@@ -95,10 +110,24 @@ const ImmunizationScreen = ({ navigation }) => {
               ...ageGroup,
               vaccines: ageGroup.vaccines.map(vaccine => {
                 if (vaccine.id === vaccineId) {
+                  const newCompleted = !vaccine.completed;
+                  const newDate = newCompleted ? new Date().toISOString() : null;
+
+                  // Handle reminder
+                  if (newCompleted) {
+                    cancelVaccineReminder(vaccineId);
+                  } else if (reminderEnabled) {
+                    const reminderSettings = {
+                      reminderDays: 7,
+                      reminderTime: '09:00'
+                    };
+                    scheduleVaccineReminder(vaccine, newDate, reminderSettings);
+                  }
+
                   return {
                     ...vaccine,
-                    completed: !vaccine.completed,
-                    date: !vaccine.completed ? new Date().toISOString() : null
+                    completed: newCompleted,
+                    date: newDate
                   };
                 }
                 return vaccine;
@@ -124,6 +153,29 @@ const ImmunizationScreen = ({ navigation }) => {
     } catch (error) {
       console.error('Error updating vaccine status:', error);
       Alert.alert('Error', 'Failed to update vaccine status');
+    }
+  };
+
+  const handleReminderSettingsSave = async (settings) => {
+    setReminderEnabled(settings.enabled);
+    setShowReminderSettings(false);
+    
+    // Update reminders for all upcoming vaccines
+    if (settings.enabled) {
+      vaccines.forEach(ageGroup => {
+        ageGroup.vaccines.forEach(vaccine => {
+          if (!vaccine.completed && vaccine.date) {
+            scheduleVaccineReminder(vaccine, vaccine.date, settings);
+          }
+        });
+      });
+    } else {
+      // Cancel all reminders if disabled
+      vaccines.forEach(ageGroup => {
+        ageGroup.vaccines.forEach(vaccine => {
+          cancelVaccineReminder(vaccine.id);
+        });
+      });
     }
   };
 
@@ -234,19 +286,59 @@ const ImmunizationScreen = ({ navigation }) => {
             <MaterialIcons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Immunization Schedule</Text>
-          <View style={styles.headerRight} />
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => setShowReminderSettings(true)}
+            >
+              <MaterialIcons 
+                name="notifications" 
+                size={24} 
+                color={reminderEnabled ? "#4A90E2" : "#BDBDBD"} 
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => setShowCalendar(!showCalendar)}
+            >
+              <MaterialIcons 
+                name="calendar-today" 
+                size={24} 
+                color="#4A90E2" 
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <ScrollView style={styles.content}>
-          {vaccines.map((ageGroup) => (
-            <View key={ageGroup.id} style={styles.ageGroupContainer}>
-              <Text style={styles.ageGroupTitle}>{ageGroup.ageGroup}</Text>
-              {ageGroup.vaccines.map((vaccine) => (
-                renderVaccineItem(vaccine, ageGroup)
-              ))}
-            </View>
-          ))}
-        </ScrollView>
+        {showCalendar ? (
+          <VaccineCalendar
+            vaccines={vaccines}
+            onDayPress={handleDayPress}
+          />
+        ) : (
+          <ScrollView style={styles.content}>
+            {vaccines.map((ageGroup) => (
+              <View key={ageGroup.id} style={styles.ageGroupContainer}>
+                <Text style={styles.ageGroupTitle}>{ageGroup.ageGroup}</Text>
+                {ageGroup.vaccines.map((vaccine) => (
+                  renderVaccineItem(vaccine, ageGroup)
+                ))}
+              </View>
+            ))}
+          </ScrollView>
+        )}
+
+        <VaccineInfoModal
+          vaccine={selectedVaccine}
+          visible={infoModalVisible}
+          onClose={() => setInfoModalVisible(false)}
+        />
+
+        <ReminderSettings
+          visible={showReminderSettings}
+          onClose={() => setShowReminderSettings(false)}
+          onSave={handleReminderSettingsSave}
+        />
       </LinearGradient>
     </SafeAreaView>
   );
@@ -279,8 +371,13 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
   },
-  headerRight: {
-    width: 40,
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconButton: {
+    padding: 8,
+    marginLeft: 8,
   },
   content: {
     flex: 1,

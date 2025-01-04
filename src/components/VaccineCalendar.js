@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { Calendar, CalendarList } from 'react-native-calendars';
+import { Calendar } from 'react-native-calendars';
 
 const VaccineCalendar = ({ vaccines, onDayPress }) => {
   // Process vaccines into calendar format
@@ -8,9 +8,12 @@ const VaccineCalendar = ({ vaccines, onDayPress }) => {
   vaccines.forEach(ageGroup => {
     ageGroup.vaccines.forEach(vaccine => {
       if (vaccine.date) {
-        markedDates[vaccine.date.split('T')[0]] = {
+        const dateString = vaccine.date.split('T')[0];
+        markedDates[dateString] = {
           marked: true,
-          dotColor: '#4CAF50'
+          dotColor: vaccine.completed ? '#4CAF50' : '#4A90E2',
+          selected: true,
+          selectedColor: 'rgba(74, 144, 226, 0.1)',
         };
       }
     });
@@ -18,27 +21,42 @@ const VaccineCalendar = ({ vaccines, onDayPress }) => {
 
   return (
     <View style={styles.container}>
-      <Calendar
-        markedDates={markedDates}
-        onDayPress={onDayPress}
-        theme={{
-          selectedDayBackgroundColor: '#4A90E2',
-          todayTextColor: '#4A90E2',
-          dotColor: '#4CAF50',
-          arrowColor: '#4A90E2',
-        }}
-      />
+      <View style={styles.calendarContainer}>
+        <Calendar
+          current={new Date().toISOString()}
+          markedDates={markedDates}
+          onDayPress={onDayPress}
+          enableSwipeMonths={true}
+          theme={{
+            backgroundColor: '#ffffff',
+            calendarBackground: '#ffffff',
+            selectedDayBackgroundColor: '#4A90E2',
+            selectedDayTextColor: '#ffffff',
+            todayTextColor: '#4A90E2',
+            dayTextColor: '#2d4150',
+            textDisabledColor: '#d9e1e8',
+            dotColor: '#4CAF50',
+            selectedDotColor: '#ffffff',
+            arrowColor: '#4A90E2',
+            monthTextColor: '#2d4150',
+            textDayFontSize: 16,
+            textMonthFontSize: 16,
+            textDayHeaderFontSize: 14
+          }}
+        />
+      </View>
       <ScrollView style={styles.scheduleList}>
-        {/* Render upcoming vaccines */}
         {vaccines.map(ageGroup => (
-          ageGroup.vaccines
-            .filter(v => !v.completed)
-            .map(vaccine => (
-              <View key={vaccine.id} style={styles.scheduleItem}>
-                <Text style={styles.scheduleName}>{vaccine.name}</Text>
-                <Text style={styles.scheduleAge}>Due: {ageGroup.ageGroup}</Text>
-              </View>
-            ))
+          <View key={ageGroup.id} style={styles.scheduleItem}>
+            <Text style={styles.ageGroupTitle}>{ageGroup.ageGroup}</Text>
+            {ageGroup.vaccines
+              .filter(v => !v.completed)
+              .map(vaccine => (
+                <View key={vaccine.id} style={styles.vaccineItem}>
+                  <Text style={styles.scheduleName}>{vaccine.name}</Text>
+                </View>
+              ))}
+          </View>
         ))}
       </ScrollView>
     </View>
@@ -48,31 +66,35 @@ const VaccineCalendar = ({ vaccines, onDayPress }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  calendarContainer: {
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
   scheduleList: {
     flex: 1,
     padding: 16,
   },
   scheduleItem: {
-    backgroundColor: 'white',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
+    marginBottom: 16,
   },
-  scheduleName: {
+  ageGroupTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+    marginBottom: 8,
   },
-  scheduleAge: {
+  vaccineItem: {
+    backgroundColor: '#f5f5f5',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  scheduleName: {
     fontSize: 14,
     color: '#666',
-    marginTop: 4,
   },
 });
 
