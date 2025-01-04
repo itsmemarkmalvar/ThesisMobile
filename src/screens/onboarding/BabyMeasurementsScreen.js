@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,10 @@ import {
   SafeAreaView,
   TextInput,
   Alert,
+  KeyboardAvoidingView,
+  ScrollView,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -16,12 +20,48 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../../config';
 
+const MeasurementInput = React.memo(({ label, value, unit, onChange, placeholder, inputRef, fieldName }) => {
+  console.log(`Rendering MeasurementInput - ${fieldName}, value: ${value}`);
+  
+  const handleTextChange = (text) => {
+    // Only allow numbers and one decimal point
+    const numericText = text.replace(/[^0-9.]/g, '');
+    // Prevent multiple decimal points
+    const parts = numericText.split('.');
+    const sanitizedText = parts[0] + (parts.length > 1 ? '.' + parts[1] : '');
+    onChange(sanitizedText);
+  };
+
+  return (
+    <View style={styles.inputContainer}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.measurementInput}>
+        <TextInput
+          ref={inputRef}
+          style={styles.input}
+          value={value}
+          onChangeText={handleTextChange}
+          placeholder={placeholder}
+          keyboardType="decimal-pad"
+          placeholderTextColor="#999"
+        />
+        <Text style={styles.unit}>{unit}</Text>
+      </View>
+    </View>
+  );
+});
+
 const BabyMeasurementsScreen = ({ navigation, route }) => {
   const [measurements, setMeasurements] = useState({
     height: '',
     weight: '',
     headSize: '',
   });
+  
+  // Create refs for each input
+  const heightInputRef = useRef(null);
+  const weightInputRef = useRef(null);
+  const headSizeInputRef = useRef(null);
 
   const { babyName, gender, birthDate } = route.params;
 
@@ -46,29 +86,7 @@ const BabyMeasurementsScreen = ({ navigation, route }) => {
     checkToken();
   }, []);
 
-  const validateMeasurements = () => {
-    const height = parseFloat(measurements.height);
-    const weight = parseFloat(measurements.weight);
-    const headSize = parseFloat(measurements.headSize);
-
-    if (!height || height < 20 || height > 120) {
-      Alert.alert('Invalid Height', 'Please enter a valid height between 20-120 cm');
-      return false;
-    }
-    if (!weight || weight < 1 || weight > 30) {
-      Alert.alert('Invalid Weight', 'Please enter a valid weight between 1-30 kg');
-      return false;
-    }
-    if (!headSize || headSize < 20 || headSize > 60) {
-      Alert.alert('Invalid Head Size', 'Please enter a valid head size between 20-60 cm');
-      return false;
-    }
-    return true;
-  };
-
   const handleComplete = async () => {
-    if (!validateMeasurements()) return;
-
     try {
       const token = await AsyncStorage.getItem('userToken');
       console.log('Token when saving:', token ? token.substring(0, 10) + '...' : 'No token');
@@ -128,29 +146,32 @@ const BabyMeasurementsScreen = ({ navigation, route }) => {
     }
   };
 
-  const MeasurementInput = ({ label, value, unit, onChange, placeholder }) => (
-    <View style={styles.inputContainer}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.measurementInput}>
-        <TextInput
-          style={styles.input}
-          value={value}
-          onChangeText={(text) => {
-            // Only allow numbers and one decimal point
-            if (/^\d*\.?\d*$/.test(text)) {
-              onChange(text);
-            }
-          }}
-          placeholder={placeholder}
-          keyboardType="decimal-pad" // This will show numeric keypad with decimal
-          placeholderTextColor="#999"
-          returnKeyType="done"
-          maxLength={5} // Limit length to prevent very long numbers
-        />
-        <Text style={styles.unit}>{unit}</Text>
-      </View>
-    </View>
-  );
+  const dismissKeyboard = () => {
+    Keyboard.dismiss();
+  };
+
+  const updateMeasurement = useCallback((field, value) => {
+    console.log(`updateMeasurement called - field: ${field}, value: ${value}`);
+    setMeasurements(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }, []);
+
+  const handleHeightChange = useCallback((value) => {
+    console.log('Height change:', value);
+    updateMeasurement('height', value);
+  }, [updateMeasurement]);
+
+  const handleWeightChange = useCallback((value) => {
+    console.log('Weight change:', value);
+    updateMeasurement('weight', value);
+  }, [updateMeasurement]);
+
+  const handleHeadSizeChange = useCallback((value) => {
+    console.log('Head size change:', value);
+    updateMeasurement('headSize', value);
+  }, [updateMeasurement]);
 
   return (
     <>
@@ -163,49 +184,60 @@ const BabyMeasurementsScreen = ({ navigation, route }) => {
           end={{ x: 1, y: 1 }}
         />
         <SafeAreaView style={styles.safeArea}>
-          <View style={styles.content}>
-            {/* Progress Bar */}
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: '100%' }]} />
+          <ScrollView 
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollViewContent}
+            keyboardShouldPersistTaps="always"
+          >
+            <View style={styles.content}>
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: '100%' }]} />
+                </View>
+                <Text style={styles.stepText}>Step 3 of 3</Text>
               </View>
-              <Text style={styles.stepText}>Step 3 of 3</Text>
+
+              <Text style={styles.title}>Baby's Measurements</Text>
+              <Text style={styles.subtitle}>Enter your baby's current measurements</Text>
+
+              <MeasurementInput
+                label="Height"
+                value={measurements.height}
+                unit="cm"
+                onChange={handleHeightChange}
+                placeholder="0.0"
+                inputRef={heightInputRef}
+                fieldName="height"
+              />
+
+              <MeasurementInput
+                label="Weight"
+                value={measurements.weight}
+                unit="kg"
+                onChange={handleWeightChange}
+                placeholder="0.0"
+                inputRef={weightInputRef}
+                fieldName="weight"
+              />
+
+              <MeasurementInput
+                label="Head Size"
+                value={measurements.headSize}
+                unit="cm"
+                onChange={handleHeadSizeChange}
+                placeholder="0.0"
+                inputRef={headSizeInputRef}
+                fieldName="headSize"
+              />
+
+              <TouchableOpacity
+                style={styles.completeButton}
+                onPress={handleComplete}
+              >
+                <Text style={styles.completeButtonText}>Complete</Text>
+              </TouchableOpacity>
             </View>
-
-            <Text style={styles.title}>Baby's Measurements</Text>
-            <Text style={styles.subtitle}>Enter your baby's current measurements</Text>
-
-            <MeasurementInput
-              label="Height"
-              value={measurements.height}
-              unit="cm"
-              onChange={(text) => setMeasurements({ ...measurements, height: text })}
-              placeholder="0.0"
-            />
-
-            <MeasurementInput
-              label="Weight"
-              value={measurements.weight}
-              unit="kg"
-              onChange={(text) => setMeasurements({ ...measurements, weight: text })}
-              placeholder="0.0"
-            />
-
-            <MeasurementInput
-              label="Head Size"
-              value={measurements.headSize}
-              unit="cm"
-              onChange={(text) => setMeasurements({ ...measurements, headSize: text })}
-              placeholder="0.0"
-            />
-
-            <TouchableOpacity
-              style={styles.completeButton}
-              onPress={handleComplete}
-            >
-              <Text style={styles.completeButtonText}>Complete</Text>
-            </TouchableOpacity>
-          </View>
+          </ScrollView>
         </SafeAreaView>
       </View>
     </>
@@ -222,6 +254,13 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   content: {
     flex: 1,
@@ -263,33 +302,26 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#333',
     marginBottom: 8,
   },
   measurementInput: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 12,
     paddingHorizontal: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
   input: {
     flex: 1,
     fontSize: 16,
     color: '#333',
-    padding: 16,
+    padding: 0,
+    backgroundColor: '#FFF',
   },
   unit: {
     fontSize: 16,
@@ -301,11 +333,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
-    marginTop: 'auto',
-    marginBottom: 24,
-  },
-  completeButtonDisabled: {
-    opacity: 0.5,
+    marginTop: 32,
+    marginBottom: Platform.OS === 'ios' ? 20 : 10,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   completeButtonText: {
     color: '#FFF',

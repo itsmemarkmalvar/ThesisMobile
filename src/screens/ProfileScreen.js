@@ -105,6 +105,11 @@ const ProfileScreen = ({ navigation, route }) => {
           return 'Birthday cannot be in the future';
         }
         return null;
+      case 'gender':
+        if (!value || !['male', 'female'].includes(value)) {
+          return 'Please select a valid gender';
+        }
+        return null;
       default:
         return value.trim() ? null : 'This field is required';
     }
@@ -129,6 +134,8 @@ const ProfileScreen = ({ navigation, route }) => {
       if (Platform.OS === 'android') {
         setShowDatePicker(true);
       }
+    } else if (field === 'gender') {
+      setEditValue(value === null || value === undefined ? 'male' : value);
     } else {
       setEditValue(value);
     }
@@ -197,18 +204,21 @@ const ProfileScreen = ({ navigation, route }) => {
       const token = await AsyncStorage.getItem('userToken');
       if (!token) throw new Error('No token found');
 
+      console.log('Sending update request:', { [editField]: editValue });
+
       const response = await axios.put(
         `${API_URL}/auth/user/update`,
         { [editField]: editValue },
         {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
           }
         }
       );
 
-      console.log('Update response:', response.data);
+      console.log('Raw response:', response.data);
 
       if (response.data.user) {
         setUserData(response.data.user);
@@ -217,12 +227,58 @@ const ProfileScreen = ({ navigation, route }) => {
         await fetchUserData();
       }
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error('Error updating profile:', error.response?.data || error);
       Alert.alert('Error', 'Failed to update profile');
     } finally {
       setFieldLoading(prev => ({ ...prev, [editField]: false }));
       setModalVisible(false);
       setShowDatePicker(false);
+    }
+  };
+
+  const handleGenderUpdate = (value) => {
+    console.log('Selected gender:', value);
+    setEditValue(value);
+    if (Platform.OS === 'android') {
+      setModalVisible(false);
+      updateGender(value);
+    }
+  };
+
+  const updateGender = async (genderValue) => {
+    try {
+      setFieldLoading(prev => ({ ...prev, gender: true }));
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) throw new Error('No token found');
+
+      console.log('Sending gender update request:', { gender: genderValue });
+
+      const response = await axios.put(
+        `${API_URL}/auth/user/update`,
+        { gender: genderValue },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('Raw response:', response.data);
+
+      if (response.data.user) {
+        setUserData(response.data.user);
+        Alert.alert('Success', 'Gender updated successfully');
+      } else {
+        await fetchUserData();
+      }
+    } catch (error) {
+      console.error('Error updating gender:', error.response?.data || error);
+      Alert.alert('Error', 'Failed to update gender');
+    } finally {
+      setFieldLoading(prev => ({ ...prev, gender: false }));
+      setModalVisible(false);
     }
   };
 
@@ -383,11 +439,10 @@ const ProfileScreen = ({ navigation, route }) => {
               <View style={styles.pickerWrapper}>
                 <Picker
                   selectedValue={editValue}
-                  onValueChange={setEditValue}
+                  onValueChange={handleGenderUpdate}
                   style={styles.iosPicker}
                   itemStyle={styles.iosPickerItem}
                 >
-                  <Picker.Item label="Select Gender" value="" color="#000000" />
                   <Picker.Item label="Male" value="male" color="#000000" />
                   <Picker.Item label="Female" value="female" color="#000000" />
                 </Picker>
@@ -401,7 +456,7 @@ const ProfileScreen = ({ navigation, route }) => {
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={[styles.modalButton, styles.saveButton]}
-                  onPress={handleUpdate}
+                  onPress={() => updateGender(editValue)}
                 >
                   <Text style={styles.saveButtonText}>Save</Text>
                 </TouchableOpacity>
@@ -411,14 +466,9 @@ const ProfileScreen = ({ navigation, route }) => {
             <View style={styles.pickerContainer}>
               <Picker
                 selectedValue={editValue}
-                onValueChange={(value) => {
-                  setEditValue(value);
-                  setModalVisible(false);
-                  handleUpdate();
-                }}
+                onValueChange={handleGenderUpdate}
                 style={styles.picker}
               >
-                <Picker.Item label="Select Gender" value="" />
                 <Picker.Item label="Male" value="male" />
                 <Picker.Item label="Female" value="female" />
               </Picker>
