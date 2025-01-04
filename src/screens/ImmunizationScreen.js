@@ -22,6 +22,9 @@ import { setupNotifications, scheduleVaccineReminder, cancelVaccineReminder } fr
 import ReminderSettings from '../components/ReminderSettings';
 import { immunizationApi } from '../api/immunization';
 import { vaccineInfo } from '../data/vaccineInfo';
+import VaccineCompletionForm from '../components/VaccineCompletionForm';
+import VaccinationHistory from '../components/VaccinationHistory';
+import VaccineScheduleForm from '../components/VaccineScheduleForm';
 
 const ImmunizationScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
@@ -90,10 +93,22 @@ const ImmunizationScreen = ({ navigation }) => {
     }
   ]);
   const [viewMode, setViewMode] = useState('list');
+  const [showCompletionForm, setShowCompletionForm] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [completionDetails, setCompletionDetails] = useState({
+    notes: '',
+    administered_by: '',
+    administered_at: ''
+  });
+  const [vaccinationHistory, setVaccinationHistory] = useState([]);
+  const [selectedVaccineForCompletion, setSelectedVaccineForCompletion] = useState(null);
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [selectedVaccineForScheduling, setSelectedVaccineForScheduling] = useState(null);
 
   useEffect(() => {
     setupNotifications();
     loadVaccinations();
+    loadVaccinationHistory();
   }, []);
 
   const loadVaccinations = async () => {
@@ -102,8 +117,21 @@ const ImmunizationScreen = ({ navigation }) => {
       const token = await AsyncStorage.getItem('userToken');
       if (!token) throw new Error('No token found');
 
+      console.log('Loading vaccinations...');
       const data = await immunizationApi.getVaccines(token);
-      setVaccines(data);
+      console.log('Received vaccination data:', data);
+
+      // Ensure each age group has a valid ID
+      const validatedData = data.map((ageGroup, index) => ({
+        ...ageGroup,
+        id: ageGroup.id || index + 1, // Use existing ID or generate one based on index
+        vaccines: ageGroup.vaccines.map(vaccine => ({
+          ...vaccine,
+          id: vaccine.id || `vaccine-${index}-${Math.random().toString(36).substr(2, 9)}` // Ensure each vaccine has an ID
+        }))
+      }));
+
+      setVaccines(validatedData);
     } catch (error) {
       console.error('Error loading vaccinations:', error);
       Alert.alert('Error', 'Failed to load vaccinations');
@@ -192,54 +220,74 @@ const ImmunizationScreen = ({ navigation }) => {
       const token = await AsyncStorage.getItem('userToken');
       if (!token) throw new Error('No token found');
 
-      // Update local state
-      setVaccines(prevVaccines => 
-        prevVaccines.map(ageGroup => {
-          if (ageGroup.id === ageGroupId) {
-            return {
-              ...ageGroup,
-              vaccines: ageGroup.vaccines.map(vaccine => {
-                if (vaccine.id === vaccineId) {
-                  const newCompleted = !vaccine.completed;
-                  const newDate = newCompleted ? new Date().toISOString() : null;
+      const vaccine = vaccines
+        .find(g => g.id === ageGroupId)
+        ?.vaccines.find(v => v.id === vaccineId);
 
-                  // Handle reminder
-                  if (newCompleted) {
-                    cancelVaccineReminder(vaccineId);
-                  } else if (reminderEnabled) {
-                    const reminderSettings = {
-                      reminderDays: 7,
-                      reminderTime: '09:00'
-                    };
-                    scheduleVaccineReminder(vaccine, newDate, reminderSettings);
-                  }
+      if (!vaccine) throw new Error('Vaccine not found');
 
-                  return {
-                    ...vaccine,
-                    completed: newCompleted,
-                    date: newDate
-                  };
-                }
-                return vaccine;
-              })
-            };
-          }
-          return ageGroup;
-        })
-      );
+      if (vaccine.completed) {
+        Alert.alert('Already Completed', 'This vaccine has already been administered.');
+        return;
+      }
 
-      // Update backend
-      await immunizationApi.updateVaccine(token, {
-        vaccineId,
-        completed: !vaccines.find(g => g.id === ageGroupId)?.vaccines.find(v => v.id === vaccineId)?.completed,
-        date: new Date().toISOString()
+      // Set selected vaccine and show completion form
+      setSelectedVaccineForCompletion({
+        ...vaccine,
+        ageGroup: vaccines.find(g => g.id === ageGroupId)?.ageGroup
       });
+      setCompletionDetails({
+        notes: '',
+        administered_by: '',
+        administered_at: ''
+      });
+      setShowCompletionForm(true);
 
     } catch (error) {
-      console.error('Error updating vaccine status:', error);
-      Alert.alert('Error', 'Failed to update vaccine status');
-      // Reload vaccinations to ensure UI is in sync with backend
-      loadVaccinations();
+      console.error('Error preparing vaccine completion:', error);
+      Alert.alert('Error', 'Failed to prepare vaccine completion');
+    }
+  };
+
+  const handleVaccineCompletion = async (details) => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) throw new Error('No token found');
+
+      const now = new Date().toISOString();
+      await immunizationApi.markVaccineCompleted(token, {
+        vaccine_id: selectedVaccineForCompletion.id,
+        given_at: now,
+        administered_by: details.administered_by,
+        administered_at: details.administered_at,
+        notes: details.notes
+      });
+
+      // Update local state
+      setVaccines(prevVaccines => 
+        prevVaccines.map(ageGroup => ({
+          ...ageGroup,
+          vaccines: ageGroup.vaccines.map(v => 
+            v.id === selectedVaccineForCompletion.id
+              ? { ...v, completed: true, date: now }
+              : v
+          )
+        }))
+      );
+
+      // Cancel any existing reminders for this vaccine
+      cancelVaccineReminder(selectedVaccineForCompletion.id);
+
+      // Refresh vaccination history
+      loadVaccinationHistory();
+
+      // Close form and show success message
+      setShowCompletionForm(false);
+      Alert.alert('Success', 'Vaccine marked as completed successfully.');
+
+    } catch (error) {
+      console.error('Error completing vaccination:', error);
+      Alert.alert('Error', 'Failed to complete vaccination');
     }
   };
 
@@ -281,6 +329,52 @@ const ImmunizationScreen = ({ navigation }) => {
     } catch (error) {
       console.error('Error updating reminder settings:', error);
       Alert.alert('Error', 'Failed to update reminder settings');
+    }
+  };
+
+  const handleScheduleVaccine = async (scheduleDetails) => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) throw new Error('No token found');
+
+      await immunizationApi.scheduleVaccine(token, {
+        vaccine_id: selectedVaccineForScheduling.id,
+        scheduled_date: scheduleDetails.date.toISOString(),
+        notes: scheduleDetails.notes
+      });
+
+      // Update local state
+      setVaccines(prevVaccines => 
+        prevVaccines.map(ageGroup => ({
+          ...ageGroup,
+          vaccines: ageGroup.vaccines.map(v => 
+            v.id === selectedVaccineForScheduling.id
+              ? { ...v, date: scheduleDetails.date.toISOString() }
+              : v
+          )
+        }))
+      );
+
+      // Get stored reminder settings
+      const storedSettings = await AsyncStorage.getItem('vaccineReminderSettings');
+      const settings = storedSettings ? JSON.parse(storedSettings) : {
+        enabled: true,
+        reminderDays: 7,
+        reminderTime: '09:00'
+      };
+
+      // Set up reminder if enabled
+      if (settings.enabled) {
+        await scheduleVaccineReminder(selectedVaccineForScheduling, scheduleDetails.date, settings);
+      }
+
+      // Close form and show success message
+      setShowScheduleForm(false);
+      Alert.alert('Success', 'Vaccine scheduled successfully.');
+
+    } catch (error) {
+      console.error('Error scheduling vaccination:', error);
+      Alert.alert('Error', 'Failed to schedule vaccination');
     }
   };
 
@@ -338,9 +432,58 @@ const ImmunizationScreen = ({ navigation }) => {
 
   const renderVaccineItem = (vaccine, ageGroup) => (
     <TouchableOpacity
-      key={vaccine.id}
+      key={`vaccine-${ageGroup.id}-${vaccine.id}`}
       style={styles.vaccineItem}
-      onPress={() => toggleVaccine(ageGroup.id, vaccine.id)}
+      onPress={() => {
+        if (vaccine.completed) {
+          Alert.alert('Already Completed', 'This vaccine has already been administered.');
+        } else if (vaccine.date) {
+          Alert.alert(
+            'Scheduled',
+            `This vaccine is scheduled for ${new Date(vaccine.date).toLocaleDateString()}`,
+            [
+              { text: 'OK' },
+              {
+                text: 'Reschedule',
+                onPress: () => {
+                  setSelectedVaccineForScheduling({ ...vaccine, ageGroup: ageGroup.ageGroup });
+                  setShowScheduleForm(true);
+                }
+              }
+            ]
+          );
+        } else {
+          Alert.alert(
+            'Vaccine Options',
+            'What would you like to do?',
+            [
+              {
+                text: 'Schedule',
+                onPress: () => {
+                  setSelectedVaccineForScheduling({ ...vaccine, ageGroup: ageGroup.ageGroup });
+                  setShowScheduleForm(true);
+                }
+              },
+              {
+                text: 'Mark as Completed',
+                onPress: () => {
+                  setSelectedVaccineForCompletion({ ...vaccine, ageGroup: ageGroup.ageGroup });
+                  setCompletionDetails({
+                    notes: '',
+                    administered_by: '',
+                    administered_at: ''
+                  });
+                  setShowCompletionForm(true);
+                }
+              },
+              {
+                text: 'Cancel',
+                style: 'cancel'
+              }
+            ]
+          );
+        }
+      }}
     >
       <View style={styles.vaccineContent}>
         <MaterialIcons
@@ -403,9 +546,28 @@ const ImmunizationScreen = ({ navigation }) => {
             color="#333" 
           />
         </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.iconButton}
+          onPress={() => setShowHistory(true)}
+        >
+          <MaterialIcons name="history" size={24} color="#333" />
+        </TouchableOpacity>
       </View>
     </View>
   );
+
+  const loadVaccinationHistory = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) throw new Error('No token found');
+
+      const history = await immunizationApi.getVaccinationHistory(token);
+      setVaccinationHistory(history);
+    } catch (error) {
+      console.error('Error loading vaccination history:', error);
+      Alert.alert('Error', 'Failed to load vaccination history');
+    }
+  };
 
   if (loading) {
     return (
@@ -423,11 +585,9 @@ const ImmunizationScreen = ({ navigation }) => {
       {viewMode === 'list' ? (
         <ScrollView style={styles.content}>
           {vaccines.map((ageGroup) => (
-            <View key={ageGroup.id} style={styles.ageGroupContainer}>
+            <View key={`age-group-${ageGroup.id || 'default'}-${ageGroup.ageGroup}`} style={styles.ageGroupContainer}>
               <Text style={styles.ageGroupTitle}>{ageGroup.ageGroup}</Text>
-              {ageGroup.vaccines.map((vaccine) => (
-                renderVaccineItem(vaccine, ageGroup)
-              ))}
+              {ageGroup.vaccines.map((vaccine) => renderVaccineItem(vaccine, ageGroup))}
             </View>
           ))}
         </ScrollView>
@@ -460,6 +620,28 @@ const ImmunizationScreen = ({ navigation }) => {
         visible={showReminderSettings}
         onClose={() => setShowReminderSettings(false)}
         onSave={handleReminderSettingsSave}
+      />
+
+      <VaccineCompletionForm
+        visible={showCompletionForm}
+        onClose={() => setShowCompletionForm(false)}
+        onSave={handleVaccineCompletion}
+        vaccine={selectedVaccineForCompletion}
+        details={completionDetails}
+        setDetails={setCompletionDetails}
+      />
+
+      <VaccinationHistory
+        visible={showHistory}
+        onClose={() => setShowHistory(false)}
+        history={vaccinationHistory}
+      />
+
+      <VaccineScheduleForm
+        visible={showScheduleForm}
+        onClose={() => setShowScheduleForm(false)}
+        onSave={handleScheduleVaccine}
+        vaccine={selectedVaccineForScheduling}
       />
     </SafeAreaView>
   );
@@ -503,6 +685,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 16,
+    paddingBottom: 32,
   },
   ageGroupContainer: {
     backgroundColor: '#FFFFFF',
