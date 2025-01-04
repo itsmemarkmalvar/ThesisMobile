@@ -14,8 +14,10 @@ import {
   HelperText,
   Switch,
   SegmentedButtons,
+  IconButton,
 } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 import { HealthService } from '../services/HealthService';
@@ -30,6 +32,7 @@ const REMINDER_OPTIONS = [
 ];
 
 const AddAppointmentScreen = () => {
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [appointmentDate, setAppointmentDate] = useState(new Date());
@@ -98,168 +101,209 @@ const AddAppointmentScreen = () => {
     }
   };
 
+  const renderHeader = () => (
+    <View style={[styles.header, { paddingTop: insets.top }]}>
+      <View style={styles.headerRow}>
+        <IconButton
+          icon="arrow-left"
+          size={24}
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        />
+        <Text variant="titleLarge" style={styles.headerTitle}>
+          Add Appointment
+        </Text>
+      </View>
+    </View>
+  );
+
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        {renderHeader()}
+        <LoadingSpinner />
+      </SafeAreaView>
+    );
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.content}>
-          <Text variant="titleLarge" style={styles.title}>
-            Add Appointment
-          </Text>
-
-          {errors.submit && (
-            <HelperText type="error" visible={true}>
-              {errors.submit}
-            </HelperText>
-          )}
-
-          <Button
-            mode="outlined"
-            onPress={() => setShowDatePicker(true)}
-            style={styles.dateButton}
-          >
-            Date: {format(appointmentDate, 'MMM d, yyyy')}
-          </Button>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={appointmentDate}
-              mode="date"
-              display="default"
-              onChange={(event, selectedDate) => {
-                setShowDatePicker(false);
-                if (selectedDate) {
-                  setAppointmentDate(selectedDate);
-                }
-              }}
-              minimumDate={new Date()}
-            />
-          )}
-
-          <Button
-            mode="outlined"
-            onPress={() => setShowTimePicker(true)}
-            style={styles.dateButton}
-          >
-            Time: {format(appointmentDate, 'h:mm a')}
-          </Button>
-
-          {showTimePicker && (
-            <DateTimePicker
-              value={appointmentDate}
-              mode="time"
-              display="default"
-              onChange={(event, selectedDate) => {
-                setShowTimePicker(false);
-                if (selectedDate) {
-                  setAppointmentDate(selectedDate);
-                }
-              }}
-            />
-          )}
-
-          <TextInput
-            label="Doctor Name"
-            value={formData.doctor_name}
-            onChangeText={(text) => handleInputChange('doctor_name', text)}
-            style={styles.input}
-            error={!!errors.doctor_name}
-          />
-          <HelperText type="error" visible={!!errors.doctor_name}>
-            {errors.doctor_name}
-          </HelperText>
-
-          <TextInput
-            label="Clinic Location"
-            value={formData.clinic_location}
-            onChangeText={(text) => handleInputChange('clinic_location', text)}
-            style={styles.input}
-          />
-
-          <TextInput
-            label="Purpose"
-            value={formData.purpose}
-            onChangeText={(text) => handleInputChange('purpose', text)}
-            style={styles.input}
-            error={!!errors.purpose}
-            multiline
-          />
-          <HelperText type="error" visible={!!errors.purpose}>
-            {errors.purpose}
-          </HelperText>
-
-          <TextInput
-            label="Notes"
-            value={formData.notes}
-            onChangeText={(text) => handleInputChange('notes', text)}
-            style={styles.input}
-            multiline
-          />
-
-          <View style={styles.reminderSection}>
-            <View style={styles.switchContainer}>
-              <Text variant="bodyLarge">Enable Reminder</Text>
-              <Switch
-                value={formData.reminder_enabled}
-                onValueChange={(value) => handleInputChange('reminder_enabled', value)}
-              />
-            </View>
-
-            {formData.reminder_enabled && (
-              <>
-                <Text variant="titleMedium" style={styles.sectionTitle}>
-                  Remind me before
-                </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.reminderScroll}
-                >
-                  <SegmentedButtons
-                    value={formData.reminder_minutes_before}
-                    onValueChange={(value) =>
-                      handleInputChange('reminder_minutes_before', value)
-                    }
-                    buttons={REMINDER_OPTIONS}
-                    style={styles.segmentedButtons}
-                  />
-                </ScrollView>
-              </>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      {renderHeader()}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <ScrollView style={styles.scrollView}>
+          <View style={styles.content}>
+            {errors.submit && (
+              <HelperText type="error" visible={true}>
+                {errors.submit}
+              </HelperText>
             )}
-          </View>
 
-          <View style={styles.buttonContainer}>
-            <Button
-              mode="contained"
-              onPress={handleSubmit}
-              style={styles.submitButton}
-            >
-              Save Appointment
-            </Button>
             <Button
               mode="outlined"
-              onPress={() => navigation.goBack()}
-              style={styles.cancelButton}
+              onPress={() => setShowDatePicker(true)}
+              style={styles.dateButton}
             >
-              Cancel
+              Date: {format(appointmentDate, 'MMM d, yyyy')}
             </Button>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={appointmentDate}
+                mode="date"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) {
+                    setAppointmentDate(selectedDate);
+                  }
+                }}
+                minimumDate={new Date()}
+              />
+            )}
+
+            <Button
+              mode="outlined"
+              onPress={() => setShowTimePicker(true)}
+              style={styles.dateButton}
+            >
+              Time: {format(appointmentDate, 'h:mm a')}
+            </Button>
+
+            {showTimePicker && (
+              <DateTimePicker
+                value={appointmentDate}
+                mode="time"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowTimePicker(false);
+                  if (selectedDate) {
+                    setAppointmentDate(selectedDate);
+                  }
+                }}
+              />
+            )}
+
+            <TextInput
+              label="Doctor Name"
+              value={formData.doctor_name}
+              onChangeText={(text) => handleInputChange('doctor_name', text)}
+              style={styles.input}
+              error={!!errors.doctor_name}
+            />
+            <HelperText type="error" visible={!!errors.doctor_name}>
+              {errors.doctor_name}
+            </HelperText>
+
+            <TextInput
+              label="Clinic Location"
+              value={formData.clinic_location}
+              onChangeText={(text) => handleInputChange('clinic_location', text)}
+              style={styles.input}
+            />
+
+            <TextInput
+              label="Purpose"
+              value={formData.purpose}
+              onChangeText={(text) => handleInputChange('purpose', text)}
+              style={styles.input}
+              error={!!errors.purpose}
+              multiline
+            />
+            <HelperText type="error" visible={!!errors.purpose}>
+              {errors.purpose}
+            </HelperText>
+
+            <TextInput
+              label="Notes"
+              value={formData.notes}
+              onChangeText={(text) => handleInputChange('notes', text)}
+              style={styles.input}
+              multiline
+            />
+
+            <View style={styles.reminderSection}>
+              <View style={styles.switchContainer}>
+                <Text variant="bodyLarge">Enable Reminder</Text>
+                <Switch
+                  value={formData.reminder_enabled}
+                  onValueChange={(value) => handleInputChange('reminder_enabled', value)}
+                />
+              </View>
+
+              {formData.reminder_enabled && (
+                <>
+                  <Text variant="titleMedium" style={styles.sectionTitle}>
+                    Remind me before
+                  </Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.reminderScroll}
+                  >
+                    <SegmentedButtons
+                      value={formData.reminder_minutes_before}
+                      onValueChange={(value) =>
+                        handleInputChange('reminder_minutes_before', value)
+                      }
+                      buttons={REMINDER_OPTIONS}
+                      style={styles.segmentedButtons}
+                    />
+                  </ScrollView>
+                </>
+              )}
+            </View>
+
+            <View style={styles.buttonContainer}>
+              <Button
+                mode="contained"
+                onPress={handleSubmit}
+                style={styles.submitButton}
+              >
+                Save Appointment
+              </Button>
+              <Button
+                mode="outlined"
+                onPress={() => navigation.goBack()}
+                style={styles.cancelButton}
+              >
+                Cancel
+              </Button>
+            </View>
           </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  header: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    paddingBottom: 8,
+  },
+  backButton: {
+    marginRight: 8,
+  },
+  headerTitle: {
+    flex: 1,
+    marginLeft: 8,
   },
   scrollView: {
     flex: 1,

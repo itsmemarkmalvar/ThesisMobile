@@ -20,6 +20,8 @@ import { API_URL } from '../config';
 import VaccineCalendar from '../components/VaccineCalendar';
 import { setupNotifications, scheduleVaccineReminder, cancelVaccineReminder } from '../utils/notifications';
 import ReminderSettings from '../components/ReminderSettings';
+import { immunizationApi } from '../api/immunization';
+import { vaccineInfo } from '../data/vaccineInfo';
 
 const ImmunizationScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
@@ -87,14 +89,102 @@ const ImmunizationScreen = ({ navigation }) => {
       ]
     }
   ]);
+  const [viewMode, setViewMode] = useState('list');
 
   useEffect(() => {
     setupNotifications();
+    loadVaccinations();
   }, []);
 
+  const loadVaccinations = async () => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) throw new Error('No token found');
+
+      const data = await immunizationApi.getVaccines(token);
+      setVaccines(data);
+    } catch (error) {
+      console.error('Error loading vaccinations:', error);
+      Alert.alert('Error', 'Failed to load vaccinations');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getMarkedDates = () => {
+    const markedDates = {};
+    vaccines.forEach(ageGroup => {
+      ageGroup.vaccines.forEach(vaccine => {
+        if (vaccine.date) {
+          const dateStr = new Date(vaccine.date).toISOString().split('T')[0];
+          if (markedDates[dateStr]) {
+            markedDates[dateStr].dots.push({
+              key: vaccine.id,
+              color: vaccine.completed ? '#4CAF50' : '#FF9800',
+            });
+          } else {
+            markedDates[dateStr] = {
+              dots: [{
+                key: vaccine.id,
+                color: vaccine.completed ? '#4CAF50' : '#FF9800',
+              }],
+              selected: true,
+              selectedColor: 'rgba(74, 144, 226, 0.1)'
+            };
+          }
+        }
+      });
+    });
+    return markedDates;
+  };
+
+  const getVaccinesForDate = (date) => {
+    const vaccinesOnDate = [];
+    vaccines.forEach(ageGroup => {
+      ageGroup.vaccines.forEach(vaccine => {
+        if (vaccine.date) {
+          const vaccineDate = new Date(vaccine.date).toISOString().split('T')[0];
+          if (vaccineDate === date) {
+            vaccinesOnDate.push({
+              ...vaccine,
+              ageGroup: ageGroup.ageGroup
+            });
+          }
+        }
+      });
+    });
+    return vaccinesOnDate;
+  };
+
   const handleDayPress = (day) => {
-    // Handle calendar day press
-    console.log('Selected day:', day);
+    const vaccinesOnDate = getVaccinesForDate(day.dateString);
+    if (vaccinesOnDate.length > 0) {
+      // Create a formatted message for the vaccines
+      const message = vaccinesOnDate.map(vaccine => {
+        const status = vaccine.completed ? '✅ Completed' : '⏳ Scheduled';
+        return `${vaccine.name}\n${status}\nAge Group: ${vaccine.ageGroup}`;
+      }).join('\n\n');
+
+      Alert.alert(
+        `Vaccines - ${new Date(day.dateString).toLocaleDateString()}`,
+        message,
+        [
+          { 
+            text: 'OK',
+            style: 'cancel'
+          }
+        ],
+        { cancelable: true }
+      );
+    } else {
+      // Optionally show a message when no vaccines are scheduled for this date
+      Alert.alert(
+        'No Vaccines',
+        'No vaccines are scheduled or completed for this date.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const toggleVaccine = async (ageGroupId, vaccineId) => {
@@ -138,59 +228,64 @@ const ImmunizationScreen = ({ navigation }) => {
         })
       );
 
-      // TODO: Update backend
-      // await axios.post(`${API_URL}/immunization/update`, {
-      //   vaccineId,
-      //   completed: !vaccine.completed,
-      //   date: new Date().toISOString()
-      // }, {
-      //   headers: {
-      //     'Authorization': `Bearer ${token}`,
-      //     'Accept': 'application/json'
-      //   }
-      // });
+      // Update backend
+      await immunizationApi.updateVaccine(token, {
+        vaccineId,
+        completed: !vaccines.find(g => g.id === ageGroupId)?.vaccines.find(v => v.id === vaccineId)?.completed,
+        date: new Date().toISOString()
+      });
 
     } catch (error) {
       console.error('Error updating vaccine status:', error);
       Alert.alert('Error', 'Failed to update vaccine status');
+      // Reload vaccinations to ensure UI is in sync with backend
+      loadVaccinations();
     }
   };
 
   const handleReminderSettingsSave = async (settings) => {
-    setReminderEnabled(settings.enabled);
-    setShowReminderSettings(false);
-    
-    // Update reminders for all upcoming vaccines
-    if (settings.enabled) {
-      vaccines.forEach(ageGroup => {
-        ageGroup.vaccines.forEach(vaccine => {
-          if (!vaccine.completed && vaccine.date) {
-            scheduleVaccineReminder(vaccine, vaccine.date, settings);
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) throw new Error('No token found');
+
+      setReminderEnabled(settings.enabled);
+      setShowReminderSettings(false);
+      
+      // Update reminders for all upcoming vaccines
+      if (settings.enabled) {
+        for (const ageGroup of vaccines) {
+          for (const vaccine of ageGroup.vaccines) {
+            if (!vaccine.completed && vaccine.date) {
+              await immunizationApi.updateReminder(token, {
+                vaccineId: vaccine.id,
+                enabled: true,
+                days: settings.reminderDays,
+                time: settings.reminderTime
+              });
+              scheduleVaccineReminder(vaccine, vaccine.date, settings);
+            }
           }
-        });
-      });
-    } else {
-      // Cancel all reminders if disabled
-      vaccines.forEach(ageGroup => {
-        ageGroup.vaccines.forEach(vaccine => {
-          cancelVaccineReminder(vaccine.id);
-        });
-      });
+        }
+      } else {
+        // Cancel all reminders if disabled
+        for (const ageGroup of vaccines) {
+          for (const vaccine of ageGroup.vaccines) {
+            await immunizationApi.updateReminder(token, {
+              vaccineId: vaccine.id,
+              enabled: false
+            });
+            cancelVaccineReminder(vaccine.id);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error updating reminder settings:', error);
+      Alert.alert('Error', 'Failed to update reminder settings');
     }
   };
 
   const VaccineInfoModal = ({ vaccine, visible, onClose }) => {
     if (!vaccine) return null;
-
-    const vaccineInfo = {
-      bcg: {
-        fullName: 'Bacillus Calmette–Guérin vaccine',
-        description: 'Protects against tuberculosis',
-        sideEffects: 'May cause a small bump at injection site',
-        importance: 'Critical for preventing childhood TB'
-      },
-      // Add info for other vaccines...
-    };
 
     const info = vaccineInfo[vaccine.id] || {};
 
@@ -205,18 +300,26 @@ const ImmunizationScreen = ({ navigation }) => {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{vaccine.name}</Text>
-              <TouchableOpacity onPress={onClose}>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                 <MaterialIcons name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalBody}>
               <View style={styles.infoSection}>
-                <Text style={styles.infoTitle}>About</Text>
+                <Text style={styles.infoTitle}>Full Name</Text>
                 <Text style={styles.infoText}>{info.fullName}</Text>
               </View>
               <View style={styles.infoSection}>
                 <Text style={styles.infoTitle}>Description</Text>
                 <Text style={styles.infoText}>{info.description}</Text>
+              </View>
+              <View style={styles.infoSection}>
+                <Text style={styles.infoTitle}>When to Get</Text>
+                <Text style={styles.infoText}>{info.whenToGet}</Text>
+              </View>
+              <View style={styles.infoSection}>
+                <Text style={styles.infoTitle}>Duration</Text>
+                <Text style={styles.infoText}>{info.duration}</Text>
               </View>
               <View style={styles.infoSection}>
                 <Text style={styles.infoTitle}>Side Effects</Text>
@@ -272,74 +375,92 @@ const ImmunizationScreen = ({ navigation }) => {
     </TouchableOpacity>
   );
 
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <View style={styles.headerLeft}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <MaterialIcons name="arrow-back" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Immunization</Text>
+      </View>
+      <View style={styles.headerRight}>
+        <TouchableOpacity 
+          style={styles.iconButton}
+          onPress={() => setShowReminderSettings(true)}
+        >
+          <MaterialIcons name="notifications" size={24} color="#333" />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.iconButton}
+          onPress={() => setViewMode(viewMode === 'list' ? 'calendar' : 'list')}
+        >
+          <MaterialIcons 
+            name={viewMode === 'list' ? 'calendar-today' : 'list'} 
+            size={24} 
+            color="#333" 
+          />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        {renderHeader()}
+        <ActivityIndicator size="large" color="#0000ff" />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
-        style={styles.gradient}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <MaterialIcons name="arrow-back" size={24} color="#333" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Immunization Schedule</Text>
-          <View style={styles.headerButtons}>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => setShowReminderSettings(true)}
-            >
-              <MaterialIcons 
-                name="notifications" 
-                size={24} 
-                color={reminderEnabled ? "#4A90E2" : "#BDBDBD"} 
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => setShowCalendar(!showCalendar)}
-            >
-              <MaterialIcons 
-                name="calendar-today" 
-                size={24} 
-                color="#4A90E2" 
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {showCalendar ? (
+      {renderHeader()}
+      
+      {viewMode === 'list' ? (
+        <ScrollView style={styles.content}>
+          {vaccines.map((ageGroup) => (
+            <View key={ageGroup.id} style={styles.ageGroupContainer}>
+              <Text style={styles.ageGroupTitle}>{ageGroup.ageGroup}</Text>
+              {ageGroup.vaccines.map((vaccine) => (
+                renderVaccineItem(vaccine, ageGroup)
+              ))}
+            </View>
+          ))}
+        </ScrollView>
+      ) : (
+        <View style={styles.calendarContainer}>
           <VaccineCalendar
-            vaccines={vaccines}
+            markedDates={getMarkedDates()}
             onDayPress={handleDayPress}
           />
-        ) : (
-          <ScrollView style={styles.content}>
-            {vaccines.map((ageGroup) => (
-              <View key={ageGroup.id} style={styles.ageGroupContainer}>
-                <Text style={styles.ageGroupTitle}>{ageGroup.ageGroup}</Text>
-                {ageGroup.vaccines.map((vaccine) => (
-                  renderVaccineItem(vaccine, ageGroup)
-                ))}
-              </View>
-            ))}
-          </ScrollView>
-        )}
+          <View style={styles.legend}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#4CAF50' }]} />
+              <Text style={styles.legendText}>Completed</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#FF9800' }]} />
+              <Text style={styles.legendText}>Scheduled</Text>
+            </View>
+          </View>
+        </View>
+      )}
 
-        <VaccineInfoModal
-          vaccine={selectedVaccine}
-          visible={infoModalVisible}
-          onClose={() => setInfoModalVisible(false)}
-        />
+      <VaccineInfoModal
+        vaccine={selectedVaccine}
+        visible={infoModalVisible}
+        onClose={() => setInfoModalVisible(false)}
+      />
 
-        <ReminderSettings
-          visible={showReminderSettings}
-          onClose={() => setShowReminderSettings(false)}
-          onSave={handleReminderSettingsSave}
-        />
-      </LinearGradient>
+      <ReminderSettings
+        visible={showReminderSettings}
+        onClose={() => setShowReminderSettings(false)}
+        onSave={handleReminderSettingsSave}
+      />
     </SafeAreaView>
   );
 };
@@ -353,31 +474,31 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 16,
-    backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: '#eee',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   backButton: {
-    padding: 8,
-    marginRight: 8,
+    marginRight: 16,
+    padding: 4,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
-    flex: 1,
-    textAlign: 'center',
+    fontWeight: 'bold',
   },
-  headerButtons: {
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   iconButton: {
+    marginLeft: 16,
     padding: 8,
-    marginLeft: 8,
   },
   content: {
     flex: 1,
@@ -452,17 +573,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#333',
+    flex: 1,
+  },
+  closeButton: {
+    padding: 8,
   },
   modalBody: {
     maxHeight: Dimensions.get('window').height * 0.6,
   },
   infoSection: {
     marginBottom: 20,
+    backgroundColor: '#f8f9fa',
+    padding: 15,
+    borderRadius: 10,
   },
   infoTitle: {
     fontSize: 16,
@@ -477,6 +608,35 @@ const styles = StyleSheet.create({
   },
   infoButton: {
     padding: 8,
+  },
+  calendarContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingTop: 10,
+  },
+  legend: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 12,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
+  },
+  legendText: {
+    fontSize: 14,
+    color: '#666',
   },
 });
 
