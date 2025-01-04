@@ -28,14 +28,24 @@ const FeedingScreen = ({ navigation }) => {
     try {
       setLoading(true);
       const formattedDate = format(date, 'yyyy-MM-dd');
+      console.log('Loading feeding logs for date:', formattedDate);
+      
       const [logsData, statsData] = await Promise.all([
         FeedingService.getFeedingLogs(formattedDate),
         FeedingService.getFeedingStats(formattedDate)
       ]);
-      setFeedingLogs(logsData);
+      
+      console.log('Received feeding logs:', logsData);
+      console.log('Received stats:', statsData);
+      
+      const logs = logsData.data || logsData;
+      setFeedingLogs(logs);
       setStats(statsData);
+      
+      console.log('Setting feedingLogs to:', logs);
     } catch (error) {
-      console.error('Error loading feeding logs:', error);
+      console.error('Full error:', error);
+      console.error('Error response:', error.response?.data);
       Alert.alert('Error', 'Failed to load feeding logs');
     } finally {
       setLoading(false);
@@ -139,6 +149,14 @@ const FeedingScreen = ({ navigation }) => {
     );
   };
 
+  useEffect(() => {
+    console.log('feedingLogs state updated:', feedingLogs);
+  }, [feedingLogs]);
+
+  useEffect(() => {
+    console.log('stats state updated:', stats);
+  }, [stats]);
+
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
@@ -146,6 +164,12 @@ const FeedingScreen = ({ navigation }) => {
         style={styles.gradient}
       >
         <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <MaterialIcons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.dateButton}
             onPress={() => setShowDatePicker(true)}
@@ -337,6 +361,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  backButton: {
+    padding: 8,
   },
 });
 
