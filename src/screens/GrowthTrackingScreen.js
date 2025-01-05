@@ -427,9 +427,9 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
     }
 
     return (
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { backgroundColor: 'transparent' }]}>
         <ScrollView
-          style={styles.chartsScrollView}
+          style={[styles.chartsScrollView, { backgroundColor: 'transparent' }]}
           contentContainerStyle={styles.chartsScrollContent}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -1409,17 +1409,19 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flex: 1,
-    backgroundColor: '#F5F8FF',
+    backgroundColor: 'transparent',
   },
   chartsScrollView: {
     flex: 1,
+    backgroundColor: 'transparent',
   },
   chartsScrollContent: {
     paddingVertical: 15,
     paddingHorizontal: 15,
+    backgroundColor: 'transparent',
   },
   chartCard: {
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 15,
     padding: 15,
     marginBottom: 15,

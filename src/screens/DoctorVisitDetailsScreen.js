@@ -4,6 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
+  SafeAreaView,
 } from 'react-native';
 import {
   Text,
@@ -19,6 +20,7 @@ import { format } from 'date-fns';
 import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const DoctorVisitDetailsScreen = () => {
   const [loading, setLoading] = useState(true);
@@ -94,142 +96,154 @@ const DoctorVisitDetailsScreen = () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text variant="headlineSmall" style={styles.title}>
-          Doctor Visit Details
-        </Text>
-        <Menu
-          visible={menuVisible}
-          onDismiss={() => setMenuVisible(false)}
-          anchor={
-            <IconButton
-              icon="dots-vertical"
-              onPress={() => setMenuVisible(true)}
-            />
-          }
-        >
-          <Menu.Item onPress={handleEdit} title="Edit" />
-          <Menu.Item onPress={handleDelete} title="Delete" />
-        </Menu>
-      </View>
-
-      {error && <ErrorMessage message={error} />}
-
-      <Card style={styles.card}>
-        <Card.Content>
-          <View style={styles.row}>
-            <Text variant="labelLarge">Visit Date</Text>
-            <Text variant="bodyLarge">
-              {format(new Date(visit.visit_date), 'MMM d, yyyy')}
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+      <LinearGradient
+        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradient}
+      >
+        <ScrollView style={styles.scrollView}>
+          <View style={styles.header}>
+            <Text variant="headlineSmall" style={styles.title}>
+              Doctor Visit Details
             </Text>
+            <Menu
+              visible={menuVisible}
+              onDismiss={() => setMenuVisible(false)}
+              anchor={
+                <IconButton
+                  icon="dots-vertical"
+                  onPress={() => setMenuVisible(true)}
+                />
+              }
+            >
+              <Menu.Item onPress={handleEdit} title="Edit" />
+              <Menu.Item onPress={handleDelete} title="Delete" />
+            </Menu>
           </View>
 
-          <Divider style={styles.divider} />
+          {error && <ErrorMessage message={error} />}
 
-          <View style={styles.row}>
-            <Text variant="labelLarge">Doctor</Text>
-            <Text variant="bodyLarge">Dr. {visit.doctor_name}</Text>
-          </View>
-
-          {visit.clinic_location && (
-            <>
-              <Divider style={styles.divider} />
+          <Card style={styles.card}>
+            <Card.Content>
               <View style={styles.row}>
-                <Text variant="labelLarge">Location</Text>
-                <Text variant="bodyLarge">{visit.clinic_location}</Text>
-              </View>
-            </>
-          )}
-
-          <Divider style={styles.divider} />
-
-          <View style={styles.section}>
-            <Text variant="labelLarge">Reason for Visit</Text>
-            <Text variant="bodyLarge" style={styles.sectionContent}>
-              {visit.reason_for_visit}
-            </Text>
-          </View>
-
-          {visit.diagnosis && (
-            <>
-              <Divider style={styles.divider} />
-              <View style={styles.section}>
-                <Text variant="labelLarge">Diagnosis</Text>
-                <Text variant="bodyLarge" style={styles.sectionContent}>
-                  {visit.diagnosis}
-                </Text>
-              </View>
-            </>
-          )}
-
-          {visit.prescription && (
-            <>
-              <Divider style={styles.divider} />
-              <View style={styles.section}>
-                <Text variant="labelLarge">Prescription</Text>
-                <Text variant="bodyLarge" style={styles.sectionContent}>
-                  {visit.prescription}
-                </Text>
-              </View>
-            </>
-          )}
-
-          {visit.follow_up_instructions && (
-            <>
-              <Divider style={styles.divider} />
-              <View style={styles.section}>
-                <Text variant="labelLarge">Follow-up Instructions</Text>
-                <Text variant="bodyLarge" style={styles.sectionContent}>
-                  {visit.follow_up_instructions}
-                </Text>
-              </View>
-            </>
-          )}
-
-          {visit.next_visit_date && (
-            <>
-              <Divider style={styles.divider} />
-              <View style={styles.row}>
-                <Text variant="labelLarge">Next Visit</Text>
+                <Text variant="labelLarge">Visit Date</Text>
                 <Text variant="bodyLarge">
-                  {format(new Date(visit.next_visit_date), 'MMM d, yyyy')}
+                  {format(new Date(visit.visit_date), 'MMM d, yyyy')}
                 </Text>
               </View>
-            </>
-          )}
 
-          {visit.notes && (
-            <>
               <Divider style={styles.divider} />
+
+              <View style={styles.row}>
+                <Text variant="labelLarge">Doctor</Text>
+                <Text variant="bodyLarge">Dr. {visit.doctor_name}</Text>
+              </View>
+
+              {visit.clinic_location && (
+                <>
+                  <Divider style={styles.divider} />
+                  <View style={styles.row}>
+                    <Text variant="labelLarge">Location</Text>
+                    <Text variant="bodyLarge">{visit.clinic_location}</Text>
+                  </View>
+                </>
+              )}
+
+              <Divider style={styles.divider} />
+
               <View style={styles.section}>
-                <Text variant="labelLarge">Notes</Text>
+                <Text variant="labelLarge">Reason for Visit</Text>
                 <Text variant="bodyLarge" style={styles.sectionContent}>
-                  {visit.notes}
+                  {visit.reason_for_visit}
                 </Text>
               </View>
-            </>
-          )}
-        </Card.Content>
-      </Card>
 
-      <View style={styles.buttonContainer}>
-        <Button
-          mode="outlined"
-          onPress={() => navigation.goBack()}
-          style={styles.button}
-        >
-          Back to List
-        </Button>
-      </View>
-    </ScrollView>
+              {visit.diagnosis && (
+                <>
+                  <Divider style={styles.divider} />
+                  <View style={styles.section}>
+                    <Text variant="labelLarge">Diagnosis</Text>
+                    <Text variant="bodyLarge" style={styles.sectionContent}>
+                      {visit.diagnosis}
+                    </Text>
+                  </View>
+                </>
+              )}
+
+              {visit.prescription && (
+                <>
+                  <Divider style={styles.divider} />
+                  <View style={styles.section}>
+                    <Text variant="labelLarge">Prescription</Text>
+                    <Text variant="bodyLarge" style={styles.sectionContent}>
+                      {visit.prescription}
+                    </Text>
+                  </View>
+                </>
+              )}
+
+              {visit.follow_up_instructions && (
+                <>
+                  <Divider style={styles.divider} />
+                  <View style={styles.section}>
+                    <Text variant="labelLarge">Follow-up Instructions</Text>
+                    <Text variant="bodyLarge" style={styles.sectionContent}>
+                      {visit.follow_up_instructions}
+                    </Text>
+                  </View>
+                </>
+              )}
+
+              {visit.next_visit_date && (
+                <>
+                  <Divider style={styles.divider} />
+                  <View style={styles.row}>
+                    <Text variant="labelLarge">Next Visit</Text>
+                    <Text variant="bodyLarge">
+                      {format(new Date(visit.next_visit_date), 'MMM d, yyyy')}
+                    </Text>
+                  </View>
+                </>
+              )}
+
+              {visit.notes && (
+                <>
+                  <Divider style={styles.divider} />
+                  <View style={styles.section}>
+                    <Text variant="labelLarge">Notes</Text>
+                    <Text variant="bodyLarge" style={styles.sectionContent}>
+                      {visit.notes}
+                    </Text>
+                  </View>
+                </>
+              )}
+            </Card.Content>
+          </Card>
+
+          <View style={styles.buttonContainer}>
+            <Button
+              mode="outlined"
+              onPress={() => navigation.goBack()}
+              style={styles.button}
+            >
+              Back to List
+            </Button>
+          </View>
+        </ScrollView>
+      </LinearGradient>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'transparent',
+  },
+  gradient: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',

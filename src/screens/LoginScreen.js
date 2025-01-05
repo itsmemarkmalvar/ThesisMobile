@@ -21,7 +21,6 @@ import { loginStyles } from '../styles/LoginStyles';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
-import FacebookAuthService, { useFacebookAuth } from '../services/FacebookAuthService';
 import { API_URL, APP_CONFIG } from '../config';
 import ApiService from '../services/ApiService';
 import { useBaby } from '../context/BabyContext';
@@ -38,7 +37,6 @@ const LoginScreen = ({ navigation }) => {
   const [errors, setErrors] = useState({});
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const backgroundOpacity = new Animated.Value(1);
-  const [request, response, promptAsync] = useFacebookAuth();
   const { clearBabyData, updateBabyData } = useBaby();
 
   // Helper function to cache baby data
@@ -241,67 +239,6 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
-  const handleFacebookLogin = async () => {
-    try {
-      setLoading(true);
-      // Clear any existing data before login
-      await clearBabyData();
-      await AsyncStorage.multiRemove(['userToken', 'hasCompletedOnboarding', 'cachedBabyData']);
-      
-      const result = await FacebookAuthService.login(promptAsync);
-      if (result.success) {
-        // Check if user has baby data
-        try {
-          const babyResponse = await ApiService.get('/baby');
-          const hasExistingBaby = babyResponse.data?.data;
-          
-          if (hasExistingBaby) {
-            // Existing user - go straight to MainApp
-            await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
-            await cacheBabyData(hasExistingBaby);
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'MainApp' }],
-            });
-          } else {
-            // New user - go through onboarding
-            await AsyncStorage.removeItem('hasCompletedOnboarding');
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Onboarding' }],
-            });
-          }
-        } catch (error) {
-          console.error('Error checking baby data:', error);
-          // If error checking baby data, check cached data
-          const cachedData = await AsyncStorage.getItem('cachedBabyData');
-          if (cachedData) {
-            const { data } = JSON.parse(cachedData);
-            if (data) {
-              await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'MainApp' }],
-              });
-              return;
-            }
-          }
-          // No cached data, assume new user
-          await AsyncStorage.removeItem('hasCompletedOnboarding');
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'Onboarding' }],
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Facebook login error:', error);
-      Alert.alert('Error', 'Facebook login failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
@@ -311,170 +248,98 @@ const LoginScreen = ({ navigation }) => {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <KeyboardAvoidingView 
-          style={loginStyles.container}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        <KeyboardAwareScrollView
+          style={loginStyles.contentContainer}
+          contentContainerStyle={loginStyles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          <View style={loginStyles.contentContainer}>
-            <ScrollView
-              contentContainerStyle={loginStyles.scrollContainer}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={loginStyles.mainContainer}>
-                {/* Logo Section */}
-                <View style={loginStyles.logoSection}>
-                  <View style={loginStyles.iconContainer}>
-                    <View style={loginStyles.iconBackground}>
-                      <FontAwesome5 name="baby-carriage" size={40} color="#4A90E2" />
-                      <MaterialIcons 
-                        name="medical-services" 
-                        size={20} 
-                        color="#4A90E2" 
-                        style={loginStyles.medicalIcon} 
-                      />
-                    </View>
+          <View style={loginStyles.mainContainer}>
+            <View style={loginStyles.logoSection}>
+              <View style={loginStyles.iconContainer}>
+                <View style={loginStyles.iconBackground}>
+                  <FontAwesome5 name="baby-carriage" size={40} color="#4A90E2" />
+                  <View style={loginStyles.medicalIcon}>
+                    <FontAwesome5 name="heartbeat" size={16} color="#FF6B6B" />
                   </View>
-                  <Text style={loginStyles.title}>BINIBABY</Text>
-                  <Text style={loginStyles.subtitle}>Your Baby Care Companion</Text>
-                </View>
-
-                {/* Login Form */}
-                <View style={loginStyles.formSection}>
-                  {/* Email Input */}
-                  <View style={loginStyles.inputContainer}>
-                    <View style={[
-                      loginStyles.inputWrapper,
-                      errors.email && loginStyles.inputError
-                    ]}>
-                      <MaterialIcons name="email" size={20} color="#666" />
-                      <TextInput
-                        style={loginStyles.input}
-                        placeholder="Enter your email"
-                        placeholderTextColor="#999"
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        value={formData.email}
-                        onChangeText={(text) => {
-                          setFormData({ ...formData, email: text });
-                          if (errors.email) setErrors({ ...errors, email: null });
-                        }}
-                      />
-                    </View>
-                    {errors.email && (
-                      <Text style={loginStyles.errorText}>{errors.email}</Text>
-                    )}
-                  </View>
-
-                  {/* Password Input */}
-                  <View style={loginStyles.inputContainer}>
-                    <View style={[
-                      loginStyles.inputWrapper,
-                      errors.password && loginStyles.inputError
-                    ]}>
-                      <MaterialIcons name="lock-outline" size={20} color="#666" />
-                      <TextInput
-                        style={loginStyles.input}
-                        placeholder="Enter your password"
-                        placeholderTextColor="#999"
-                        secureTextEntry={!showPassword}
-                        value={formData.password}
-                        onChangeText={(text) => {
-                          setFormData({ ...formData, password: text });
-                          if (errors.password) setErrors({ ...errors, password: null });
-                        }}
-                      />
-                      <TouchableOpacity
-                        style={loginStyles.passwordToggle}
-                        onPress={() => setShowPassword(!showPassword)}
-                      >
-                        <Ionicons
-                          name={showPassword ? "eye-off-outline" : "eye-outline"}
-                          size={20}
-                          color="#666"
-                        />
-                      </TouchableOpacity>
-                    </View>
-                    {errors.password && (
-                      <Text style={loginStyles.errorText}>{errors.password}</Text>
-                    )}
-                  </View>
-
-                  {/* Login Button */}
-                  <TouchableOpacity
-                    style={[loginStyles.loginButton, loading && loginStyles.loginButtonDisabled]}
-                    onPress={handleLogin}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <ActivityIndicator color="#FFF" />
-                    ) : (
-                      <Text style={loginStyles.loginButtonText}>Log In</Text>
-                    )}
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={loginStyles.forgotPasswordButton}
-                    onPress={() => navigation.navigate('ForgotPassword')}
-                  >
-                    <Text style={loginStyles.forgotPasswordText}>Forgot Password?</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Social Login Section */}
-                <View style={loginStyles.socialSection}>
-                  <View style={loginStyles.divider}>
-                    <View style={loginStyles.dividerLine} />
-                    <Text style={loginStyles.dividerText}>or continue with</Text>
-                    <View style={loginStyles.dividerLine} />
-                  </View>
-                  
-                  {/* Facebook Login Button */}
-                  <TouchableOpacity
-                    style={[loginStyles.socialButton, loginStyles.facebookButton]}
-                    onPress={handleFacebookLogin}
-                    disabled={loading}
-                  >
-                    <FontAwesome5 
-                      name="facebook" 
-                      size={24} 
-                      color="#1877F2" 
-                      style={loginStyles.socialButtonIcon} 
-                    />
-                    <Text style={[loginStyles.socialButtonText, loginStyles.facebookButtonText]}>
-                      Continue with Facebook
-                    </Text>
-                    {loading && (
-                      <ActivityIndicator 
-                        size="small" 
-                        color="#1877F2" 
-                        style={loginStyles.buttonLoader} 
-                      />
-                    )}
-                  </TouchableOpacity>
                 </View>
               </View>
-            </ScrollView>
-          </View>
+              <Text style={loginStyles.title}>Baby Care</Text>
+              <Text style={loginStyles.subtitle}>Track your baby's growth and development</Text>
+            </View>
 
-          <Animated.View
-            style={[
-              loginStyles.bottomContainer,
-              {
-                backgroundColor: keyboardVisible ? '#FFFFFF' : 'transparent',
-                opacity: backgroundOpacity,
-              },
-            ]}
-          >
-            <View style={loginStyles.signupContainer}>
-              <Text style={loginStyles.signupText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-                <Text style={loginStyles.signupLink}>Sign Up</Text>
+            <View style={loginStyles.formSection}>
+              <View style={loginStyles.inputContainer}>
+                <View style={[loginStyles.inputWrapper, errors.email && loginStyles.inputError]}>
+                  <MaterialIcons name="email" size={20} color="#8F9BB3" />
+                  <TextInput
+                    style={loginStyles.input}
+                    placeholder="Email"
+                    placeholderTextColor="#8F9BB3"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={formData.email}
+                    onChangeText={(text) => setFormData({ ...formData, email: text })}
+                  />
+                </View>
+                {errors.email && <Text style={loginStyles.errorText}>{errors.email}</Text>}
+              </View>
+
+              <View style={loginStyles.inputContainer}>
+                <View style={[loginStyles.inputWrapper, errors.password && loginStyles.inputError]}>
+                  <MaterialIcons name="lock" size={20} color="#8F9BB3" />
+                  <TextInput
+                    style={loginStyles.input}
+                    placeholder="Password"
+                    placeholderTextColor="#8F9BB3"
+                    secureTextEntry={!showPassword}
+                    value={formData.password}
+                    onChangeText={(text) => setFormData({ ...formData, password: text })}
+                  />
+                  <TouchableOpacity
+                    style={loginStyles.passwordToggle}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <Ionicons
+                      name={showPassword ? 'eye-off' : 'eye'}
+                      size={20}
+                      color="#8F9BB3"
+                    />
+                  </TouchableOpacity>
+                </View>
+                {errors.password && <Text style={loginStyles.errorText}>{errors.password}</Text>}
+              </View>
+
+              <TouchableOpacity
+                style={[loginStyles.loginButton, loading && loginStyles.loginButtonDisabled]}
+                onPress={handleLogin}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={loginStyles.loginButtonText}>Login</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={loginStyles.forgotPasswordButton}
+                onPress={() => navigation.navigate('ForgotPassword')}
+              >
+                <Text style={loginStyles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
             </View>
-          </Animated.View>
-        </KeyboardAvoidingView>
+
+            <View style={loginStyles.bottomContainer}>
+              <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+                <Text style={loginStyles.forgotPasswordText}>
+                  Don't have an account? <Text style={{ color: '#4A90E2' }}>Sign Up</Text>
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAwareScrollView>
       </LinearGradient>
     </>
   );

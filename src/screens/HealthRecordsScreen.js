@@ -23,6 +23,7 @@ import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 import EmptyState from '../components/EmptyState';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const RECORD_CATEGORIES = [
   { value: '', label: 'All' },
@@ -116,124 +117,143 @@ const HealthRecordsScreen = () => {
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.filters}>
-        <View style={styles.filterHeader}>
+      <LinearGradient
+        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradient}
+      >
+        <View style={styles.header}>
           <IconButton
             icon="arrow-left"
             size={24}
             onPress={() => navigation.goBack()}
             style={styles.backButton}
           />
-          <Text variant="titleMedium" style={styles.filterTitle}>
-            Filter by Category
+          <Text variant="titleLarge" style={styles.headerTitle}>
+            Health Records
           </Text>
         </View>
+
         <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterScroll}
+          style={styles.scrollView}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
         >
-          <SegmentedButtons
-            value={selectedCategory}
-            onValueChange={setSelectedCategory}
-            buttons={RECORD_CATEGORIES}
-            style={styles.segmentedButtons}
-          />
-        </ScrollView>
-      </View>
+          <View style={styles.categoryContainer}>
+            <Text variant="titleMedium" style={styles.filterTitle}>
+              Filter by Category
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.filterScroll}
+            >
+              <SegmentedButtons
+                value={selectedCategory}
+                onValueChange={setSelectedCategory}
+                buttons={RECORD_CATEGORIES}
+                style={styles.segmentedButtons}
+                theme={{
+                  colors: {
+                    secondaryContainer: 'rgba(255, 255, 255, 0.9)',
+                    onSecondaryContainer: '#333',
+                  }
+                }}
+                density="medium"
+              />
+            </ScrollView>
+          </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-      >
-        {error && <ErrorMessage message={error} />}
+          {error && <ErrorMessage message={error} />}
 
-        {records.length === 0 ? (
-          <EmptyState
-            icon="file-document"
-            title="No Health Records"
-            message="Add your first health record by tapping the + button below"
-          />
-        ) : (
-          <View style={styles.content}>
-            {records.map((record) => (
-              <Card
-                key={record.id}
-                style={styles.card}
-                onPress={() => handleViewRecord(record)}
-              >
-                <Card.Content>
-                  <View style={styles.recordHeader}>
-                    <Text variant="titleMedium" style={styles.title}>
-                      {record.title}
-                    </Text>
-                    <Chip
-                      style={[
-                        styles.categoryChip,
-                        { backgroundColor: `${getCategoryColor(record.category)}20` }
-                      ]}
-                      textStyle={{
-                        color: getCategoryColor(record.category),
-                        fontSize: 12,
-                      }}
-                    >
-                      {RECORD_CATEGORIES.find(cat => cat.value === record.category)?.label || 'Other'}
-                    </Chip>
-                  </View>
-
-                  <Text variant="bodyMedium" style={styles.description} numberOfLines={2}>
-                    {record.description}
-                  </Text>
-
-                  <View style={styles.recordDetails}>
-                    <View style={styles.detailRow}>
-                      <Text variant="bodySmall" style={styles.detailLabel}>
-                        Date:
+          {records.length === 0 ? (
+            <EmptyState
+              icon="file-document"
+              title="No Health Records"
+              message="Add your first health record by tapping the + button below"
+            />
+          ) : (
+            <View style={styles.content}>
+              {records.map((record) => (
+                <Card
+                  key={record.id}
+                  style={styles.card}
+                  onPress={() => handleViewRecord(record)}
+                >
+                  <Card.Content>
+                    <View style={styles.recordHeader}>
+                      <Text variant="titleMedium" style={styles.title}>
+                        {record.title}
                       </Text>
-                      <Text variant="bodySmall">
-                        {format(new Date(record.record_date), 'MMM d, yyyy')}
-                      </Text>
+                      <Chip
+                        style={[
+                          styles.categoryChip,
+                          { backgroundColor: `${getCategoryColor(record.category)}10` }
+                        ]}
+                        textStyle={{
+                          color: getCategoryColor(record.category),
+                          fontSize: 12,
+                          lineHeight: 16,
+                        }}
+                      >
+                        {RECORD_CATEGORIES.find(cat => cat.value === record.category)?.label || 'Other'}
+                      </Chip>
                     </View>
 
-                    {record.doctor_name && (
+                    <Text variant="bodyMedium" style={styles.description} numberOfLines={2}>
+                      {record.description}
+                    </Text>
+
+                    <View style={styles.recordDetails}>
                       <View style={styles.detailRow}>
                         <Text variant="bodySmall" style={styles.detailLabel}>
-                          Doctor:
+                          Date:
                         </Text>
                         <Text variant="bodySmall">
-                          Dr. {record.doctor_name}
+                          {format(new Date(record.record_date), 'MMM d, yyyy')}
+                        </Text>
+                      </View>
+
+                      {record.doctor_name && (
+                        <View style={styles.detailRow}>
+                          <Text variant="bodySmall" style={styles.detailLabel}>
+                            Doctor:
+                          </Text>
+                          <Text variant="bodySmall">
+                            Dr. {record.doctor_name}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {record.has_attachments && (
+                      <View style={styles.attachmentIndicator}>
+                        <IconButton
+                          icon="paperclip"
+                          size={16}
+                          style={styles.attachmentIcon}
+                        />
+                        <Text variant="bodySmall" style={styles.attachmentText}>
+                          Has attachments
                         </Text>
                       </View>
                     )}
-                  </View>
+                  </Card.Content>
+                </Card>
+              ))}
+            </View>
+          )}
+        </ScrollView>
 
-                  {record.has_attachments && (
-                    <View style={styles.attachmentIndicator}>
-                      <IconButton
-                        icon="paperclip"
-                        size={16}
-                        style={styles.attachmentIcon}
-                      />
-                      <Text variant="bodySmall" style={styles.attachmentText}>
-                        Has attachments
-                      </Text>
-                    </View>
-                  )}
-                </Card.Content>
-              </Card>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-
-      <FAB
-        icon="plus"
-        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-        onPress={handleAddRecord}
-        color="white"
-      />
+        <FAB
+          icon="plus"
+          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+          onPress={handleAddRecord}
+          color="white"
+        />
+      </LinearGradient>
     </SafeAreaView>
   );
 };
@@ -241,89 +261,126 @@ const HealthRecordsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'transparent',
   },
-  scrollView: {
+  gradient: {
     flex: 1,
   },
-  filters: {
-    backgroundColor: 'white',
-    elevation: 2,
-    paddingBottom: 12,
-  },
-  filterHeader: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingRight: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'transparent',
   },
   backButton: {
     marginLeft: -8,
   },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: 8,
+  },
+  categoryContainer: {
+    backgroundColor: 'transparent',
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
   filterTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginLeft: 4,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    color: '#333',
+    fontSize: 14,
   },
   filterScroll: {
-    marginTop: 8,
     paddingHorizontal: 16,
   },
   segmentedButtons: {
     marginRight: 16,
+    backgroundColor: 'transparent',
+  },
+  scrollView: {
+    flex: 1,
   },
   content: {
     padding: 16,
   },
   card: {
     marginBottom: 12,
-    elevation: 2,
+    elevation: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 20,
+    marginHorizontal: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   recordHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   title: {
     flex: 1,
     marginRight: 8,
+    color: '#333',
+    fontWeight: '500',
+    fontSize: 15,
   },
   categoryChip: {
-    height: 24,
+    height: 28,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
   },
   description: {
-    marginBottom: 12,
+    marginBottom: 8,
     color: '#666',
+    lineHeight: 20,
+    fontSize: 14,
   },
   recordDetails: {
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: 'transparent',
+    padding: 0,
+    marginBottom: 4,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 4,
+    alignItems: 'center',
   },
   detailLabel: {
     color: '#666',
+    fontSize: 13,
+    fontWeight: '500',
   },
   attachmentIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 4,
   },
   attachmentIcon: {
     margin: 0,
   },
   attachmentText: {
     color: '#666',
+    fontSize: 12,
   },
   fab: {
     position: 'absolute',
     margin: 16,
     right: 0,
     bottom: 0,
+    elevation: 4,
   },
 });
 

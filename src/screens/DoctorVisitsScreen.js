@@ -22,6 +22,7 @@ import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 import EmptyState from '../components/EmptyState';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const DoctorVisitsScreen = () => {
   const insets = useSafeAreaInsets();
@@ -60,89 +61,122 @@ const DoctorVisitsScreen = () => {
     loadData();
   }, []);
 
+  const renderVisitCard = (visit) => (
+    <Card
+      key={visit.id}
+      style={styles.card}
+      onPress={() => navigation.navigate('DoctorVisitDetails', { visitId: visit.id })}
+    >
+      <Card.Content style={styles.cardContent}>
+        <View style={styles.visitHeader}>
+          <View style={styles.doctorInfo}>
+            <IconButton
+              icon="doctor"
+              size={24}
+              style={styles.doctorIcon}
+              iconColor={theme.colors.primary}
+            />
+            <View>
+              <Text variant="titleMedium" style={styles.doctorName}>
+                Dr. {visit.doctor_name}
+              </Text>
+              <Text variant="bodySmall" style={styles.dateText}>
+                {format(new Date(visit.visit_date), 'MMM d, yyyy')}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.visitContent}>
+          <Text variant="bodyMedium" style={styles.reasonTitle}>
+            Reason for Visit:
+          </Text>
+          <Text variant="bodyMedium" style={styles.reason}>
+            {visit.reason_for_visit}
+          </Text>
+
+          {visit.diagnosis && (
+            <View style={styles.diagnosisContainer}>
+              <Text variant="bodyMedium" style={styles.diagnosisTitle}>
+                Diagnosis:
+              </Text>
+              <Text variant="bodySmall" style={styles.diagnosis} numberOfLines={2}>
+                {visit.diagnosis}
+              </Text>
+            </View>
+          )}
+
+          {visit.next_visit_date && (
+            <View style={[styles.nextVisitContainer, { backgroundColor: `${theme.colors.primary}10` }]}>
+              <IconButton
+                icon="calendar"
+                size={20}
+                style={styles.calendarIcon}
+                iconColor={theme.colors.primary}
+              />
+              <Text style={[styles.nextVisitText, { color: theme.colors.primary }]}>
+                Next Visit: {format(new Date(visit.next_visit_date), 'MMM d, yyyy')}
+              </Text>
+            </View>
+          )}
+        </View>
+      </Card.Content>
+    </Card>
+  );
+
   if (loading) {
     return <LoadingSpinner />;
   }
   
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <IconButton
-          icon="arrow-left"
-          size={24}
-          onPress={() => navigation.goBack()}
-        />
-        <Text variant="headlineSmall" style={styles.title}>Doctor Visits</Text>
-      </View>
-      
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-          />
-        }
+      <LinearGradient
+        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradient}
       >
-        {error && <ErrorMessage message={error} />}
-
-        {visits.length === 0 ? (
-          <EmptyState
-            icon="doctor"
-            title="No Doctor Visits"
-            message="Add your first doctor visit by tapping the + button below"
+        <View style={styles.header}>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={() => navigation.goBack()}
           />
-        ) : (
-          <View style={styles.content}>
-            {visits.map((visit) => (
-              <Card
-                key={visit.id}
-                style={styles.card}
-                onPress={() => navigation.navigate('DoctorVisitDetails', { visitId: visit.id })}
-              >
-                <Card.Content>
-                  <View style={styles.visitHeader}>
-                    <Text variant="titleMedium">
-                      Dr. {visit.doctor_name}
-                    </Text>
-                    <Text variant="bodySmall">
-                      {format(new Date(visit.visit_date), 'MMM d, yyyy')}
-                    </Text>
-                  </View>
+          <Text variant="headlineSmall" style={styles.title}>Doctor Visits</Text>
+        </View>
+        
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+            />
+          }
+        >
+          {error && <ErrorMessage message={error} />}
 
-                  <Text variant="bodyMedium" style={styles.reason}>
-                    {visit.reason_for_visit}
-                  </Text>
-
-                  {visit.diagnosis && (
-                    <Text variant="bodySmall" numberOfLines={2} style={styles.diagnosis}>
-                      Diagnosis: {visit.diagnosis}
-                    </Text>
-                  )}
-
-                  {visit.next_visit_date && (
-                    <Chip
-                      icon="calendar"
-                      style={styles.nextVisitChip}
-                      textStyle={{ fontSize: 12 }}
-                    >
-                      Next Visit: {format(new Date(visit.next_visit_date), 'MMM d, yyyy')}
-                    </Chip>
-                  )}
-                </Card.Content>
-              </Card>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-      
-      <FAB
-        icon="plus"
-        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-        onPress={() => navigation.navigate('AddDoctorVisit')}
-        color="white"
-      />
+          {visits.length === 0 ? (
+            <EmptyState
+              icon="doctor"
+              title="No Doctor Visits"
+              message="Add your first doctor visit by tapping the + button below"
+            />
+          ) : (
+            <View style={styles.content}>
+              {visits.map(renderVisitCard)}
+            </View>
+          )}
+        </ScrollView>
+        
+        <FAB
+          icon="plus"
+          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+          onPress={() => navigation.navigate('AddDoctorVisit')}
+          color="white"
+        />
+      </LinearGradient>
     </SafeAreaView>
   );
 };
@@ -150,18 +184,23 @@ const DoctorVisitsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'transparent',
+  },
+  gradient: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#fff',
+    paddingVertical: 12,
+    backgroundColor: 'transparent',
   },
   title: {
     flex: 1,
     marginLeft: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
   },
   scrollView: {
     flex: 1,
@@ -171,33 +210,91 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    gap: 16,
   },
   card: {
-    marginBottom: 12,
-    elevation: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 16,
+    elevation: 3,
+    marginBottom: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  cardContent: {
+    padding: 16,
   },
   visitHeader: {
+    marginBottom: 12,
+  },
+  doctorInfo: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+  },
+  doctorIcon: {
+    margin: 0,
+    marginRight: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  doctorName: {
+    fontWeight: '600',
+    color: '#1a1a1a',
+    fontSize: 16,
+  },
+  dateText: {
+    color: '#666',
+    marginTop: 2,
+  },
+  visitContent: {
+    marginTop: 8,
+  },
+  reasonTitle: {
+    fontWeight: '500',
+    color: '#1a1a1a',
+    marginBottom: 4,
   },
   reason: {
-    marginBottom: 8,
+    color: '#444',
+    marginBottom: 12,
+  },
+  diagnosisContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.03)',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  diagnosisTitle: {
+    fontWeight: '500',
+    color: '#1a1a1a',
+    marginBottom: 4,
   },
   diagnosis: {
     color: '#666',
-    marginBottom: 8,
   },
-  nextVisitChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#E8F5E9',
+  nextVisitContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    borderRadius: 20,
+    paddingRight: 12,
+  },
+  calendarIcon: {
+    margin: 0,
+  },
+  nextVisitText: {
+    fontWeight: '500',
   },
   fab: {
     position: 'absolute',
     margin: 16,
     right: 0,
     bottom: 0,
+    borderRadius: 16,
+    elevation: 4,
   },
 });
 

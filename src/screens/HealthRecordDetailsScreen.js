@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const RECORD_CATEGORIES = [
   { value: 'general', label: 'General' },
@@ -135,160 +136,163 @@ const HealthRecordDetailsScreen = () => {
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <IconButton
-          icon="arrow-left"
-          size={24}
-          onPress={() => navigation.goBack()}
-        />
-        <Text variant="headlineSmall" style={styles.title}>
-          Health Record Details
-        </Text>
-        <Menu
-          visible={menuVisible}
-          onDismiss={() => setMenuVisible(false)}
-          anchor={
-            <IconButton
-              icon="dots-vertical"
-              size={24}
-              onPress={() => setMenuVisible(true)}
-            />
-          }
-        >
-          <Menu.Item onPress={handleEdit} title="Edit" />
-          <Menu.Item onPress={handleDelete} title="Delete" />
-        </Menu>
-      </View>
-
-      {error && <ErrorMessage message={error} />}
-
-      <Card style={styles.card}>
-        <Card.Content>
-          <View style={styles.titleSection}>
-            <Text variant="titleLarge" style={styles.recordTitle}>
-              {record.title}
+      <LinearGradient
+        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradient}
+      >
+        <ScrollView style={styles.scrollView}>
+          <View style={styles.header}>
+            <Text variant="headlineSmall" style={styles.title}>
+              Health Record Details
             </Text>
-            <Chip
-              style={[
-                styles.categoryChip,
-                { backgroundColor: `${getCategoryColor(record.category)}20` }
-              ]}
-              textStyle={{
-                color: getCategoryColor(record.category),
-              }}
+            <Menu
+              visible={menuVisible}
+              onDismiss={() => setMenuVisible(false)}
+              anchor={
+                <IconButton
+                  icon="dots-vertical"
+                  onPress={() => setMenuVisible(true)}
+                />
+              }
             >
-              {RECORD_CATEGORIES.find(cat => cat.value === record.category)?.label || 'Other'}
-            </Chip>
+              <Menu.Item onPress={handleEdit} title="Edit" />
+              <Menu.Item onPress={handleDelete} title="Delete" />
+            </Menu>
           </View>
 
-          <Divider style={styles.divider} />
+          {error && <ErrorMessage message={error} />}
 
-          <View style={styles.section}>
-            <Text variant="labelLarge">Date</Text>
-            <Text variant="bodyLarge" style={styles.sectionContent}>
-              {format(new Date(record.record_date), 'MMM d, yyyy')}
-            </Text>
-          </View>
-
-          <Divider style={styles.divider} />
-
-          <View style={styles.section}>
-            <Text variant="labelLarge">Description</Text>
-            <Text variant="bodyLarge" style={styles.sectionContent}>
-              {record.description}
-            </Text>
-          </View>
-
-          {record.doctor_name && (
-            <>
-              <Divider style={styles.divider} />
-              <View style={styles.section}>
-                <Text variant="labelLarge">Doctor</Text>
-                <Text variant="bodyLarge" style={styles.sectionContent}>
-                  Dr. {record.doctor_name}
+          <Card style={styles.card}>
+            <Card.Content>
+              <View style={styles.titleSection}>
+                <Text variant="titleLarge" style={styles.recordTitle}>
+                  {record.title}
                 </Text>
-              </View>
-            </>
-          )}
-
-          {record.clinic_location && (
-            <>
-              <Divider style={styles.divider} />
-              <View style={styles.section}>
-                <Text variant="labelLarge">Location</Text>
-                <Text variant="bodyLarge" style={styles.sectionContent}>
-                  {record.clinic_location}
-                </Text>
-              </View>
-            </>
-          )}
-
-          {record.notes && (
-            <>
-              <Divider style={styles.divider} />
-              <View style={styles.section}>
-                <Text variant="labelLarge">Additional Notes</Text>
-                <Text variant="bodyLarge" style={styles.sectionContent}>
-                  {record.notes}
-                </Text>
-              </View>
-            </>
-          )}
-
-          {record.attachments && record.attachments.length > 0 && (
-            <>
-              <Divider style={styles.divider} />
-              <View style={styles.section}>
-                <Text variant="labelLarge" style={styles.attachmentsTitle}>
-                  Attachments
-                </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.attachmentsScroll}
+                <Chip
+                  style={[
+                    styles.categoryChip,
+                    { backgroundColor: `${getCategoryColor(record.category)}20` }
+                  ]}
+                  textStyle={{
+                    color: getCategoryColor(record.category),
+                  }}
                 >
-                  {record.attachments.map((attachment, index) => (
-                    <View key={index} style={styles.attachmentContainer}>
-                      <Image
-                        source={{ uri: attachment.url }}
-                        style={styles.attachmentImage}
-                      />
-                    </View>
-                  ))}
-                </ScrollView>
+                  {RECORD_CATEGORIES.find(cat => cat.value === record.category)?.label || 'Other'}
+                </Chip>
               </View>
-            </>
-          )}
-        </Card.Content>
-      </Card>
 
-      <View style={styles.buttonContainer}>
-        <Button
-          mode="outlined"
-          onPress={() => navigation.goBack()}
-          style={styles.button}
-        >
-          Back to List
-        </Button>
-      </View>
+              <Divider style={styles.divider} />
 
-      {selectedImage && (
-        <View style={styles.imagePreviewContainer}>
-          <View style={styles.imagePreviewContent}>
-            <IconButton
-              icon="close"
-              size={24}
-              style={styles.closeButton}
-              onPress={() => setSelectedImage(null)}
-            />
-            <Image
-              source={{ uri: selectedImage }}
-              style={styles.previewImage}
-              resizeMode="contain"
-            />
+              <View style={styles.section}>
+                <Text variant="labelLarge">Date</Text>
+                <Text variant="bodyLarge" style={styles.sectionContent}>
+                  {format(new Date(record.record_date), 'MMM d, yyyy')}
+                </Text>
+              </View>
+
+              <Divider style={styles.divider} />
+
+              <View style={styles.section}>
+                <Text variant="labelLarge">Description</Text>
+                <Text variant="bodyLarge" style={styles.sectionContent}>
+                  {record.description}
+                </Text>
+              </View>
+
+              {record.doctor_name && (
+                <>
+                  <Divider style={styles.divider} />
+                  <View style={styles.section}>
+                    <Text variant="labelLarge">Doctor</Text>
+                    <Text variant="bodyLarge" style={styles.sectionContent}>
+                      Dr. {record.doctor_name}
+                    </Text>
+                  </View>
+                </>
+              )}
+
+              {record.clinic_location && (
+                <>
+                  <Divider style={styles.divider} />
+                  <View style={styles.section}>
+                    <Text variant="labelLarge">Location</Text>
+                    <Text variant="bodyLarge" style={styles.sectionContent}>
+                      {record.clinic_location}
+                    </Text>
+                  </View>
+                </>
+              )}
+
+              {record.notes && (
+                <>
+                  <Divider style={styles.divider} />
+                  <View style={styles.section}>
+                    <Text variant="labelLarge">Additional Notes</Text>
+                    <Text variant="bodyLarge" style={styles.sectionContent}>
+                      {record.notes}
+                    </Text>
+                  </View>
+                </>
+              )}
+
+              {record.attachments && record.attachments.length > 0 && (
+                <>
+                  <Divider style={styles.divider} />
+                  <View style={styles.section}>
+                    <Text variant="labelLarge" style={styles.attachmentsTitle}>
+                      Attachments
+                    </Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.attachmentsScroll}
+                    >
+                      {record.attachments.map((attachment, index) => (
+                        <View key={index} style={styles.attachmentContainer}>
+                          <Image
+                            source={{ uri: attachment.url }}
+                            style={styles.attachmentImage}
+                          />
+                        </View>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </>
+              )}
+            </Card.Content>
+          </Card>
+
+          <View style={styles.buttonContainer}>
+            <Button
+              mode="outlined"
+              onPress={() => navigation.goBack()}
+              style={styles.button}
+            >
+              Back to List
+            </Button>
           </View>
-        </View>
-      )}
+
+          {selectedImage && (
+            <View style={styles.imagePreviewContainer}>
+              <View style={styles.imagePreviewContent}>
+                <IconButton
+                  icon="close"
+                  size={24}
+                  style={styles.closeButton}
+                  onPress={() => setSelectedImage(null)}
+                />
+                <Image
+                  source={{ uri: selectedImage }}
+                  style={styles.previewImage}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+          )}
+        </ScrollView>
+      </LinearGradient>
     </SafeAreaView>
   );
 };
@@ -296,7 +300,10 @@ const HealthRecordDetailsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'transparent',
+  },
+  gradient: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',

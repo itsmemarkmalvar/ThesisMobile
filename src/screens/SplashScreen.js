@@ -1,10 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { FontAwesome5 } from '@expo/vector-icons';
 
 const SplashScreen = () => {
   const [fadeAnim] = React.useState(new Animated.Value(0));
   const [scaleAnim] = React.useState(new Animated.Value(0.3));
+  const [rotateAnim] = React.useState(new Animated.Value(0));
 
   React.useEffect(() => {
     Animated.parallel([
@@ -15,11 +17,24 @@ const SplashScreen = () => {
       }),
       Animated.spring(scaleAnim, {
         toValue: 1,
-        friction: 4,
+        friction: 8,
         useNativeDriver: true,
-      })
+      }),
+      Animated.sequence([
+        Animated.delay(300),
+        Animated.spring(rotateAnim, {
+          toValue: 1,
+          friction: 10,
+          useNativeDriver: true,
+        })
+      ])
     ]).start();
   }, []);
+
+  const spin = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg']
+  });
 
   return (
     <LinearGradient
@@ -31,11 +46,20 @@ const SplashScreen = () => {
           styles.contentContainer, 
           { 
             opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }]
+            transform: [
+              { scale: scaleAnim },
+              { rotate: spin }
+            ]
           }
         ]}
       >
-        <Text style={styles.title}>BabyTracker</Text>
+        <FontAwesome5 
+          name="baby" 
+          size={80} 
+          color="#4A4A4A" 
+          style={styles.icon}
+        />
+        <Text style={styles.title}>Binibaby</Text>
         <Text style={styles.subtitle}>Track your baby's growth</Text>
       </Animated.View>
     </LinearGradient>
@@ -50,6 +74,9 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     alignItems: 'center',
+  },
+  icon: {
+    marginBottom: 20,
   },
   title: {
     fontSize: 32,

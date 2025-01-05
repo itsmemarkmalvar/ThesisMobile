@@ -237,7 +237,7 @@ const HomeScreen = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <LinearGradient
-          colors={['#FF9A9E', '#FAD0C4', '#FFF']}
+          colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
@@ -254,7 +254,7 @@ const HomeScreen = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <LinearGradient
-          colors={['#FF9A9E', '#FAD0C4', '#FFF']}
+          colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
@@ -279,7 +279,7 @@ const HomeScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={['#FF9A9E', '#FAD0C4', '#FFF']}
+        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.gradient}

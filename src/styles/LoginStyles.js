@@ -75,24 +75,6 @@ export const loginStyles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
   },
-  facebookButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 15,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-    width: '100%',
-    justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
   phoneButton: {
     width: '100%',
     height: 44,
@@ -202,56 +184,9 @@ export const loginStyles = StyleSheet.create({
   passwordToggle: {
     padding: 8,
   },
-  socialSection: {
-    width: '100%',
-    marginTop: 20,
-    paddingHorizontal: 20,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-  },
-  dividerText: {
-    color: '#8F9BB3',
-    paddingHorizontal: 10,
-    fontSize: 14,
-  },
-  socialButton: {
-    width: '100%',
-    height: 48,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 8,
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 1,
-      },
-    }),
-  },
   bottomContainer: {
     width: '100%',
     paddingVertical: Platform.OS === 'ios' ? 20 : 16,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
   },
   signupContainer: {
     flexDirection: 'row',
@@ -288,22 +223,11 @@ export const loginStyles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
-  facebookButton: {
-    backgroundColor: '#FFFFFF',
-  },
-  socialButtonText: {
-    fontSize: 16,
-    color: '#333333',
-    fontWeight: '500',
-  },
   orText: {
     color: '#666',
     marginVertical: 15,
     fontWeight: '600',
     textAlign: 'center',
-  },
-  facebookButtonText: {
-    color: '#1877F2',
   },
   buttonLoader: {
     marginLeft: 10,
