@@ -10,6 +10,8 @@ import {
   Modal,
   Dimensions,
   Switch,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -25,6 +27,9 @@ import { vaccineInfo } from '../data/vaccineInfo';
 import VaccineCompletionForm from '../components/VaccineCompletionForm';
 import VaccinationHistory from '../components/VaccinationHistory';
 import VaccineScheduleForm from '../components/VaccineScheduleForm';
+import * as Sharing from 'expo-sharing';
+import * as Print from 'expo-print';
+import RNHTMLtoPDF from 'react-native-html-to-pdf';
 
 const ImmunizationScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
@@ -104,6 +109,7 @@ const ImmunizationScreen = ({ navigation }) => {
   const [selectedVaccineForCompletion, setSelectedVaccineForCompletion] = useState(null);
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [selectedVaccineForScheduling, setSelectedVaccineForScheduling] = useState(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     setupNotifications();
@@ -378,6 +384,117 @@ const ImmunizationScreen = ({ navigation }) => {
     }
   };
 
+  const handleDownloadSchedule = async () => {
+    try {
+      setDownloading(true);
+
+      // Get baby information and vaccination data
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) throw new Error('No token found');
+
+      // Generate HTML content
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+              body { font-family: Arial, sans-serif; padding: 20px; }
+              .header { text-align: center; margin-bottom: 30px; }
+              .title { font-size: 24px; font-weight: bold; color: #2E3A59; }
+              .subtitle { font-size: 16px; color: #666; }
+              .section { margin-bottom: 30px; }
+              .section-title { 
+                font-size: 18px; 
+                font-weight: bold; 
+                color: #2E3A59;
+                border-bottom: 2px solid #eee;
+                padding-bottom: 5px;
+                margin-bottom: 15px;
+              }
+              .vaccine-item {
+                margin-bottom: 15px;
+                padding: 10px;
+                background-color: #f8f9fa;
+                border-radius: 5px;
+              }
+              .vaccine-name {
+                font-weight: bold;
+                color: #2E3A59;
+                margin-bottom: 5px;
+              }
+              .vaccine-details {
+                font-size: 14px;
+                color: #666;
+              }
+              .footer {
+                margin-top: 40px;
+                text-align: center;
+                font-size: 12px;
+                color: #666;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="title">Vaccination Schedule</div>
+              <div class="subtitle">Generated on ${new Date().toLocaleDateString()}</div>
+            </div>
+
+            <div class="section">
+              <div class="section-title">Vaccination Schedule</div>
+              ${vaccines.map(ageGroup => `
+                <div class="vaccine-item">
+                  <div class="vaccine-name">${ageGroup.ageGroup}</div>
+                  <div class="vaccine-details">
+                    ${ageGroup.vaccines.map(vaccine => `
+                      <div>
+                        ${vaccine.name} - 
+                        ${vaccine.completed 
+                          ? `✅ Completed on: ${new Date(vaccine.date).toLocaleDateString()}`
+                          : vaccine.date 
+                            ? `⏳ Scheduled for: ${new Date(vaccine.date).toLocaleDateString()}`
+                            : '◯ Not scheduled'
+                        }
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+
+            <div class="footer">
+              This document was generated automatically. Please consult with your healthcare provider for any questions.
+            </div>
+          </body>
+        </html>
+      `;
+
+      // Generate PDF using expo-print
+      const { uri } = await Print.printToFileAsync({
+        html,
+        base64: false
+      });
+
+      // Share the PDF
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Download Vaccination Schedule'
+        });
+      } else {
+        Alert.alert('Error', 'Sharing is not available on this device');
+      }
+
+      setDownloading(false);
+    } catch (error) {
+      console.error('Error downloading schedule:', error);
+      Alert.alert('Error', 'Failed to download vaccination schedule');
+      setDownloading(false);
+    }
+  };
+
   const VaccineInfoModal = ({ vaccine, visible, onClose }) => {
     if (!vaccine) return null;
 
@@ -487,21 +604,27 @@ const ImmunizationScreen = ({ navigation }) => {
     >
       <View style={styles.vaccineContent}>
         <MaterialIcons
-          name={vaccine.completed ? "check-circle" : "radio-button-unchecked"}
+          name={vaccine.completed ? "check-circle" : (vaccine.date ? "event" : "radio-button-unchecked")}
           size={24}
-          color={vaccine.completed ? "#4CAF50" : "#BDBDBD"}
+          color={vaccine.completed ? "#4CAF50" : (vaccine.date ? "#FF9800" : "#BDBDBD")}
           style={styles.vaccineIcon}
         />
         <View style={styles.vaccineDetails}>
           <Text style={[
             styles.vaccineName,
-            vaccine.completed && styles.vaccineCompleted
+            vaccine.completed && styles.vaccineCompleted,
+            vaccine.date && !vaccine.completed && styles.vaccineScheduled
           ]}>
             {vaccine.name}
           </Text>
           {vaccine.completed && vaccine.date && (
             <Text style={styles.vaccineDate}>
               Completed on: {new Date(vaccine.date).toLocaleDateString()}
+            </Text>
+          )}
+          {!vaccine.completed && vaccine.date && (
+            <Text style={[styles.vaccineDate, styles.scheduledDate]}>
+              Scheduled for: {new Date(vaccine.date).toLocaleDateString()}
             </Text>
           )}
         </View>
@@ -530,6 +653,13 @@ const ImmunizationScreen = ({ navigation }) => {
         <Text style={styles.headerTitle}>Immunization</Text>
       </View>
       <View style={styles.headerRight}>
+        <TouchableOpacity 
+          style={styles.iconButton}
+          onPress={handleDownloadSchedule}
+          disabled={downloading}
+        >
+          <MaterialIcons name="download" size={24} color="#333" />
+        </TouchableOpacity>
         <TouchableOpacity 
           style={styles.iconButton}
           onPress={() => setShowReminderSettings(true)}
@@ -572,77 +702,127 @@ const ImmunizationScreen = ({ navigation }) => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        {renderHeader()}
-        <ActivityIndicator size="large" color="#0000ff" />
+        <LinearGradient
+          colors={['#FF9A9E', '#FAD0C4', '#FFF']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradient}
+        >
+          {renderHeader()}
+          <ActivityIndicator size="large" color="#0000ff" />
+        </LinearGradient>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      {renderHeader()}
-      
-      {viewMode === 'list' ? (
-        <ScrollView style={styles.content}>
-          {vaccines.map((ageGroup) => (
-            <View key={`age-group-${ageGroup.id || 'default'}-${ageGroup.ageGroup}`} style={styles.ageGroupContainer}>
-              <Text style={styles.ageGroupTitle}>{ageGroup.ageGroup}</Text>
-              {ageGroup.vaccines.map((vaccine) => renderVaccineItem(vaccine, ageGroup))}
+      <LinearGradient
+        colors={['#FF9A9E', '#FAD0C4', '#FFF']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradient}
+      >
+        {renderHeader()}
+        
+        {viewMode === 'list' ? (
+          <ScrollView style={styles.content}>
+            {vaccines.map((ageGroup) => (
+              <View key={`age-group-${ageGroup.id || 'default'}-${ageGroup.ageGroup}`} style={styles.ageGroupContainer}>
+                <Text style={styles.ageGroupTitle}>{ageGroup.ageGroup}</Text>
+                {ageGroup.vaccines.map((vaccine) => renderVaccineItem(vaccine, ageGroup))}
+              </View>
+            ))}
+          </ScrollView>
+        ) : (
+          <ScrollView style={styles.content}>
+            <View style={styles.calendarCard}>
+              <VaccineCalendar
+                markedDates={getMarkedDates()}
+                onDayPress={handleDayPress}
+              />
+              <View style={styles.legend}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: '#4CAF50' }]} />
+                  <Text style={styles.legendText}>Completed</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: '#FF9800' }]} />
+                  <Text style={styles.legendText}>Scheduled</Text>
+                </View>
+              </View>
             </View>
-          ))}
-        </ScrollView>
-      ) : (
-        <View style={styles.calendarContainer}>
-          <VaccineCalendar
-            markedDates={getMarkedDates()}
-            onDayPress={handleDayPress}
-          />
-          <View style={styles.legend}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#4CAF50' }]} />
-              <Text style={styles.legendText}>Completed</Text>
+
+            <View style={styles.historyCard}>
+              <View style={styles.historyHeader}>
+                <Text style={styles.historyTitle}>Vaccination History</Text>
+              </View>
+              {vaccinationHistory.length > 0 ? (
+                vaccinationHistory.map((record, index) => (
+                  <View key={index} style={styles.historyItem}>
+                    <View style={styles.historyContent}>
+                      <Text style={styles.historyVaccineName}>{record.vaccine_name}</Text>
+                      <Text style={styles.historyDate}>
+                        {record.status === 'completed' ? 'Completed on: ' : 'Scheduled for: '}
+                        {new Date(record.date).toLocaleDateString()}
+                      </Text>
+                      {record.administered_by && (
+                        <Text style={styles.historyAdministered}>
+                          Administered by: {record.administered_by}
+                        </Text>
+                      )}
+                      {record.notes && <Text style={styles.historyNotes}>{record.notes}</Text>}
+                    </View>
+                    <MaterialIcons
+                      name={record.status === 'completed' ? "check-circle" : "event"}
+                      size={24}
+                      color={record.status === 'completed' ? "#4CAF50" : "#FF9800"}
+                    />
+                  </View>
+                ))
+              ) : (
+                <View style={styles.emptyHistory}>
+                  <Text style={styles.emptyHistoryText}>No vaccination history available</Text>
+                </View>
+              )}
             </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#FF9800' }]} />
-              <Text style={styles.legendText}>Scheduled</Text>
-            </View>
-          </View>
-        </View>
-      )}
+          </ScrollView>
+        )}
 
-      <VaccineInfoModal
-        vaccine={selectedVaccine}
-        visible={infoModalVisible}
-        onClose={() => setInfoModalVisible(false)}
-      />
+        <VaccineInfoModal
+          vaccine={selectedVaccine}
+          visible={infoModalVisible}
+          onClose={() => setInfoModalVisible(false)}
+        />
 
-      <ReminderSettings
-        visible={showReminderSettings}
-        onClose={() => setShowReminderSettings(false)}
-        onSave={handleReminderSettingsSave}
-      />
+        <ReminderSettings
+          visible={showReminderSettings}
+          onClose={() => setShowReminderSettings(false)}
+          onSave={handleReminderSettingsSave}
+        />
 
-      <VaccineCompletionForm
-        visible={showCompletionForm}
-        onClose={() => setShowCompletionForm(false)}
-        onSave={handleVaccineCompletion}
-        vaccine={selectedVaccineForCompletion}
-        details={completionDetails}
-        setDetails={setCompletionDetails}
-      />
+        <VaccineCompletionForm
+          visible={showCompletionForm}
+          onClose={() => setShowCompletionForm(false)}
+          onSave={handleVaccineCompletion}
+          vaccine={selectedVaccineForCompletion}
+          details={completionDetails}
+          setDetails={setCompletionDetails}
+        />
 
-      <VaccinationHistory
-        visible={showHistory}
-        onClose={() => setShowHistory(false)}
-        history={vaccinationHistory}
-      />
+        <VaccinationHistory
+          visible={showHistory}
+          onClose={() => setShowHistory(false)}
+          history={vaccinationHistory}
+        />
 
-      <VaccineScheduleForm
-        visible={showScheduleForm}
-        onClose={() => setShowScheduleForm(false)}
-        onSave={handleScheduleVaccine}
-        vaccine={selectedVaccineForScheduling}
-      />
+        <VaccineScheduleForm
+          visible={showScheduleForm}
+          onClose={() => setShowScheduleForm(false)}
+          onSave={handleScheduleVaccine}
+          vaccine={selectedVaccineForScheduling}
+        />
+      </LinearGradient>
     </SafeAreaView>
   );
 };
@@ -650,6 +830,7 @@ const ImmunizationScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FF9A9E'
   },
   gradient: {
     flex: 1,
@@ -792,19 +973,32 @@ const styles = StyleSheet.create({
   infoButton: {
     padding: 8,
   },
+  calendarCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+  },
   calendarContainer: {
     flex: 1,
-    backgroundColor: '#fff',
-    paddingTop: 10,
+    backgroundColor: 'transparent',
   },
   legend: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: '#F0F0F0',
+    marginTop: 8,
   },
   legendItem: {
     flexDirection: 'row',
@@ -820,6 +1014,79 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 14,
     color: '#666',
+  },
+  vaccineScheduled: {
+    color: '#FF9800',
+  },
+  scheduledDate: {
+    color: '#FF9800',
+  },
+  historyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+  },
+  historyHeader: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    paddingBottom: 12,
+    marginBottom: 12,
+  },
+  historyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333',
+  },
+  historyItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  historyContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  historyVaccineName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  historyDate: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  historyAdministered: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  historyNotes: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  emptyHistory: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  emptyHistoryText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
 });
 
