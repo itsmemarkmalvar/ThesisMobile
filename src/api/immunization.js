@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_URL } from '../config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const immunizationApi = {
   // Get master list of vaccines with completion status
@@ -89,6 +90,31 @@ export const immunizationApi = {
       return response.data;
     } catch (error) {
       console.error('Error generating PDF:', error);
+      throw error;
+    }
+  },
+
+  // Update reminder settings for a vaccine
+  updateReminder: async (settings) => {
+    try {
+      await AsyncStorage.setItem('vaccineReminderSettings', JSON.stringify(settings));
+      return { success: true, data: settings };
+    } catch (error) {
+      console.error('Error updating reminder settings:', error);
+      throw error;
+    }
+  },
+
+  getReminderSettings: async () => {
+    try {
+      const settings = await AsyncStorage.getItem('vaccineReminderSettings');
+      return settings ? JSON.parse(settings) : {
+        enabled: true,
+        reminderDays: 7,
+        reminderTime: '09:00'
+      };
+    } catch (error) {
+      console.error('Error getting reminder settings:', error);
       throw error;
     }
   }

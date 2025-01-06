@@ -3,60 +3,60 @@ import {
   View,
   Text,
   StyleSheet,
-  Modal,
-  TouchableOpacity,
   Switch,
-  ScrollView,
+  TouchableOpacity,
+  Platform,
+  Modal
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Picker } from '@react-native-picker/picker';
+import { immunizationApi } from '../api/immunization';
+import { MaterialIcons } from '@expo/vector-icons';
 
-const ReminderSettings = ({ visible, onClose, onSave }) => {
+const ReminderSettings = ({ visible, onSave, onClose }) => {
   const [enabled, setEnabled] = useState(true);
   const [reminderDays, setReminderDays] = useState(7);
-  const [reminderTime, setReminderTime] = useState(new Date());
+  const [reminderTime, setReminderTime] = useState('09:00');
   const [showTimePicker, setShowTimePicker] = useState(false);
 
   useEffect(() => {
-    loadSettings();
-  }, []);
+    if (visible) {
+      loadSettings();
+    }
+  }, [visible]);
 
   const loadSettings = async () => {
     try {
-      const settings = await AsyncStorage.getItem('vaccineReminderSettings');
-      if (settings) {
-        const parsed = JSON.parse(settings);
-        setEnabled(parsed.enabled);
-        setReminderDays(parsed.reminderDays);
-        if (parsed.reminderTime) {
-          const [hours, minutes] = parsed.reminderTime.split(':');
-          const time = new Date();
-          time.setHours(parseInt(hours), parseInt(minutes), 0);
-          setReminderTime(time);
-        }
-      }
+      const settings = await immunizationApi.getReminderSettings();
+      setEnabled(settings.enabled);
+      setReminderDays(settings.reminderDays);
+      setReminderTime(settings.reminderTime);
     } catch (error) {
       console.error('Error loading reminder settings:', error);
     }
   };
 
   const handleSave = async () => {
-    const settings = {
-      enabled,
-      reminderDays,
-      reminderTime: reminderTime.toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: false 
-      }),
-    };
-    
     try {
-      await AsyncStorage.setItem('vaccineReminderSettings', JSON.stringify(settings));
+      const settings = {
+        enabled,
+        reminderDays,
+        reminderTime
+      };
+      
+      await immunizationApi.updateReminder(settings);
       onSave(settings);
     } catch (error) {
       console.error('Error saving reminder settings:', error);
+    }
+  };
+
+  const handleTimeChange = (event, selectedTime) => {
+    setShowTimePicker(Platform.OS === 'ios');
+    if (selectedTime) {
+      const hours = selectedTime.getHours().toString().padStart(2, '0');
+      const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
+      setReminderTime(`${hours}:${minutes}`);
     }
   };
 
@@ -75,83 +75,64 @@ const ReminderSettings = ({ visible, onClose, onSave }) => {
               <MaterialIcons name="close" size={24} color="#333" />
             </TouchableOpacity>
           </View>
+          
+          <View style={styles.settingRow}>
+            <Text>Enable Reminders</Text>
+            <Switch
+              value={enabled}
+              onValueChange={setEnabled}
+            />
+          </View>
 
-          <ScrollView style={styles.modalBody}>
-            <View style={styles.settingItem}>
-              <Text style={styles.settingLabel}>Enable Reminders</Text>
-              <Switch
-                value={enabled}
-                onValueChange={setEnabled}
-                trackColor={{ false: '#767577', true: '#4A90E2' }}
-                thumbColor={enabled ? '#FFF' : '#f4f3f4'}
-              />
-            </View>
-
-            {enabled && (
-              <>
-                <View style={styles.settingItem}>
-                  <Text style={styles.settingLabel}>Remind me before</Text>
-                  <View style={styles.daysSelector}>
-                    {[3, 5, 7, 14].map(days => (
-                      <TouchableOpacity
-                        key={days}
-                        style={[
-                          styles.dayButton,
-                          reminderDays === days && styles.dayButtonActive
-                        ]}
-                        onPress={() => setReminderDays(days)}
-                      >
-                        <Text style={[
-                          styles.dayButtonText,
-                          reminderDays === days && styles.dayButtonTextActive
-                        ]}>
-                          {days} days
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.timeSelector}
-                  onPress={() => setShowTimePicker(true)}
+          {enabled && (
+            <>
+              <View style={styles.settingRow}>
+                <Text>Remind me</Text>
+                <Picker
+                  selectedValue={reminderDays}
+                  style={styles.picker}
+                  onValueChange={setReminderDays}
                 >
-                  <Text style={styles.settingLabel}>Reminder Time</Text>
-                  <Text style={styles.timeText}>
-                    {reminderTime.toLocaleTimeString([], { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
-                    })}
-                  </Text>
+                  {[1, 2, 3, 5, 7, 14].map(days => (
+                    <Picker.Item
+                      key={days}
+                      label={`${days} day${days > 1 ? 's' : ''} before`}
+                      value={days}
+                    />
+                  ))}
+                </Picker>
+              </View>
+
+              <View style={styles.settingRow}>
+                <Text>Time</Text>
+                <TouchableOpacity onPress={() => setShowTimePicker(true)}>
+                  <Text>{reminderTime}</Text>
                 </TouchableOpacity>
+              </View>
 
-                {showTimePicker && (
-                  <DateTimePicker
-                    value={reminderTime}
-                    mode="time"
-                    is24Hour={true}
-                    display="default"
-                    onChange={(event, selectedTime) => {
-                      setShowTimePicker(false);
-                      if (selectedTime) setReminderTime(selectedTime);
-                    }}
-                  />
-                )}
-              </>
-            )}
-          </ScrollView>
+              {showTimePicker && (
+                <DateTimePicker
+                  value={(() => {
+                    const [hours, minutes] = reminderTime.split(':');
+                    const date = new Date();
+                    date.setHours(parseInt(hours, 10));
+                    date.setMinutes(parseInt(minutes, 10));
+                    return date;
+                  })()}
+                  mode="time"
+                  is24Hour={true}
+                  display="default"
+                  onChange={handleTimeChange}
+                />
+              )}
+            </>
+          )}
 
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
-              onPress={onClose}
-            >
+          <View style={styles.buttonRow}>
+            <TouchableOpacity style={styles.button} onPress={onClose}>
               <Text style={styles.buttonText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.saveButton]}
-              onPress={handleSave}
-            >
+            <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSave}>
               <Text style={[styles.buttonText, styles.saveButtonText]}>Save</Text>
             </TouchableOpacity>
           </View>
@@ -172,7 +153,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
-    maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -181,75 +161,36 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
-  modalBody: {
-    maxHeight: '70%',
-  },
-  settingItem: {
-    marginBottom: 20,
-  },
-  settingLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 10,
-  },
-  daysSelector: {
+  settingRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -5,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
   },
-  dayButton: {
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F0F0F0',
-    marginHorizontal: 5,
-    marginBottom: 10,
+  picker: {
+    width: 150,
   },
-  dayButtonActive: {
-    backgroundColor: '#4A90E2',
-  },
-  dayButtonText: {
-    color: '#666',
-  },
-  dayButtonTextActive: {
-    color: '#FFF',
-  },
-  timeSelector: {
-    marginBottom: 20,
-  },
-  timeText: {
-    fontSize: 16,
-    color: '#4A90E2',
-    marginTop: 5,
-  },
-  buttonContainer: {
+  buttonRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     marginTop: 20,
   },
   button: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+    padding: 10,
     marginLeft: 10,
-  },
-  cancelButton: {
-    backgroundColor: '#F0F0F0',
+    borderRadius: 5,
   },
   saveButton: {
-    backgroundColor: '#4A90E2',
+    backgroundColor: '#007AFF',
   },
   buttonText: {
-    fontSize: 16,
-    color: '#666',
+    color: '#007AFF',
   },
   saveButtonText: {
-    color: '#FFF',
+    color: 'white',
   },
 });
 

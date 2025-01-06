@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -10,14 +10,22 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { shadowStyles } from '../../utils/shadowStyles';
 
-const AddDiaperNoteModal = ({ visible, onClose, onSave, initialType = 'wet' }) => {
+const AddDiaperNoteModal = ({ visible, onClose, onSave, initialType }) => {
   const [notes, setNotes] = useState('');
   const [selectedType, setSelectedType] = useState(initialType);
   const [selectedTime, setSelectedTime] = useState(new Date());
 
+  useEffect(() => {
+    setSelectedType(initialType);
+  }, [initialType]);
+
   const handleSave = () => {
+    if (!selectedType) {
+      return;
+    }
+    
     onSave({
-      type: selectedType || initialType,
+      type: selectedType,
       time: selectedTime,
       notes: notes.trim(),
     });

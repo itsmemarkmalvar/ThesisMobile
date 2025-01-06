@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import axios from 'axios';
 import { API_URL } from '../config';
 import VaccineCalendar from '../components/VaccineCalendar';
@@ -31,6 +32,15 @@ import VaccineScheduleForm from '../components/VaccineScheduleForm';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import RNHTMLtoPDF from 'react-native-html-to-pdf';
+
+// Configure notifications
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 const ImmunizationScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
@@ -114,6 +124,30 @@ const ImmunizationScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    const initializeNotifications = async () => {
+      try {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        
+        if (finalStatus !== 'granted') {
+          Alert.alert(
+            'Permission Required',
+            'Push notifications are required for vaccination reminders. Please enable them in your device settings.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+      } catch (error) {
+        console.error('Error initializing notifications:', error);
+      }
+    };
+
+    initializeNotifications();
     setupNotifications();
     loadVaccinations();
     loadVaccinationHistory();
@@ -304,21 +338,48 @@ const ImmunizationScreen = ({ navigation }) => {
       const token = await AsyncStorage.getItem('userToken');
       if (!token) throw new Error('No token found');
 
+      // Update the UI state
       setReminderEnabled(settings.enabled);
-      setShowReminderSettings(false);
       
+      // Save settings to AsyncStorage
+      await AsyncStorage.setItem('vaccineReminderSettings', JSON.stringify(settings));
+
       // Update reminders for all upcoming vaccines
       if (settings.enabled) {
         for (const ageGroup of vaccines) {
           for (const vaccine of ageGroup.vaccines) {
             if (!vaccine.completed && vaccine.date) {
-              await immunizationApi.updateReminder(token, {
-                vaccineId: vaccine.id,
-                enabled: true,
-                days: settings.reminderDays,
-                time: settings.reminderTime
-              });
-              scheduleVaccineReminder(vaccine, vaccine.date, settings);
+              try {
+                // Schedule local notification
+                const trigger = new Date(vaccine.date);
+                const [hours, minutes] = settings.reminderTime.split(':');
+                
+                trigger.setDate(trigger.getDate() - settings.reminderDays);
+                trigger.setHours(parseInt(hours), parseInt(minutes), 0);
+
+                // Cancel any existing reminder first
+                await cancelVaccineReminder(vaccine.id);
+
+                // Schedule new reminder
+                const notificationId = await Notifications.scheduleNotificationAsync({
+                  content: {
+                    title: 'Upcoming Vaccination',
+                    body: `${vaccine.name} is due in ${settings.reminderDays} days`,
+                    data: { vaccineId: vaccine.id, dueDate: vaccine.date },
+                    categoryIdentifier: 'VACCINE_REMINDER',
+                    sound: true,
+                  },
+                  trigger,
+                });
+
+                // Store notification ID
+                const notifications = await AsyncStorage.getItem('vaccineNotifications');
+                const notificationsObj = notifications ? JSON.parse(notifications) : {};
+                notificationsObj[vaccine.id] = notificationId;
+                await AsyncStorage.setItem('vaccineNotifications', JSON.stringify(notificationsObj));
+              } catch (err) {
+                console.error(`Error scheduling reminder for vaccine ${vaccine.id}:`, err);
+              }
             }
           }
         }
@@ -326,17 +387,20 @@ const ImmunizationScreen = ({ navigation }) => {
         // Cancel all reminders if disabled
         for (const ageGroup of vaccines) {
           for (const vaccine of ageGroup.vaccines) {
-            await immunizationApi.updateReminder(token, {
-              vaccineId: vaccine.id,
-              enabled: false
-            });
-            cancelVaccineReminder(vaccine.id);
+            try {
+              await cancelVaccineReminder(vaccine.id);
+            } catch (err) {
+              console.error(`Error canceling reminder for vaccine ${vaccine.id}:`, err);
+            }
           }
         }
       }
+
+      setShowReminderSettings(false);
+      Alert.alert('Success', 'Reminder settings updated successfully');
     } catch (error) {
       console.error('Error updating reminder settings:', error);
-      Alert.alert('Error', 'Failed to update reminder settings');
+      Alert.alert('Error', 'Failed to update reminder settings. Please try again.');
     }
   };
 

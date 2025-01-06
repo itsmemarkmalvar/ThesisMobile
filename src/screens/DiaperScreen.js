@@ -130,7 +130,7 @@ const DiaperScreen = ({ navigation }) => {
   const handleAddDiaper = async (diaperData) => {
     try {
       const newLog = await diaperService.saveDiaperLog({
-        type: diaperData.type || selectedType,
+        type: diaperData.type,
         time: new Date().toISOString(),
         notes: diaperData.notes || ''
       });
@@ -138,9 +138,9 @@ const DiaperScreen = ({ navigation }) => {
       // Refresh the list to show the new log
       await loadDiaperLogs();
       setModalVisible(false);
+      setSelectedType(null);
     } catch (error) {
       console.error('Error saving diaper log:', error);
-      // Show error message to user
       Alert.alert(
         'Error',
         'Failed to save diaper log. Please try again.',
