@@ -28,45 +28,10 @@ const EditBabyScreen = ({ route, navigation }) => {
   });
   const [errors, setErrors] = useState({});
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Check for unsaved changes
-  useEffect(() => {
-    const hasChanges = 
-      formData.name !== babyData.name ||
-      formData.gender !== babyData.gender ||
-      formData.birth_date.toISOString().split('T')[0] !== new Date(babyData.birth_date).toISOString().split('T')[0];
-    
-    setHasUnsavedChanges(hasChanges);
-  }, [formData, babyData]);
-
-  // Handle back navigation
-  useEffect(() => {
-    const handleBackPress = () => {
-      if (hasUnsavedChanges) {
-        Alert.alert(
-          'Discard Changes?',
-          'You have unsaved changes. Are you sure you want to go back?',
-          [
-            { text: "Don't leave", style: 'cancel', onPress: () => {} },
-            {
-              text: 'Discard',
-              style: 'destructive',
-              onPress: () => navigation.goBack(),
-            },
-          ]
-        );
-        return true;
-      }
-      return false;
-    };
-
-    navigation.addListener('beforeRemove', (e) => {
-      if (!hasUnsavedChanges) return;
-      e.preventDefault();
-      handleBackPress();
-    });
-  }, [navigation, hasUnsavedChanges]);
+  const onBackPress = () => {
+    navigation.goBack();
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -107,21 +72,56 @@ const EditBabyScreen = ({ route, navigation }) => {
         birth_date: formData.birth_date.toISOString().split('T')[0],
       };
 
-      const response = await axios.put(`${API_URL}/baby/profile`, updateData, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      });
+      const MAX_RETRIES = 2;
+      let retryCount = 0;
+      let lastError = null;
 
-      if (response.data.success) {
-        updateBabyData(response.data.data);
-        navigation.navigate('Home', { dataUpdated: true });
+      while (retryCount <= MAX_RETRIES) {
+        try {
+          const response = await axios.put(`${API_URL}/baby`, updateData, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            timeout: 10000,
+          });
+
+          if (response.data && response.data.data) {
+            updateBabyData(response.data.data);
+            navigation.replace('BabyMain');
+            return;
+          } else {
+            throw new Error(response.data.message || 'Update failed');
+          }
+        } catch (error) {
+          lastError = error;
+          if (error.code === 'ERR_NETWORK') {
+            retryCount++;
+            if (retryCount <= MAX_RETRIES) {
+              await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount)));
+              continue;
+            }
+          }
+          break;
+        }
       }
-    } catch (error) {
-      console.error('Error updating baby:', error.response?.data || error.message);
-      Alert.alert('Error', 'Failed to update baby information. Please try again.');
+
+      console.error('Error updating baby:', lastError?.message);
+      
+      let errorMessage = 'Failed to update baby information. ';
+      if (lastError?.code === 'ERR_NETWORK') {
+        errorMessage += 'Please check your internet connection and try again.';
+      } else if (lastError?.response?.status === 401) {
+        errorMessage += 'Your session has expired. Please login again.';
+        navigation.replace('Auth');
+      } else if (lastError?.message) {
+        errorMessage += lastError.message;
+      } else {
+        errorMessage += 'Please try again.';
+      }
+
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -140,7 +140,7 @@ const EditBabyScreen = ({ route, navigation }) => {
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={onBackPress}
         >
           <MaterialIcons name="arrow-back-ios" size={24} color="#333" />
         </TouchableOpacity>
@@ -231,17 +231,15 @@ const EditBabyScreen = ({ route, navigation }) => {
       <TouchableOpacity
         style={[
           styles.updateButton,
-          (loading || !hasUnsavedChanges) && styles.updateButtonDisabled
+          loading && styles.updateButtonDisabled
         ]}
         onPress={handleUpdate}
-        disabled={loading || !hasUnsavedChanges}
+        disabled={loading}
       >
         {loading ? (
           <ActivityIndicator color="#FFF" />
         ) : (
-          <Text style={styles.updateButtonText}>
-            {hasUnsavedChanges ? 'Update Information' : 'No Changes'}
-          </Text>
+          <Text style={styles.updateButtonText}>Update Information</Text>
         )}
       </TouchableOpacity>
     </SafeAreaView>

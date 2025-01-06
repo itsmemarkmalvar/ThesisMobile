@@ -18,7 +18,10 @@
       "infoPlist": {
         "NSPhotoLibraryAddUsageDescription": "Allow $(PRODUCT_NAME) to save photos",
         "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos"
-      }
+      },
+      "associatedDomains": [
+        "applinks:binibaby-api.com"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -29,6 +32,21 @@
       "permissions": [
         "INTERNET",
         "android.permission.INTERNET"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "binibaby",
+              "host": "*"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
       ]
     },
     "web": {
@@ -40,6 +58,7 @@
         "projectId": "ba1686cb-8740-4b30-9af4-b6bcce5ae74c"
       }
     },
-    "owner": "itsmemarkmalvar"
+    "owner": "itsmemarkmalvar",
+    "scheme": "binibaby"
   }
 }

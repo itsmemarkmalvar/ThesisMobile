@@ -9,6 +9,7 @@ import { Provider as PaperProvider, DefaultTheme } from 'react-native-paper';
 import AppNavigator from './src/navigation/AppNavigator';
 import SplashScreen from './src/screens/SplashScreen';
 import { syncManager } from './src/utils/SyncManager';
+import * as Linking from 'expo-linking';
 
 // Initialize sync manager
 syncManager;
@@ -47,12 +48,61 @@ export default function App() {
     return <SplashScreen />;
   }
 
+  const linking = {
+    prefixes: ['binibaby://', 'exp://'],
+    config: {
+      screens: {
+        Auth: {
+          screens: {
+            ResetPassword: {
+              path: 'reset-password',
+              parse: {
+                token: token => {
+                  console.log('Parsing token:', token);
+                  return token;
+                },
+                email: email => {
+                  console.log('Parsing email:', email);
+                  return email;
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    async getInitialURL() {
+      // First, you would want to check if app was opened from a deep link
+      const url = await Linking.getInitialURL();
+      console.log('Initial URL:', url);
+      if (url != null) {
+        return url;
+      }
+      return null;
+    },
+    subscribe(listener) {
+      console.log('Setting up deep link listener');
+      const onReceiveURL = ({ url }) => {
+        console.log('Received URL:', url);
+        listener(url);
+      };
+
+      // Listen to incoming links from deep linking
+      const eventListenerSubscription = Linking.addEventListener('url', onReceiveURL);
+
+      return () => {
+        console.log('Cleaning up deep link listener');
+        eventListenerSubscription.remove();
+      };
+    },
+  };
+
   // After splash screen, show the main app
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <PaperProvider theme={theme}>
-          <NavigationContainer>
+          <NavigationContainer linking={linking}>
             <StatusBar style="dark" />
             <AppNavigator />
           </NavigationContainer>
