@@ -57,6 +57,11 @@ class ApiService {
 
         const originalRequest = error.config;
 
+        // Skip token refresh for login endpoint
+        if (originalRequest.url === '/auth/login') {
+          return Promise.reject(error);
+        }
+
         // If the error is not 401 or it's already been retried, reject it
         if (error.response?.status !== 401 || originalRequest._retry) {
           return Promise.reject(error);
@@ -124,16 +129,19 @@ class ApiService {
 
       return await this.axiosInstance(requestConfig);
     } catch (error) {
-      if (error.message === 'SESSION_EXPIRED') {
-        throw error;
+      console.error('Request error details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+        code: error.code
+      });
+
+      // Check if it's a real network error (no internet connection)
+      if (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED') {
+        throw new Error('NETWORK_ERROR');
       }
 
-      if (retries > 0 && !error.response) {
-        // Only retry on network errors, not on 4xx or 5xx responses
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        return this.request(method, endpoint, data, retries - 1, config);
-      }
-
+      // For all other errors, pass through the original error
       throw error;
     }
   }

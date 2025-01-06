@@ -139,14 +139,18 @@ const LoginScreen = ({ navigation }) => {
 
   const validateForm = () => {
     const newErrors = {};
+    // Email validation
     if (!formData.email) {
       newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
+      newErrors.email = 'Please enter a valid email address';
     }
+    
+    // Password validation
     if (!formData.password) {
       newErrors.password = 'Password is required';
     }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -219,19 +223,76 @@ const LoginScreen = ({ navigation }) => {
         }
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('Login error details:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        code: error.code
+      });
       
-      if (error.response?.status === 401) {
-        Alert.alert(
-          'Login Failed', 
-          'Please verify your email and password are correct.'
-        );
-      } else if (error.response?.status === 422) {
-        Alert.alert('Error', 'Please check your email and password format.');
-      } else {
+      // Clear any existing errors first
+      setErrors({});
+      
+      // Handle network errors
+      if (error.message === 'NETWORK_ERROR') {
         Alert.alert(
           'Connection Error', 
-          'Unable to connect to the server. Please check your internet connection.'
+          'Unable to connect to the server. Please check your internet connection and try again.'
+        );
+        return;
+      }
+
+      // Handle server responses
+      if (error.response) {
+        const { status, data } = error.response;
+
+        // Handle unauthorized (wrong credentials)
+        if (status === 401) {
+          if (data?.errors?.password) {
+            setErrors({
+              password: Array.isArray(data.errors.password) 
+                ? data.errors.password[0] 
+                : 'The password you entered is incorrect'
+            });
+          } else if (data?.errors?.email) {
+            setErrors({
+              email: Array.isArray(data.errors.email)
+                ? data.errors.email[0]
+                : 'The email you entered is incorrect'
+            });
+          } else if (data?.message === 'Invalid credentials') {
+            setErrors({
+              password: 'The password you entered is incorrect'
+            });
+          }
+          return;
+        }
+
+        // Handle validation errors (missing fields, invalid format)
+        if (status === 422 && data?.errors) {
+          const validationErrors = {};
+          Object.keys(data.errors).forEach(field => {
+            validationErrors[field] = Array.isArray(data.errors[field])
+              ? data.errors[field][0]
+              : data.errors[field];
+          });
+          setErrors(validationErrors);
+          return;
+        }
+
+        // Handle unverified email
+        if (status === 403) {
+          setErrors({
+            email: 'Please verify your email first'
+          });
+          return;
+        }
+
+        // Handle other server errors
+        Alert.alert(
+          'Error',
+          data?.message || 'An unexpected error occurred. Please try again.'
         );
       }
     } finally {
@@ -280,7 +341,13 @@ const LoginScreen = ({ navigation }) => {
                     keyboardType="email-address"
                     autoCapitalize="none"
                     value={formData.email}
-                    onChangeText={(text) => setFormData({ ...formData, email: text })}
+                    onChangeText={(text) => {
+                      setFormData({ ...formData, email: text });
+                      // Clear error when user starts typing
+                      if (errors.email) {
+                        setErrors({ ...errors, email: null });
+                      }
+                    }}
                   />
                 </View>
                 {errors.email && <Text style={loginStyles.errorText}>{errors.email}</Text>}
@@ -295,7 +362,13 @@ const LoginScreen = ({ navigation }) => {
                     placeholderTextColor="#8F9BB3"
                     secureTextEntry={!showPassword}
                     value={formData.password}
-                    onChangeText={(text) => setFormData({ ...formData, password: text })}
+                    onChangeText={(text) => {
+                      setFormData({ ...formData, password: text });
+                      // Clear error when user starts typing
+                      if (errors.password) {
+                        setErrors({ ...errors, password: null });
+                      }
+                    }}
                   />
                   <TouchableOpacity
                     style={loginStyles.passwordToggle}

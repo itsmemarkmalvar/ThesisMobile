@@ -153,6 +153,8 @@ export const loginStyles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     height: 48,
+    borderWidth: 1,
+    borderColor: 'transparent',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -172,14 +174,21 @@ export const loginStyles = StyleSheet.create({
     paddingLeft: 8,
   },
   inputError: {
-    borderColor: '#FF4B4B',
-    borderWidth: 1,
+    borderColor: '#FF6B6B',
+    borderWidth: 1.5,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   errorText: {
-    color: '#FF4B4B',
+    color: '#FF6B6B',
     fontSize: 12,
     marginTop: 4,
-    marginLeft: 4,
+    marginLeft: 12,
+    fontWeight: '500',
   },
   passwordToggle: {
     padding: 8,
