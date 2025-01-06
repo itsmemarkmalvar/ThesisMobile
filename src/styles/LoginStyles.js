@@ -22,10 +22,11 @@ export const loginStyles = StyleSheet.create({
   },
   logoSection: {
     alignItems: 'center',
-    marginBottom: height * 0.08,
+    marginBottom: height * 0.04,
   },
   iconContainer: {
     marginBottom: 20,
+    alignItems: 'center',
   },
   iconBackground: {
     width: 100,
@@ -60,7 +61,7 @@ export const loginStyles = StyleSheet.create({
     elevation: 2,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '600',
     color: '#4A90E2',
     marginBottom: 6,
@@ -68,7 +69,7 @@ export const loginStyles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: '#8F9BB3',
-    marginBottom: 40,
+    marginBottom: 20,
   },
   buttonSection: {
     width: '100%',
@@ -247,5 +248,10 @@ export const loginStyles = StyleSheet.create({
     height: 24,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  logoImage: {
+    width: 220,
+    height: 220,
+    marginBottom: 10,
   },
 }); 

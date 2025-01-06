@@ -13,6 +13,7 @@ import {
   ScrollView,
   SafeAreaView,
   Keyboard,
+  Image,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -319,14 +320,13 @@ const LoginScreen = ({ navigation }) => {
           <View style={loginStyles.mainContainer}>
             <View style={loginStyles.logoSection}>
               <View style={loginStyles.iconContainer}>
-                <View style={loginStyles.iconBackground}>
-                  <FontAwesome5 name="baby-carriage" size={40} color="#4A90E2" />
-                  <View style={loginStyles.medicalIcon}>
-                    <FontAwesome5 name="heartbeat" size={16} color="#FF6B6B" />
-                  </View>
-                </View>
+                <Image
+                  source={require('../../assets/Logo.png')}
+                  style={loginStyles.logoImage}
+                  resizeMode="contain"
+                />
               </View>
-              <Text style={loginStyles.title}>Baby Care</Text>
+              <Text style={loginStyles.title}>Binibaby</Text>
               <Text style={loginStyles.subtitle}>Track your baby's growth and development</Text>
             </View>
 
