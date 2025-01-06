@@ -45,6 +45,7 @@ import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
 import TimeZoneScreen from '../screens/TimeZoneScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
+import EmailVerificationScreen from '../screens/EmailVerificationScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();

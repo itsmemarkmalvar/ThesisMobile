@@ -161,17 +161,12 @@ const SignUpScreen = ({ navigation }) => {
       
       console.log('Registration response:', response.data);
 
-      if (response.data.token) {
-        await AsyncStorage.setItem('userToken', response.data.token);
-        await AsyncStorage.setItem('hasCompletedOnboarding', 'false');
-        // Navigate to Onboarding instead of MainApp for new users
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Onboarding' }],
-        });
-      } else {
-        Alert.alert('Error', 'Registration successful but no token received');
-      }
+      // Always navigate to email verification first
+      navigation.navigate('EmailVerification', { 
+        email: formData.email,
+        password: formData.password // Pass password for auto-login after verification
+      });
+      
     } catch (error) {
       handleError(error);
     } finally {
