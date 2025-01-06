@@ -116,12 +116,16 @@ const SignUpScreen = ({ navigation }) => {
     // Validate password
     if (!formData.password) {
       newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters';
+    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+      newErrors.password = 'Password must contain uppercase, lowercase, and numbers';
     }
     
     // Validate password confirmation
-    if (formData.password !== formData.password_confirmation) {
+    if (!formData.password_confirmation) {
+      newErrors.password_confirmation = 'Please confirm your password';
+    } else if (formData.password !== formData.password_confirmation) {
       newErrors.password_confirmation = 'Passwords do not match';
     }
 
@@ -178,13 +182,13 @@ const SignUpScreen = ({ navigation }) => {
   return (
     <>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
-      <LinearGradient
-        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
-        style={signUpStyles.container}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <SafeAreaView style={signUpStyles.safeArea}>
+      <SafeAreaView style={signUpStyles.safeArea}>
+        <LinearGradient
+          colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
+          style={signUpStyles.gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+        >
           <ScrollView 
             style={signUpStyles.content}
             contentContainerStyle={signUpStyles.scrollContentContainer}
@@ -243,7 +247,10 @@ const SignUpScreen = ({ navigation }) => {
               {/* Password Input */}
               <View style={signUpStyles.inputContainer}>
                 <Text style={signUpStyles.label}>Password</Text>
-                <View style={signUpStyles.inputWrapper}>
+                <View style={[
+                  signUpStyles.inputWrapper,
+                  errors.password && signUpStyles.inputWrapperError
+                ]}>
                   <MaterialIcons name="lock-outline" size={20} color="#666" />
                   <TextInput
                     style={signUpStyles.input}
@@ -265,12 +272,28 @@ const SignUpScreen = ({ navigation }) => {
                   </TouchableOpacity>
                 </View>
                 {errors.password && <Text style={signUpStyles.errorText}>{errors.password}</Text>}
+                
+                {/* Password Requirements */}
+                <View style={signUpStyles.passwordRequirements}>
+                  <Text style={signUpStyles.requirementsTitle}>
+                    Password must contain:
+                  </Text>
+                  <View style={signUpStyles.requirementsList}>
+                    <Text style={signUpStyles.requirementItem}>• At least 8 characters</Text>
+                    <Text style={signUpStyles.requirementItem}>• Uppercase letters (A-Z)</Text>
+                    <Text style={signUpStyles.requirementItem}>• Lowercase letters (a-z)</Text>
+                    <Text style={signUpStyles.requirementItem}>• Numbers (0-9)</Text>
+                  </View>
+                </View>
               </View>
 
               {/* Confirm Password Input */}
               <View style={signUpStyles.inputContainer}>
                 <Text style={signUpStyles.label}>Confirm Password</Text>
-                <View style={signUpStyles.inputWrapper}>
+                <View style={[
+                  signUpStyles.inputWrapper,
+                  errors.password_confirmation && signUpStyles.inputWrapperError
+                ]}>
                   <MaterialIcons name="lock-outline" size={20} color="#666" />
                   <TextInput
                     style={signUpStyles.input}
@@ -327,8 +350,8 @@ const SignUpScreen = ({ navigation }) => {
               </View>
             </View>
           </ScrollView>
-        </SafeAreaView>
-      </LinearGradient>
+        </LinearGradient>
+      </SafeAreaView>
     </>
   );
 };

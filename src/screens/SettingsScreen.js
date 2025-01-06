@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../config';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Localization from 'expo-localization';
 
 const SettingItem = ({ icon, title, subtitle, onPress, rightElement }) => (
   <TouchableOpacity style={styles.settingItem} onPress={onPress}>
@@ -31,8 +32,37 @@ const SettingItem = ({ icon, title, subtitle, onPress, rightElement }) => (
 );
 
 const SettingsScreen = ({ navigation }) => {
-  const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
   const [loading, setLoading] = React.useState(false);
+  const [currentTimeZone, setCurrentTimeZone] = useState('auto');
+
+  useEffect(() => {
+    loadTimeZone();
+  }, []);
+
+  const loadTimeZone = async () => {
+    try {
+      const savedTimeZone = await AsyncStorage.getItem('userTimeZone');
+      setCurrentTimeZone(savedTimeZone || 'auto');
+    } catch (error) {
+      console.error('Error loading timezone:', error);
+    }
+  };
+
+  // Add focus listener to reload timezone when returning from TimeZoneScreen
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadTimeZone();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  const getDisplayTimeZone = () => {
+    if (currentTimeZone === 'auto') {
+      return `Auto (${Localization.timezone})`;
+    }
+    return currentTimeZone;
+  };
 
   const handleLogout = async () => {
     try {
@@ -96,27 +126,10 @@ const SettingsScreen = ({ navigation }) => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>App Settings</Text>
             <SettingItem
-              icon="notifications-none"
-              title="Push Notifications"
-              subtitle={notificationsEnabled ? "Enabled" : "Disabled"}
-              rightElement={
-                <Switch
-                  value={notificationsEnabled}
-                  onValueChange={setNotificationsEnabled}
-                  trackColor={{ false: "#D1D1D6", true: "#4A90E2" }}
-                  thumbColor={Platform.OS === 'ios' ? "#FFFFFF" : notificationsEnabled ? "#FFFFFF" : "#F4F3F4"}
-                />
-              }
-            />
-            <SettingItem
-              icon="language"
-              title="Language"
-              subtitle="English (US)"
-            />
-            <SettingItem
               icon="access-time"
               title="Time Zone"
-              subtitle="GMT+8"
+              subtitle={getDisplayTimeZone()}
+              onPress={() => navigation.navigate('TimeZone')}
             />
           </View>
 
@@ -127,6 +140,7 @@ const SettingsScreen = ({ navigation }) => {
               icon="lock-outline"
               title="Change Password"
               subtitle="Last changed 3 months ago"
+              onPress={() => navigation.navigate('ChangePassword')}
             />
             <SettingItem
               icon="fingerprint"
@@ -144,22 +158,20 @@ const SettingsScreen = ({ navigation }) => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Support</Text>
             <SettingItem
-              icon="help-outline"
-              title="Help Center"
-              subtitle="FAQs and support resources"
-            />
-            <SettingItem
               icon="info-outline"
               title="About"
               subtitle="Version 1.0.0"
+              onPress={() => navigation.navigate('About')}
             />
             <SettingItem
               icon="policy"
               title="Privacy Policy"
+              onPress={() => navigation.navigate('PrivacyPolicy')}
             />
             <SettingItem
               icon="description"
               title="Terms of Service"
+              onPress={() => navigation.navigate('TermsOfService')}
             />
           </View>
 

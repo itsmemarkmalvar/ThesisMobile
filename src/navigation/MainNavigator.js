@@ -40,6 +40,11 @@ import EditDoctorVisitScreen from '../screens/EditDoctorVisitScreen';
 import DoctorVisitDetailsScreen from '../screens/DoctorVisitDetailsScreen';
 import AppointmentsScreen from '../screens/AppointmentsScreen';
 import AddAppointmentScreen from '../screens/AddAppointmentScreen';
+import AboutScreen from '../screens/AboutScreen';
+import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
+import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
+import TimeZoneScreen from '../screens/TimeZoneScreen';
+import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -181,6 +186,22 @@ const BabyStack = () => (
   </Stack.Navigator>
 );
 
+const SettingsStack = () => (
+  <Stack.Navigator
+    screenOptions={{
+      headerShown: false,
+      presentation: 'modal'
+    }}
+  >
+    <Stack.Screen name="SettingsMain" component={SettingsScreen} />
+    <Stack.Screen name="About" component={AboutScreen} />
+    <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+    <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
+    <Stack.Screen name="TimeZone" component={TimeZoneScreen} />
+    <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+  </Stack.Navigator>
+);
+
 const MainNavigator = () => {
   return (
     <Tab.Navigator
@@ -243,7 +264,7 @@ const MainNavigator = () => {
       />
       <Tab.Screen 
         name="Settings" 
-        component={SettingsScreen}
+        component={SettingsStack}
         options={{
           title: 'Settings'
         }}

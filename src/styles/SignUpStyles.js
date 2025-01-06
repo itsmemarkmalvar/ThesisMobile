@@ -6,25 +6,25 @@ const { width } = Dimensions.get('window');
 export const signUpStyles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFE5EC',
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    backgroundColor: 'transparent',
   },
-  container: {
+  gradient: {
     flex: 1,
   },
   content: {
     flex: 1,
   },
   scrollContentContainer: {
+    flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingTop: Platform.OS === 'ios' ? 70 : 50,
     paddingBottom: Platform.OS === 'ios' ? 40 : 50,
-    minHeight: '100%',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 30,
+    marginTop: 20,
     width: '100%',
     position: 'relative',
     height: 44,
@@ -51,34 +51,31 @@ export const signUpStyles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: '#8F9BB3',
+    color: '#333333',
     marginBottom: 8,
     marginLeft: 4,
+    fontWeight: '500',
   },
   inputWrapper: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 25,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
     height: 48,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+  },
+  inputWrapperError: {
+    borderColor: '#FF4B4B',
+    borderWidth: 1,
   },
   input: {
     flex: 1,
     fontSize: 15,
-    color: '#2E3A59',
+    color: '#333333',
     paddingLeft: 8,
+    paddingVertical: 10,
   },
   passwordToggle: {
     padding: 8,
@@ -117,12 +114,12 @@ export const signUpStyles = StyleSheet.create({
   },
   termsText: {
     fontSize: 14,
-    color: '#666',
+    color: '#333333',
     flex: 1,
   },
   termsLink: {
     color: '#4A90E2',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   divider: {
     flexDirection: 'row',
@@ -189,7 +186,7 @@ export const signUpStyles = StyleSheet.create({
   },
   loginText: {
     fontSize: 14,
-    color: '#666',
+    color: '#333333',
     marginRight: 4
   },
   loginLink: {
@@ -197,5 +194,24 @@ export const signUpStyles = StyleSheet.create({
     color: '#4A90E2',
     fontWeight: '600',
     paddingHorizontal: 4
+  },
+  passwordRequirements: {
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  requirementsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 4,
+  },
+  requirementsList: {
+    marginTop: 4,
+  },
+  requirementItem: {
+    fontSize: 13,
+    color: '#666',
+    marginVertical: 2,
+    paddingLeft: 4,
   },
 });
