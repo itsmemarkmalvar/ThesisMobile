@@ -264,6 +264,20 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
 
   const handleAddMeasurement = async () => {
     try {
+      // Check for empty required fields first
+      if (!newRecord.height.trim()) {
+        Alert.alert('Error', 'Please enter the height');
+        return;
+      }
+      if (!newRecord.weight.trim()) {
+        Alert.alert('Error', 'Please enter the weight');
+        return;
+      }
+      if (!newRecord.head_size.trim()) {
+        Alert.alert('Error', 'Please enter the head size');
+        return;
+      }
+
       setLoading(true);
       const token = await AsyncStorage.getItem('userToken');
 

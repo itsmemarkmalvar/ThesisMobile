@@ -23,7 +23,7 @@ export const signUpStyles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 20,
     marginTop: 20,
     width: '100%',
     position: 'relative',
@@ -43,7 +43,7 @@ export const signUpStyles = StyleSheet.create({
     textAlign: 'center',
   },
   formContainer: {
-    marginTop: 20,
+    marginTop: 0,
     marginBottom: 20,
   },
   inputContainer: {
