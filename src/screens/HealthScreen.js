@@ -54,7 +54,7 @@ const HealthScreen = () => {
       const [appointmentsResponse, records, visits, symptoms] = await Promise.all([
         HealthService.getUpcomingAppointments(),
         HealthService.getHealthRecords(1, search),
-        HealthService.getDoctorVisits(1, search),
+        HealthService.getDoctorVisits(),
         HealthService.getSymptoms(null, null, null, 'active')
       ]);
       
@@ -63,7 +63,7 @@ const HealthScreen = () => {
       // Handle the appointments response directly (not nested under data)
       setUpcomingAppointments(Array.isArray(appointmentsResponse) ? appointmentsResponse : []);
       setRecentHealthRecords(records?.data || []);
-      setRecentDoctorVisits(visits?.data || []);
+      setRecentDoctorVisits(Array.isArray(visits) ? visits : []);
       setActiveSymptoms(symptoms?.data || []);
 
       console.log('Processed appointments:', Array.isArray(appointmentsResponse) ? appointmentsResponse : []);
@@ -102,17 +102,24 @@ const HealthScreen = () => {
 
   const renderFeatureCard = (title, icon, onPress, count = null) => (
     <TouchableOpacity onPress={onPress} style={styles.featureCard} key={`feature-${title.toLowerCase().replace(/\s+/g, '-')}`}>
-      <Card style={styles.card}>
-        <Card.Content style={styles.cardContent}>
-          <Icon name={icon} size={32} color={theme.colors.primary} />
+      <View style={styles.cardContainer}>
+        <View style={styles.cardContent}>
+          <View style={[styles.iconContainer, { backgroundColor: `${theme.colors.primary}15` }]}>
+            <Icon name={icon} size={32} color={theme.colors.primary} />
+          </View>
           <Text variant="titleMedium" style={styles.cardTitle}>{title}</Text>
           {count !== null && (
-            <Text variant="bodySmall" style={styles.cardCount}>
-              {count} {count === 1 ? 'item' : 'items'}
-            </Text>
+            <View style={[styles.countContainer, { backgroundColor: `${theme.colors.primary}15` }]}>
+              <Text variant="bodyMedium" style={[styles.cardCount, { color: theme.colors.primary }]}>
+                {count}
+              </Text>
+              <Text variant="bodySmall" style={[styles.cardCountLabel, { color: theme.colors.primary }]}>
+                {count === 1 ? 'item' : 'items'}
+              </Text>
+            </View>
           )}
-        </Card.Content>
-      </Card>
+        </View>
+      </View>
     </TouchableOpacity>
   );
 
@@ -194,21 +201,42 @@ const HealthScreen = () => {
                   <View style={styles.section}>
                     <Text variant="titleLarge" style={styles.sectionTitle}>Upcoming Appointments</Text>
                     {upcomingAppointments.map(appointment => (
-                      <Card key={appointment.id} style={styles.listCard}>
-                        <Card.Content>
-                          <Text variant="titleMedium">
-                            {format(new Date(appointment.appointment_date), 'MMM d, yyyy h:mm a')}
-                          </Text>
-                          <Text variant="bodyMedium">{appointment.doctor_name || 'Doctor not specified'}</Text>
-                          <Text variant="bodySmall">{appointment.purpose || 'No purpose specified'}</Text>
-                        </Card.Content>
+                      <Card key={appointment.id} style={styles.listCard} mode="elevated">
+                        <LinearGradient
+                          colors={['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.8)']}
+                          style={styles.listCardGradient}
+                        >
+                          <Card.Content style={styles.listCardContent}>
+                            <View style={styles.appointmentHeader}>
+                              <View style={styles.dateTimeContainer}>
+                                <Text variant="titleMedium" style={styles.dateText}>
+                                  {format(new Date(appointment.appointment_date), 'MMM d, yyyy')}
+                                </Text>
+                                <Text variant="bodyMedium" style={styles.timeText}>
+                                  {format(new Date(appointment.appointment_date), 'h:mm a')}
+                                </Text>
+                              </View>
+                              <Icon name="calendar-clock" size={24} color={theme.colors.primary} />
+                            </View>
+                            <View style={styles.appointmentDetails}>
+                              <Text variant="titleMedium" style={styles.doctorName}>
+                                {appointment.doctor_name || 'Doctor not specified'}
+                              </Text>
+                              <Text variant="bodyMedium" style={styles.purpose}>
+                                {appointment.purpose || 'No purpose specified'}
+                              </Text>
+                            </View>
+                          </Card.Content>
+                        </LinearGradient>
                       </Card>
                     ))}
                     <Button
                       mode="text"
                       onPress={() => navigation.navigate('Appointments')}
                       style={styles.viewAllButton}
-                      textColor="#4A90E2"
+                      labelStyle={styles.viewAllButtonLabel}
+                      icon="chevron-right"
+                      contentStyle={styles.viewAllButtonContent}
                     >
                       View All Appointments
                     </Button>
@@ -227,21 +255,39 @@ const HealthScreen = () => {
                   <View style={styles.section}>
                     <Text variant="titleLarge" style={styles.sectionTitle}>Recent Health Records</Text>
                     {recentHealthRecords.map(record => (
-                      <Card key={record.id} style={styles.listCard}>
-                        <Card.Content>
-                          <Text variant="titleMedium">{record.title}</Text>
-                          <Text variant="bodyMedium">{record.type}</Text>
-                          <Text variant="bodySmall">
-                            {format(new Date(record.record_date), 'MMM d, yyyy')}
-                          </Text>
-                        </Card.Content>
+                      <Card key={record.id} style={styles.listCard} mode="elevated">
+                        <LinearGradient
+                          colors={['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.8)']}
+                          style={styles.listCardGradient}
+                        >
+                          <Card.Content style={styles.listCardContent}>
+                            <View style={styles.recordHeader}>
+                              <View>
+                                <Text variant="titleMedium" style={styles.recordTitle}>
+                                  {record.title}
+                                </Text>
+                                <Text variant="bodyMedium" style={styles.recordType}>
+                                  {record.type}
+                                </Text>
+                              </View>
+                              <View style={[styles.recordDateContainer, { backgroundColor: `${theme.colors.primary}15` }]}>
+                                <Icon name="calendar" size={16} color={theme.colors.primary} />
+                                <Text variant="bodySmall" style={[styles.recordDate, { color: theme.colors.primary }]}>
+                                  {format(new Date(record.record_date), 'MMM d, yyyy')}
+                                </Text>
+                              </View>
+                            </View>
+                          </Card.Content>
+                        </LinearGradient>
                       </Card>
                     ))}
                     <Button
                       mode="text"
                       onPress={() => navigation.navigate('HealthRecords')}
                       style={styles.viewAllButton}
-                      textColor="#4A90E2"
+                      labelStyle={styles.viewAllButtonLabel}
+                      icon="chevron-right"
+                      contentStyle={styles.viewAllButtonContent}
                     >
                       View All Records
                     </Button>
@@ -249,17 +295,6 @@ const HealthScreen = () => {
                 )}
               </>
             )}
-
-            <View style={styles.addButtonContainer}>
-              <Button
-                mode="contained"
-                onPress={() => navigation.navigate('AddHealthRecord')}
-                style={styles.addButton}
-                icon="plus"
-              >
-                Add Health Record
-              </Button>
-            </View>
           </View>
         </ScrollView>
       </LinearGradient>
@@ -303,52 +338,134 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
     marginHorizontal: -8,
   },
   featureCard: {
-    width: '48%',
-    marginBottom: 16,
+    flex: 1,
+    minWidth: '45%',
+    margin: 8,
   },
-  card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+  cardContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
     elevation: 4,
-    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   cardContent: {
-    padding: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   cardTitle: {
-    marginTop: 8,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
     textAlign: 'center',
-    color: '#333',
+    marginBottom: 8,
+  },
+  countContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   cardCount: {
-    marginTop: 4,
-    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
+    marginRight: 4,
+  },
+  cardCountLabel: {
+    opacity: 0.8,
   },
   listCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     marginBottom: 12,
     borderRadius: 12,
-    elevation: 3,
+    overflow: 'hidden',
   },
-  sectionTitle: {
-    fontSize: 20,
+  listCardGradient: {
+    borderRadius: 12,
+  },
+  listCardContent: {
+    padding: 16,
+  },
+  appointmentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  dateTimeContainer: {
+    flex: 1,
+  },
+  dateText: {
+    fontSize: 18,
     fontWeight: '600',
-    marginBottom: 16,
-    color: '#333',
+    color: '#1F2937',
+  },
+  timeText: {
+    fontSize: 14,
+    color: '#4B5563',
+    marginTop: 4,
+  },
+  appointmentDetails: {
+    marginTop: 8,
+  },
+  doctorName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1F2937',
+  },
+  purpose: {
+    fontSize: 14,
+    color: '#4B5563',
+    marginTop: 4,
+  },
+  recordHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  recordTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  recordType: {
+    fontSize: 14,
+    color: '#4B5563',
+  },
+  recordDateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  recordDate: {
+    marginLeft: 4,
   },
   viewAllButton: {
     marginTop: 8,
   },
-  addButtonContainer: {
-    padding: 16,
-    backgroundColor: 'transparent',
+  viewAllButtonLabel: {
+    fontSize: 14,
+    fontWeight: '500',
   },
-  addButton: {
-    borderRadius: 8,
+  viewAllButtonContent: {
+    flexDirection: 'row-reverse',
   },
   emptyState: {
     alignItems: 'center',

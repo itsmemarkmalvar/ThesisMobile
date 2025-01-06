@@ -13,14 +13,15 @@ import {
   useTheme,
   HelperText,
   SegmentedButtons,
-  Switch,
+  IconButton,
 } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import ErrorMessage from '../components/ErrorMessage';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const SEVERITY_LEVELS = [
   { value: 'mild', label: 'Mild' },
@@ -32,15 +33,11 @@ const EditSymptomScreen = () => {
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState({});
   const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(null);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
-  const [isActive, setIsActive] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     severity: 'mild',
-    related_condition: '',
     notes: '',
   });
 
@@ -53,15 +50,8 @@ const EditSymptomScreen = () => {
     const fetchSymptom = async () => {
       try {
         const data = await HealthService.getSymptom(symptomId);
-        console.log('Full API Response:', data);
         
-        // Check if response exists and has required fields
         if (!data || !data.name || !data.severity) {
-          console.log('Missing fields:', {
-            hasResponse: !!data,
-            hasName: data?.name,
-            hasSeverity: data?.severity
-          });
           throw new Error('Missing required symptom data');
         }
         
@@ -69,11 +59,10 @@ const EditSymptomScreen = () => {
           name: data.name,
           description: data.description || '',
           severity: data.severity,
-          related_condition: data.related_conditions || '',  // Note: field name is related_conditions
           notes: data.notes || '',
         });
 
-        // Safely handle start date
+        // Handle start date
         let parsedStartDate = null;
         try {
           if (data.onset_date) {
@@ -90,23 +79,6 @@ const EditSymptomScreen = () => {
         }
         setStartDate(parsedStartDate);
 
-        // Safely handle end date
-        let parsedEndDate = null;
-        try {
-          if (data.resolved_date) {
-            parsedEndDate = new Date(data.resolved_date);
-            if (isNaN(parsedEndDate.getTime())) {
-              parsedEndDate = null;
-            }
-          }
-        } catch (error) {
-          console.error('Error parsing end date:', error);
-          parsedEndDate = null;
-        }
-        setEndDate(parsedEndDate);
-
-        // Since there's no is_active field, determine it based on resolved_date
-        setIsActive(!data.resolved_date);
       } catch (error) {
         console.error('Error fetching symptom:', error);
         setErrors({
@@ -146,12 +118,6 @@ const EditSymptomScreen = () => {
     if (!formData.severity) {
       newErrors.severity = 'Severity level is required';
     }
-    if (!isActive && !endDate) {
-      newErrors.endDate = 'End date is required for resolved symptoms';
-    }
-    if (endDate && startDate > endDate) {
-      newErrors.endDate = 'End date must be after start date';
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -167,8 +133,6 @@ const EditSymptomScreen = () => {
       await HealthService.updateSymptom(symptomId, {
         ...formData,
         onset_date: startDate.toISOString().split('T')[0],
-        resolved_date: !isActive && endDate ? endDate.toISOString().split('T')[0] : null,
-        is_active: isActive,
       });
       navigation.goBack();
     } catch (error) {
@@ -180,178 +144,170 @@ const EditSymptomScreen = () => {
     }
   };
 
+  const handleStartDateChange = (event, selectedDate) => {
+    setShowStartDatePicker(false);
+    if (selectedDate && !isNaN(selectedDate.getTime())) {
+      setStartDate(selectedDate);
+    }
+  };
+
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <SafeAreaView style={styles.container}>
+        <LoadingSpinner />
+      </SafeAreaView>
+    );
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.content}>
-          <Text variant="titleLarge" style={styles.title}>
-            Edit Symptom
-          </Text>
-
-          {errors.submit && (
-            <ErrorMessage message={errors.submit} />
-          )}
-
-          <TextInput
-            label="Symptom Name"
-            value={formData.name}
-            onChangeText={(text) => handleInputChange('name', text)}
-            style={styles.input}
-            error={!!errors.name}
-          />
-          <HelperText type="error" visible={!!errors.name}>
-            {errors.name}
-          </HelperText>
-
-          <TextInput
-            label="Description"
-            value={formData.description}
-            onChangeText={(text) => handleInputChange('description', text)}
-            style={styles.input}
-            error={!!errors.description}
-            multiline
-            numberOfLines={3}
-          />
-          <HelperText type="error" visible={!!errors.description}>
-            {errors.description}
-          </HelperText>
-
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Severity Level
-          </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.severityScroll}
-          >
-            <SegmentedButtons
-              value={formData.severity}
-              onValueChange={(value) => handleInputChange('severity', value)}
-              buttons={SEVERITY_LEVELS}
-              style={styles.segmentedButtons}
+    <SafeAreaView style={styles.container}>
+      <LinearGradient
+        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradient}
+      >
+        <View style={styles.header}>
+          <View style={styles.headerRow}>
+            <IconButton
+              icon="arrow-left"
+              size={24}
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
             />
-          </ScrollView>
-
-          <Button
-            mode="outlined"
-            onPress={() => setShowStartDatePicker(true)}
-            style={styles.dateButton}
-          >
-            Start Date: {format(startDate, 'MMM d, yyyy')}
-          </Button>
-
-          {showStartDatePicker && (
-            <DateTimePicker
-              value={startDate}
-              mode="date"
-              display="default"
-              onChange={(event, selectedDate) => {
-                setShowStartDatePicker(false);
-                if (selectedDate) {
-                  setStartDate(selectedDate);
-                }
-              }}
-            />
-          )}
-
-          <View style={styles.statusContainer}>
-            <Text variant="titleMedium">Status</Text>
-            <View style={styles.switchContainer}>
-              <Text>Resolved</Text>
-              <Switch
-                value={isActive}
-                onValueChange={(value) => {
-                  setIsActive(value);
-                  if (value) {
-                    setEndDate(null);
-                  }
-                }}
-              />
-              <Text>Active</Text>
-            </View>
+            <Text variant="titleLarge" style={styles.headerTitle}>
+              Edit Symptom
+            </Text>
           </View>
+        </View>
 
-          {!isActive && (
-            <>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+        >
+          <ScrollView style={styles.scrollView}>
+            <View style={styles.content}>
+              {errors.submit && (
+                <HelperText type="error" visible={true} style={styles.errorText}>
+                  {errors.submit}
+                </HelperText>
+              )}
+
+              <TextInput
+                label="Symptom Name"
+                value={formData.name}
+                onChangeText={(text) => handleInputChange('name', text)}
+                style={styles.input}
+                error={!!errors.name}
+              />
+              <HelperText type="error" visible={!!errors.name}>
+                {errors.name}
+              </HelperText>
+
+              <TextInput
+                label="Description"
+                value={formData.description}
+                onChangeText={(text) => handleInputChange('description', text)}
+                style={styles.input}
+                error={!!errors.description}
+                multiline
+                numberOfLines={3}
+              />
+              <HelperText type="error" visible={!!errors.description}>
+                {errors.description}
+              </HelperText>
+
+              <Text variant="titleMedium" style={styles.sectionTitle}>
+                Severity Level
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.severityScroll}
+              >
+                <SegmentedButtons
+                  value={formData.severity}
+                  onValueChange={(value) => handleInputChange('severity', value)}
+                  buttons={SEVERITY_LEVELS}
+                  style={styles.segmentedButtons}
+                />
+              </ScrollView>
+
               <Button
                 mode="outlined"
-                onPress={() => setShowEndDatePicker(true)}
+                onPress={() => setShowStartDatePicker(true)}
                 style={styles.dateButton}
+                contentStyle={styles.dateButtonContent}
+                labelStyle={styles.dateButtonLabel}
+                textColor="#1976D2"
               >
-                End Date: {endDate ? format(endDate, 'MMM d, yyyy') : 'Select Date'}
+                Start Date: {format(startDate, 'MMM d, yyyy')}
               </Button>
 
-              {showEndDatePicker && (
+              {showStartDatePicker && (
                 <DateTimePicker
-                  value={endDate || new Date()}
+                  value={startDate}
                   mode="date"
                   display="default"
-                  onChange={(event, selectedDate) => {
-                    setShowEndDatePicker(false);
-                    if (selectedDate) {
-                      setEndDate(selectedDate);
-                    }
-                  }}
+                  onChange={handleStartDateChange}
+                  maximumDate={new Date()}
                 />
               )}
 
-              {errors.endDate && (
-                <HelperText type="error" visible={!!errors.endDate}>
-                  {errors.endDate}
-                </HelperText>
-              )}
-            </>
-          )}
+              <TextInput
+                label="Notes"
+                value={formData.notes}
+                onChangeText={(text) => handleInputChange('notes', text)}
+                style={styles.input}
+                multiline
+                numberOfLines={3}
+              />
 
-          <TextInput
-            label="Related Condition (Optional)"
-            value={formData.related_condition}
-            onChangeText={(text) => handleInputChange('related_condition', text)}
-            style={styles.input}
-          />
-
-          <TextInput
-            label="Additional Notes (Optional)"
-            value={formData.notes}
-            onChangeText={(text) => handleInputChange('notes', text)}
-            style={styles.input}
-            multiline
-            numberOfLines={3}
-          />
-
-          <View style={styles.buttonContainer}>
-            <Button
-              mode="contained"
-              onPress={handleSubmit}
-              style={styles.submitButton}
-            >
-              Update Symptom
-            </Button>
-            <Button
-              mode="outlined"
-              onPress={() => navigation.goBack()}
-              style={styles.cancelButton}
-            >
-              Cancel
-            </Button>
-          </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+              <Button
+                mode="contained"
+                onPress={handleSubmit}
+                style={styles.submitButton}
+                labelStyle={styles.submitButtonLabel}
+              >
+                Update Symptom
+              </Button>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </LinearGradient>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'transparent',
+  },
+  gradient: {
+    flex: 1,
+  },
+  header: {
+    backgroundColor: 'transparent',
+    paddingTop: 8,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  backButton: {
+    marginLeft: -8,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: 8,
+  },
+  keyboardView: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
@@ -359,46 +315,45 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
   },
-  title: {
-    marginBottom: 24,
-    fontWeight: 'bold',
-  },
   input: {
-    marginBottom: 8,
-    backgroundColor: 'white',
+    marginBottom: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
   sectionTitle: {
     marginTop: 16,
     marginBottom: 8,
+    color: '#333',
+    fontWeight: '500',
   },
   severityScroll: {
     marginBottom: 16,
   },
   segmentedButtons: {
     marginRight: 16,
+    backgroundColor: 'transparent',
   },
   dateButton: {
     marginVertical: 8,
+    borderColor: '#1976D2',
   },
-  statusContainer: {
-    marginVertical: 16,
+  dateButtonContent: {
+    height: 48,
   },
-  switchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-    gap: 8,
-  },
-  buttonContainer: {
-    marginTop: 24,
-    gap: 12,
+  dateButtonLabel: {
+    fontSize: 16,
   },
   submitButton: {
-    padding: 8,
+    marginTop: 24,
+    marginBottom: 16,
+    backgroundColor: '#1976D2',
+    height: 48,
   },
-  cancelButton: {
-    padding: 8,
+  submitButtonLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  errorText: {
+    marginBottom: 16,
   },
 });
 

@@ -88,31 +88,37 @@ export const signUpStyles = StyleSheet.create({
   },
   signUpButton: {
     backgroundColor: '#4A90E2',
-    height: 48,
-    borderRadius: 24,
+    borderRadius: 25,
+    paddingVertical: 15,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 24,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   signUpButtonText: {
-    color: COLORS.white,
+    color: 'white',
     fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
+    fontWeight: '600',
   },
   termsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+    marginTop: 10,
   },
   checkbox: {
     marginRight: 10,
   },
   termsText: {
-    flex: 1,
     fontSize: 14,
     color: '#666',
-    lineHeight: 20,
+    flex: 1,
   },
   termsLink: {
     color: '#4A90E2',
@@ -172,5 +178,24 @@ export const signUpStyles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
+  },
+  loginContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+    paddingHorizontal: 20
+  },
+  loginText: {
+    fontSize: 14,
+    color: '#666',
+    marginRight: 4
+  },
+  loginLink: {
+    fontSize: 14,
+    color: '#4A90E2',
+    fontWeight: '600',
+    paddingHorizontal: 4
   },
 });

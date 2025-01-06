@@ -17,12 +17,14 @@ import {
 } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { format } from 'date-fns';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const DoctorVisitDetailsScreen = () => {
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [visit, setVisit] = useState(null);
@@ -105,22 +107,14 @@ const DoctorVisitDetailsScreen = () => {
       >
         <ScrollView style={styles.scrollView}>
           <View style={styles.header}>
+            <IconButton
+              icon="arrow-left"
+              size={24}
+              onPress={() => navigation.goBack()}
+            />
             <Text variant="headlineSmall" style={styles.title}>
               Doctor Visit Details
             </Text>
-            <Menu
-              visible={menuVisible}
-              onDismiss={() => setMenuVisible(false)}
-              anchor={
-                <IconButton
-                  icon="dots-vertical"
-                  onPress={() => setMenuVisible(true)}
-                />
-              }
-            >
-              <Menu.Item onPress={handleEdit} title="Edit" />
-              <Menu.Item onPress={handleDelete} title="Delete" />
-            </Menu>
           </View>
 
           {error && <ErrorMessage message={error} />}
@@ -224,9 +218,26 @@ const DoctorVisitDetailsScreen = () => {
 
           <View style={styles.buttonContainer}>
             <Button
+              mode="contained"
+              onPress={handleEdit}
+              style={styles.actionButton}
+              icon="pencil"
+            >
+              Update Visit
+            </Button>
+            <Button
+              mode="contained"
+              onPress={handleDelete}
+              style={[styles.actionButton, styles.deleteButton]}
+              icon="delete"
+              buttonColor="#dc3545"
+            >
+              Delete Visit
+            </Button>
+            <Button
               mode="outlined"
               onPress={() => navigation.goBack()}
-              style={styles.button}
+              style={styles.backButton}
             >
               Back to List
             </Button>
@@ -247,12 +258,15 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+    backgroundColor: 'transparent',
   },
   title: {
-    fontWeight: 'bold',
+    flex: 1,
+    marginLeft: 8,
+    fontWeight: '600',
   },
   card: {
     margin: 16,
@@ -276,9 +290,17 @@ const styles = StyleSheet.create({
   buttonContainer: {
     padding: 16,
     paddingBottom: 32,
+    gap: 12,
   },
-  button: {
+  actionButton: {
     padding: 8,
+  },
+  deleteButton: {
+    backgroundColor: '#dc3545',
+  },
+  backButton: {
+    padding: 8,
+    marginTop: 8,
   },
 });
 

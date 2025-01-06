@@ -36,12 +36,6 @@ const SEVERITY_LEVELS = [
   { value: 'severe', label: 'Severe' },
 ];
 
-const STATUS_OPTIONS = [
-  { value: '', label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'resolved', label: 'Resolved' },
-];
-
 const SymptomsScreen = () => {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
@@ -49,7 +43,6 @@ const SymptomsScreen = () => {
   const [error, setError] = useState(null);
   const [symptoms, setSymptoms] = useState([]);
   const [selectedSeverity, setSelectedSeverity] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedSymptom, setSelectedSymptom] = useState(null);
   
   const navigation = useNavigation();
@@ -59,8 +52,7 @@ const SymptomsScreen = () => {
     try {
       setError(null);
       const response = await HealthService.getSymptoms(
-        selectedSeverity,
-        selectedStatus
+        selectedSeverity
       );
       setSymptoms(response.data || []);
     } catch (err) {
@@ -83,7 +75,7 @@ const SymptomsScreen = () => {
 
   useEffect(() => {
     loadData();
-  }, [selectedSeverity, selectedStatus]);
+  }, [selectedSeverity]);
 
   const handleAddSymptom = () => {
     navigation.navigate('AddSymptom');
@@ -244,22 +236,6 @@ const SymptomsScreen = () => {
                 style={styles.segmentedButtons}
               />
             </ScrollView>
-
-            <Text variant="titleMedium" style={[styles.filterTitle, styles.statusFilterTitle]}>
-              Filter by Status
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.filterScroll}
-            >
-              <SegmentedButtons
-                value={selectedStatus}
-                onValueChange={setSelectedStatus}
-                buttons={STATUS_OPTIONS}
-                style={styles.segmentedButtons}
-              />
-            </ScrollView>
           </View>
 
           {symptoms.length === 0 ? (
@@ -296,24 +272,6 @@ const SymptomsScreen = () => {
                         >
                           {symptom.severity}
                         </Chip>
-                        <Chip
-                          style={[
-                            styles.statusChip,
-                            {
-                              backgroundColor: symptom.is_active
-                                ? '#FFF3E0'
-                                : '#E8F5E9'
-                            }
-                          ]}
-                          textStyle={{ 
-                            fontSize: 12,
-                            color: symptom.is_active ? '#F57C00' : '#2E7D32',
-                            fontWeight: '500',
-                          }}
-                          compact={false}
-                        >
-                          {symptom.is_active ? 'Active' : 'Resolved'}
-                        </Chip>
                       </View>
                     </View>
 
@@ -336,17 +294,6 @@ const SymptomsScreen = () => {
                           {formatDate(symptom.onset_date)}
                         </Text>
                       </View>
-
-                      {!symptom.is_active && (
-                        <View style={styles.detailRow}>
-                          <Text variant="bodySmall" style={styles.detailLabel}>
-                            End Date
-                          </Text>
-                          <Text variant="bodySmall" style={styles.detailValue}>
-                            {formatDate(symptom.resolved_date)}
-                          </Text>
-                        </View>
-                      )}
 
                       <View style={styles.detailRow}>
                         <Text variant="bodySmall" style={styles.detailLabel}>
@@ -376,9 +323,14 @@ const SymptomsScreen = () => {
 
         <FAB
           icon="plus"
-          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+          style={styles.fab}
           onPress={handleAddSymptom}
           color="white"
+          theme={{
+            colors: {
+              primaryContainer: '#1976D2',
+            },
+          }}
         />
 
         <Portal>
@@ -414,22 +366,6 @@ const SymptomsScreen = () => {
                     >
                       {selectedSymptom.severity}
                     </Chip>
-                    <Chip
-                      style={[
-                        styles.statusChip,
-                        {
-                          backgroundColor: selectedSymptom.is_active
-                            ? '#FFF3E0'
-                            : '#E8F5E9'
-                        }
-                      ]}
-                      textStyle={{
-                        color: selectedSymptom.is_active ? '#F57C00' : '#2E7D32',
-                        fontWeight: '500',
-                      }}
-                    >
-                      {selectedSymptom.is_active ? 'Active' : 'Resolved'}
-                    </Chip>
                   </View>
 
                   {selectedSymptom.description && (
@@ -456,17 +392,6 @@ const SymptomsScreen = () => {
                           {formatDate(selectedSymptom.onset_date)}
                         </Text>
                       </View>
-
-                      {!selectedSymptom.is_active && (
-                        <View style={styles.timelineRow}>
-                          <Text variant="bodyMedium" style={styles.timelineLabel}>
-                            End Date
-                          </Text>
-                          <Text variant="bodyMedium" style={styles.timelineValue}>
-                            {formatDate(selectedSymptom.resolved_date)}
-                          </Text>
-                        </View>
-                      )}
 
                       <View style={styles.timelineRow}>
                         <Text variant="bodyMedium" style={styles.timelineLabel}>
@@ -516,33 +441,35 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    backgroundColor: 'white',
-    elevation: 2,
-    paddingBottom: 8,
+    backgroundColor: 'transparent',
+    paddingTop: 8,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingRight: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   backButton: {
     marginLeft: -8,
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginLeft: 4,
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: 8,
   },
   scrollView: {
     flex: 1,
   },
   filters: {
     padding: 16,
-    backgroundColor: 'white',
-    elevation: 2,
+    backgroundColor: 'transparent',
   },
   filterTitle: {
     marginBottom: 8,
+    color: '#333',
+    fontWeight: '500',
   },
   statusFilterTitle: {
     marginTop: 16,
@@ -552,6 +479,7 @@ const styles = StyleSheet.create({
   },
   segmentedButtons: {
     marginRight: 16,
+    backgroundColor: 'transparent',
   },
   content: {
     padding: 16,
@@ -560,7 +488,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     elevation: 2,
     borderRadius: 12,
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+    borderWidth: 1,
   },
   symptomHeader: {
     flexDirection: 'row',
@@ -582,11 +512,6 @@ const styles = StyleSheet.create({
     minWidth: 80,
   },
   severityChip: {
-    height: 28,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-  },
-  statusChip: {
     height: 28,
     borderRadius: 14,
     paddingHorizontal: 12,
@@ -622,11 +547,12 @@ const styles = StyleSheet.create({
     margin: 16,
     right: 0,
     bottom: 0,
+    backgroundColor: '#1976D2',
   },
   modalContent: {
     backgroundColor: 'white',
     margin: 20,
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 20,
     maxHeight: '80%',
   },
@@ -637,36 +563,29 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
-    fontWeight: 'bold',
-  },
-  modalSection: {
-    marginBottom: 16,
-  },
-  modalText: {
-    marginTop: 4,
-  },
-  modalChip: {
-    marginTop: 4,
-    alignSelf: 'flex-start',
-  },
-  modalButton: {
-    marginTop: 16,
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#333',
   },
   modalChips: {
     flexDirection: 'row',
     gap: 8,
     marginBottom: 20,
   },
+  modalSection: {
+    marginBottom: 24,
+  },
   sectionTitle: {
     color: '#4B5563',
     marginBottom: 12,
+    fontWeight: '500',
   },
   modalDescription: {
     color: '#1F2937',
     lineHeight: 24,
   },
   timelineDetails: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: 'rgba(249, 250, 251, 0.8)',
     borderRadius: 12,
     padding: 16,
   },
@@ -684,14 +603,14 @@ const styles = StyleSheet.create({
   },
   modalActions: {
     gap: 12,
-    marginTop: 8,
+    marginTop: 24,
   },
   editButton: {
-    borderRadius: 8,
+    backgroundColor: '#1976D2',
   },
   deleteButton: {
-    marginTop: 4,
-    borderRadius: 8,
+    borderColor: '#F44336',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
 });
 

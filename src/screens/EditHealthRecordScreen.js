@@ -15,6 +15,7 @@ import {
   HelperText,
   SegmentedButtons,
   IconButton,
+  Checkbox,
 } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -23,6 +24,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const RECORD_CATEGORIES = [
   { value: 'general', label: 'General' },
@@ -34,20 +37,31 @@ const RECORD_CATEGORIES = [
   { value: 'other', label: 'Other' },
 ];
 
+const SEVERITY_OPTIONS = [
+  { value: 'mild', label: 'Mild' },
+  { value: 'moderate', label: 'Moderate' },
+  { value: 'severe', label: 'Severe' },
+];
+
 const EditHealthRecordScreen = () => {
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState({});
   const [recordDate, setRecordDate] = useState(new Date());
+  const [resolvedDate, setResolvedDate] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showResolvedDatePicker, setShowResolvedDatePicker] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [existingAttachments, setExistingAttachments] = useState([]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     category: 'general',
-    doctor_name: '',
-    clinic_location: '',
+    severity: null,
+    treatment: '',
     notes: '',
+    is_ongoing: false,
+    resolved_at: null,
   });
 
   const navigation = useNavigation();
@@ -63,11 +77,16 @@ const EditHealthRecordScreen = () => {
           title: data.title,
           description: data.description,
           category: data.category,
-          doctor_name: data.doctor_name || '',
-          clinic_location: data.clinic_location || '',
+          severity: data.severity || null,
+          treatment: data.treatment || '',
           notes: data.notes || '',
+          is_ongoing: data.is_ongoing || false,
+          resolved_at: data.resolved_at || null,
         });
         setRecordDate(new Date(data.record_date));
+        if (data.resolved_at) {
+          setResolvedDate(new Date(data.resolved_at));
+        }
         setExistingAttachments(data.attachments || []);
       } catch (error) {
         console.error('Error fetching health record:', error);
@@ -107,6 +126,16 @@ const EditHealthRecordScreen = () => {
     }
     if (!formData.category) {
       newErrors.category = 'Category is required';
+    }
+    if (formData.severity && !['mild', 'moderate', 'severe'].includes(formData.severity)) {
+      newErrors.severity = 'Invalid severity level';
+    }
+    if (!formData.is_ongoing && formData.resolved_at) {
+      const resolvedDate = new Date(formData.resolved_at);
+      const recordDateTime = new Date(recordDate);
+      if (resolvedDate < recordDateTime) {
+        newErrors.resolved_at = 'Resolved date must be after or equal to record date';
+      }
     }
 
     setErrors(newErrors);
@@ -155,31 +184,22 @@ const EditHealthRecordScreen = () => {
 
     setLoading(true);
     try {
-      const formDataToSend = new FormData();
-      
-      // Append record data
-      formDataToSend.append('data', JSON.stringify({
+      await HealthService.updateHealthRecord(recordId, {
         ...formData,
-        record_date: recordDate.toISOString(),
-      }));
-
-      // Append new attachments
-      attachments.forEach((attachment, index) => {
-        const fileExtension = attachment.uri.split('.').pop();
-        formDataToSend.append('attachments', {
-          uri: attachment.uri,
-          name: `attachment_${index}.${fileExtension}`,
-          type: `image/${fileExtension}`,
-        });
+        record_date: format(recordDate, 'yyyy-MM-dd HH:mm:ss'),
+        resolved_at: formData.is_ongoing ? null : 
+          (resolvedDate ? format(resolvedDate, 'yyyy-MM-dd HH:mm:ss') : null)
       });
-
-      await HealthService.updateHealthRecord(recordId, formDataToSend);
       navigation.goBack();
     } catch (error) {
       console.error('Error updating health record:', error);
-      setErrors({
-        submit: 'Failed to update health record. Please try again.',
-      });
+      if (error.response?.data?.errors) {
+        setErrors(error.response.data.errors);
+      } else {
+        setErrors({
+          submit: 'Failed to update health record. Please try again.',
+        });
+      }
       setLoading(false);
     }
   };
@@ -191,184 +211,198 @@ const EditHealthRecordScreen = () => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { paddingTop: insets.top }]}
     >
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.content}>
-          <Text variant="titleLarge" style={styles.title}>
-            Edit Health Record
-          </Text>
-
-          {errors.submit && (
-            <ErrorMessage message={errors.submit} />
-          )}
-
-          <Button
-            mode="outlined"
-            onPress={() => setShowDatePicker(true)}
-            style={styles.dateButton}
-          >
-            Date: {format(recordDate, 'MMM d, yyyy')}
-          </Button>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={recordDate}
-              mode="date"
-              display="default"
-              onChange={(event, selectedDate) => {
-                setShowDatePicker(false);
-                if (selectedDate) {
-                  setRecordDate(selectedDate);
-                }
-              }}
+      <LinearGradient
+        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradient}
+      >
+        <ScrollView style={styles.scrollView}>
+          <View style={styles.header}>
+            <IconButton
+              icon="arrow-left"
+              size={24}
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
             />
-          )}
+            <Text variant="headlineSmall" style={styles.headerTitle}>
+              Edit Health Record
+            </Text>
+          </View>
 
-          <TextInput
-            label="Title"
-            value={formData.title}
-            onChangeText={(text) => handleInputChange('title', text)}
-            style={styles.input}
-            error={!!errors.title}
-          />
-          <HelperText type="error" visible={!!errors.title}>
-            {errors.title}
-          </HelperText>
+          {errors.submit && <ErrorMessage message={errors.submit} />}
 
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Category
-          </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.categoryScroll}
-          >
+          <View style={styles.content}>
+            <TextInput
+              label="Title"
+              value={formData.title}
+              onChangeText={(text) => handleInputChange('title', text)}
+              style={styles.input}
+              mode="outlined"
+              outlineColor="#E0E0E0"
+              activeOutlineColor={theme.colors.primary}
+              error={!!errors.title}
+              contentStyle={styles.inputContent}
+            />
+            <HelperText type="error" visible={!!errors.title}>
+              {errors.title}
+            </HelperText>
+
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Category
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.categoryScroll}
+            >
+              <SegmentedButtons
+                value={formData.category}
+                onValueChange={(value) => handleInputChange('category', value)}
+                buttons={RECORD_CATEGORIES}
+                style={styles.segmentedButtons}
+              />
+            </ScrollView>
+
+            <TextInput
+              label="Description"
+              value={formData.description}
+              onChangeText={(text) => handleInputChange('description', text)}
+              style={styles.input}
+              mode="outlined"
+              outlineColor="#E0E0E0"
+              activeOutlineColor={theme.colors.primary}
+              error={!!errors.description}
+              multiline
+              numberOfLines={3}
+              contentStyle={[styles.inputContent, styles.textArea]}
+            />
+            <HelperText type="error" visible={!!errors.description}>
+              {errors.description}
+            </HelperText>
+
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Severity
+            </Text>
             <SegmentedButtons
-              value={formData.category}
-              onValueChange={(value) => handleInputChange('category', value)}
-              buttons={RECORD_CATEGORIES}
+              value={formData.severity}
+              onValueChange={(value) => handleInputChange('severity', value)}
+              buttons={SEVERITY_OPTIONS}
               style={styles.segmentedButtons}
             />
-          </ScrollView>
 
-          <TextInput
-            label="Description"
-            value={formData.description}
-            onChangeText={(text) => handleInputChange('description', text)}
-            style={styles.input}
-            error={!!errors.description}
-            multiline
-            numberOfLines={3}
-          />
-          <HelperText type="error" visible={!!errors.description}>
-            {errors.description}
-          </HelperText>
+            <TextInput
+              label="Treatment"
+              value={formData.treatment}
+              onChangeText={(text) => handleInputChange('treatment', text)}
+              style={styles.input}
+              mode="outlined"
+              outlineColor="#E0E0E0"
+              activeOutlineColor={theme.colors.primary}
+              multiline
+              numberOfLines={2}
+              contentStyle={[styles.inputContent, styles.textArea]}
+            />
 
-          <TextInput
-            label="Doctor Name"
-            value={formData.doctor_name}
-            onChangeText={(text) => handleInputChange('doctor_name', text)}
-            style={styles.input}
-          />
+            <TextInput
+              label="Additional Notes"
+              value={formData.notes}
+              onChangeText={(text) => handleInputChange('notes', text)}
+              style={styles.input}
+              mode="outlined"
+              outlineColor="#E0E0E0"
+              activeOutlineColor={theme.colors.primary}
+              multiline
+              numberOfLines={3}
+              contentStyle={[styles.inputContent, styles.textArea]}
+            />
 
-          <TextInput
-            label="Clinic Location"
-            value={formData.clinic_location}
-            onChangeText={(text) => handleInputChange('clinic_location', text)}
-            style={styles.input}
-          />
-
-          <TextInput
-            label="Additional Notes"
-            value={formData.notes}
-            onChangeText={(text) => handleInputChange('notes', text)}
-            style={styles.input}
-            multiline
-            numberOfLines={3}
-          />
-
-          <View style={styles.attachmentsSection}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-              Attachments
-            </Text>
-            
             <Button
               mode="outlined"
-              onPress={pickImage}
-              icon="image-plus"
-              style={styles.attachButton}
+              onPress={() => setShowDatePicker(true)}
+              style={styles.dateButton}
+              labelStyle={styles.dateButtonLabel}
+              icon="calendar"
             >
-              Add Image
+              Record Date: {format(recordDate, 'MMM d, yyyy')}
             </Button>
 
-            {existingAttachments.length > 0 && (
+            {showDatePicker && (
+              <DateTimePicker
+                value={recordDate}
+                mode="date"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) {
+                    setRecordDate(selectedDate);
+                  }
+                }}
+              />
+            )}
+
+            <View style={styles.checkboxContainer}>
+              <Checkbox.Android
+                status={formData.is_ongoing ? 'checked' : 'unchecked'}
+                onPress={() => handleInputChange('is_ongoing', !formData.is_ongoing)}
+              />
+              <Text>Is Ongoing</Text>
+            </View>
+
+            {!formData.is_ongoing && (
               <>
-                <Text variant="titleSmall" style={styles.subsectionTitle}>
-                  Existing Attachments
-                </Text>
-                <View style={styles.attachmentList}>
-                  {existingAttachments.map((attachment) => (
-                    <View key={attachment.id} style={styles.attachmentItem}>
-                      <Image
-                        source={{ uri: attachment.url }}
-                        style={styles.attachmentThumbnail}
-                      />
-                      <IconButton
-                        icon="close-circle"
-                        size={20}
-                        style={styles.removeButton}
-                        onPress={() => removeExistingAttachment(attachment.id)}
-                      />
-                    </View>
-                  ))}
-                </View>
+                <Button
+                  mode="outlined"
+                  onPress={() => setShowResolvedDatePicker(true)}
+                  style={styles.dateButton}
+                  labelStyle={styles.dateButtonLabel}
+                  icon="calendar"
+                >
+                  Resolved Date: {resolvedDate ? format(resolvedDate, 'MMM d, yyyy') : 'Not Set'}
+                </Button>
+
+                {showResolvedDatePicker && (
+                  <DateTimePicker
+                    value={resolvedDate || new Date()}
+                    mode="date"
+                    display="default"
+                    minimumDate={recordDate}
+                    onChange={(event, selectedDate) => {
+                      setShowResolvedDatePicker(false);
+                      if (selectedDate) {
+                        setResolvedDate(selectedDate);
+                        handleInputChange('resolved_at', format(selectedDate, 'yyyy-MM-dd HH:mm:ss'));
+                      }
+                    }}
+                  />
+                )}
               </>
             )}
 
-            {attachments.length > 0 && (
-              <>
-                <Text variant="titleSmall" style={styles.subsectionTitle}>
-                  New Attachments
-                </Text>
-                <View style={styles.attachmentList}>
-                  {attachments.map((attachment, index) => (
-                    <View key={index} style={styles.attachmentItem}>
-                      <Image
-                        source={{ uri: attachment.uri }}
-                        style={styles.attachmentThumbnail}
-                      />
-                      <IconButton
-                        icon="close-circle"
-                        size={20}
-                        style={styles.removeButton}
-                        onPress={() => removeAttachment(index)}
-                      />
-                    </View>
-                  ))}
-                </View>
-              </>
-            )}
+            <View style={styles.buttonContainer}>
+              <Button
+                mode="contained"
+                onPress={handleSubmit}
+                style={[styles.button, styles.submitButton]}
+                icon="check"
+              >
+                Update Record
+              </Button>
+              <Button
+                mode="outlined"
+                onPress={() => navigation.goBack()}
+                style={[styles.button, styles.cancelButton]}
+                textColor="#4A90E2"
+                icon="close"
+              >
+                Cancel
+              </Button>
+            </View>
           </View>
-
-          <View style={styles.buttonContainer}>
-            <Button
-              mode="contained"
-              onPress={handleSubmit}
-              style={styles.submitButton}
-            >
-              Update Record
-            </Button>
-            <Button
-              mode="outlined"
-              onPress={() => navigation.goBack()}
-              style={styles.cancelButton}
-            >
-              Cancel
-            </Button>
-          </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </LinearGradient>
     </KeyboardAvoidingView>
   );
 };
@@ -376,75 +410,87 @@ const EditHealthRecordScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'transparent',
+  },
+  gradient: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  headerTitle: {
+    fontWeight: 'bold',
+    flex: 1,
+    paddingRight: 48,
+  },
   content: {
     padding: 16,
+    paddingTop: 8,
   },
-  title: {
-    marginBottom: 24,
-    fontWeight: 'bold',
+  backButton: {
+    marginLeft: -8,
+    marginRight: 8,
   },
   input: {
-    marginBottom: 8,
-    backgroundColor: 'white',
+    marginBottom: 4,
+    backgroundColor: '#fff',
   },
-  dateButton: {
-    marginVertical: 8,
+  inputContent: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+  },
+  textArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
   sectionTitle: {
     marginTop: 16,
     marginBottom: 8,
-  },
-  subsectionTitle: {
-    marginTop: 12,
-    marginBottom: 8,
-    color: '#666',
+    fontWeight: '500',
   },
   categoryScroll: {
     marginBottom: 16,
   },
   segmentedButtons: {
-    marginRight: 16,
-  },
-  attachmentsSection: {
-    marginTop: 16,
-  },
-  attachButton: {
     marginBottom: 16,
   },
-  attachmentList: {
+  dateButton: {
+    marginVertical: 8,
+    borderColor: '#4A90E2',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+  },
+  dateButtonLabel: {
+    color: '#4A90E2',
+  },
+  checkboxContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  attachmentItem: {
-    position: 'relative',
-  },
-  attachmentThumbnail: {
-    width: 100,
-    height: 100,
+    alignItems: 'center',
+    marginVertical: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    padding: 8,
     borderRadius: 8,
-  },
-  removeButton: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    margin: 0,
-    backgroundColor: 'white',
   },
   buttonContainer: {
     marginTop: 24,
     gap: 12,
+    paddingBottom: 32,
+  },
+  button: {
+    padding: 8,
   },
   submitButton: {
-    padding: 8,
+    backgroundColor: '#4CAF50',
   },
   cancelButton: {
-    padding: 8,
+    borderColor: '#4A90E2',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
 });
 

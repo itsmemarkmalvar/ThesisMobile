@@ -11,7 +11,7 @@ export class HealthService {
                 params.end_date = format(new Date(endDate), 'yyyy-MM-dd');
             }
             const response = await ApiService.get('/doctor-visits', { params });
-            return response.data;
+            return response.data.data;
         } catch (error) {
             console.error('Error fetching doctor visits:', error);
             throw error;
@@ -99,10 +99,15 @@ export class HealthService {
     static async createHealthRecord(recordData) {
         try {
             const response = await ApiService.post('/health-records', {
-                ...recordData,
                 record_date: format(new Date(recordData.record_date), 'yyyy-MM-dd HH:mm:ss'),
-                resolved_at: recordData.resolved_at ? 
-                    format(new Date(recordData.resolved_at), 'yyyy-MM-dd HH:mm:ss') : null
+                category: recordData.category,
+                title: recordData.title,
+                description: recordData.description,
+                severity: recordData.severity,
+                treatment: recordData.treatment,
+                notes: recordData.notes,
+                is_ongoing: recordData.is_ongoing,
+                resolved_at: recordData.resolved_at ? format(new Date(recordData.resolved_at), 'yyyy-MM-dd HH:mm:ss') : null
             });
             return response.data;
         } catch (error) {

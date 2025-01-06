@@ -126,6 +126,19 @@ const HealthRecordDetailsScreen = () => {
     setSelectedImage(imageUrl);
   };
 
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case 'mild':
+        return '#4CAF5020';
+      case 'moderate':
+        return '#FFA50020';
+      case 'severe':
+        return '#F4433620';
+      default:
+        return '#E0E0E020';
+    }
+  };
+
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -144,22 +157,16 @@ const HealthRecordDetailsScreen = () => {
       >
         <ScrollView style={styles.scrollView}>
           <View style={styles.header}>
-            <Text variant="headlineSmall" style={styles.title}>
-              Health Record Details
-            </Text>
-            <Menu
-              visible={menuVisible}
-              onDismiss={() => setMenuVisible(false)}
-              anchor={
-                <IconButton
-                  icon="dots-vertical"
-                  onPress={() => setMenuVisible(true)}
-                />
-              }
-            >
-              <Menu.Item onPress={handleEdit} title="Edit" />
-              <Menu.Item onPress={handleDelete} title="Delete" />
-            </Menu>
+            <IconButton
+              icon="arrow-left"
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+            />
+            <View style={styles.titleContainer}>
+              <Text variant="headlineSmall" style={styles.title}>
+                Health Record Details
+              </Text>
+            </View>
           </View>
 
           {error && <ErrorMessage message={error} />}
@@ -199,6 +206,58 @@ const HealthRecordDetailsScreen = () => {
                 <Text variant="bodyLarge" style={styles.sectionContent}>
                   {record.description}
                 </Text>
+              </View>
+
+              {record.severity && (
+                <>
+                  <Divider style={styles.divider} />
+                  <View style={styles.section}>
+                    <Text variant="labelLarge">Severity</Text>
+                    <Chip
+                      style={[
+                        styles.severityChip,
+                        { backgroundColor: getSeverityColor(record.severity) }
+                      ]}
+                    >
+                      {record.severity.charAt(0).toUpperCase() + record.severity.slice(1)}
+                    </Chip>
+                  </View>
+                </>
+              )}
+
+              {record.treatment && (
+                <>
+                  <Divider style={styles.divider} />
+                  <View style={styles.section}>
+                    <Text variant="labelLarge">Treatment</Text>
+                    <Text variant="bodyLarge" style={styles.sectionContent}>
+                      {record.treatment}
+                    </Text>
+                  </View>
+                </>
+              )}
+
+              <Divider style={styles.divider} />
+              <View style={styles.section}>
+                <Text variant="labelLarge">Status</Text>
+                <View style={styles.statusContainer}>
+                  <Chip
+                    style={[
+                      styles.statusChip,
+                      { backgroundColor: record.is_ongoing ? '#FFA50020' : '#4CAF5020' }
+                    ]}
+                    textStyle={{
+                      color: record.is_ongoing ? '#FFA500' : '#4CAF50'
+                    }}
+                  >
+                    {record.is_ongoing ? 'Ongoing' : 'Resolved'}
+                  </Chip>
+                  {!record.is_ongoing && record.resolved_at && (
+                    <Text variant="bodyMedium" style={styles.resolvedDate}>
+                      Resolved on {format(new Date(record.resolved_at), 'MMM d, yyyy')}
+                    </Text>
+                  )}
+                </View>
               </View>
 
               {record.doctor_name && (
@@ -266,6 +325,23 @@ const HealthRecordDetailsScreen = () => {
 
           <View style={styles.buttonContainer}>
             <Button
+              mode="contained"
+              onPress={handleEdit}
+              style={[styles.button, styles.editButton]}
+              icon="pencil"
+            >
+              Edit Record
+            </Button>
+            <Button
+              mode="contained"
+              onPress={handleDelete}
+              style={[styles.button, styles.deleteButton]}
+              buttonColor="#FF5252"
+              icon="delete"
+            >
+              Delete Record
+            </Button>
+            <Button
               mode="outlined"
               onPress={() => navigation.goBack()}
               style={styles.button}
@@ -308,10 +384,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#fff',
+  },
+  titleContainer: {
+    flex: 1,
+    paddingRight: 48,
   },
   title: {
     fontWeight: 'bold',
@@ -363,9 +441,16 @@ const styles = StyleSheet.create({
   buttonContainer: {
     padding: 16,
     paddingBottom: 32,
+    gap: 12,
   },
   button: {
     padding: 8,
+  },
+  editButton: {
+    backgroundColor: '#4CAF50',
+  },
+  deleteButton: {
+    backgroundColor: '#FF5252',
   },
   imagePreviewContainer: {
     position: 'absolute',
@@ -392,6 +477,24 @@ const styles = StyleSheet.create({
   previewImage: {
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
+  },
+  severityChip: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  statusChip: {
+    marginRight: 12,
+  },
+  resolvedDate: {
+    color: '#666',
+  },
+  backButton: {
+    marginRight: 12,
   },
 });
 

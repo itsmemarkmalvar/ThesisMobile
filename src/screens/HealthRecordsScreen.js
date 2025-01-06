@@ -182,20 +182,25 @@ const HealthRecordsScreen = () => {
                   style={styles.card}
                   onPress={() => handleViewRecord(record)}
                 >
-                  <Card.Content>
+                  <Card.Content style={styles.cardContent}>
                     <View style={styles.recordHeader}>
-                      <Text variant="titleMedium" style={styles.title}>
-                        {record.title}
-                      </Text>
+                      <View style={styles.titleContainer}>
+                        <Text variant="titleMedium" style={styles.title}>
+                          {record.title}
+                        </Text>
+                        <Text variant="bodySmall" style={styles.date}>
+                          {format(new Date(record.record_date), 'MMM d, yyyy')}
+                        </Text>
+                      </View>
                       <Chip
                         style={[
                           styles.categoryChip,
-                          { backgroundColor: `${getCategoryColor(record.category)}10` }
+                          { backgroundColor: `${getCategoryColor(record.category)}20` }
                         ]}
                         textStyle={{
                           color: getCategoryColor(record.category),
                           fontSize: 12,
-                          lineHeight: 16,
+                          fontWeight: '600',
                         }}
                       >
                         {RECORD_CATEGORIES.find(cat => cat.value === record.category)?.label || 'Other'}
@@ -206,40 +211,60 @@ const HealthRecordsScreen = () => {
                       {record.description}
                     </Text>
 
-                    <View style={styles.recordDetails}>
-                      <View style={styles.detailRow}>
-                        <Text variant="bodySmall" style={styles.detailLabel}>
-                          Date:
-                        </Text>
-                        <Text variant="bodySmall">
-                          {format(new Date(record.record_date), 'MMM d, yyyy')}
-                        </Text>
-                      </View>
+                    <View style={styles.recordFooter}>
+                      {record.severity && (
+                        <Chip
+                          style={[
+                            styles.severityChip,
+                            { 
+                              backgroundColor: record.severity === 'severe' 
+                                ? '#FFE5E5' 
+                                : record.severity === 'moderate'
+                                ? '#FFF4E5'
+                                : '#E8F5E9'
+                            }
+                          ]}
+                          textStyle={{
+                            color: record.severity === 'severe' 
+                              ? '#D32F2F' 
+                              : record.severity === 'moderate'
+                              ? '#F57C00'
+                              : '#2E7D32',
+                            fontSize: 12,
+                            fontWeight: '600',
+                          }}
+                        >
+                          {record.severity.charAt(0).toUpperCase() + record.severity.slice(1)}
+                        </Chip>
+                      )}
+                      
+                      {record.is_ongoing && (
+                        <Chip
+                          style={styles.ongoingChip}
+                          textStyle={{
+                            color: '#1976D2',
+                            fontSize: 12,
+                            fontWeight: '600',
+                          }}
+                        >
+                          Ongoing
+                        </Chip>
+                      )}
 
-                      {record.doctor_name && (
-                        <View style={styles.detailRow}>
-                          <Text variant="bodySmall" style={styles.detailLabel}>
-                            Doctor:
-                          </Text>
-                          <Text variant="bodySmall">
-                            Dr. {record.doctor_name}
+                      {record.has_attachments && (
+                        <View style={styles.attachmentIndicator}>
+                          <IconButton
+                            icon="paperclip"
+                            size={16}
+                            iconColor="#666"
+                            style={styles.attachmentIcon}
+                          />
+                          <Text variant="bodySmall" style={styles.attachmentText}>
+                            Has attachments
                           </Text>
                         </View>
                       )}
                     </View>
-
-                    {record.has_attachments && (
-                      <View style={styles.attachmentIndicator}>
-                        <IconButton
-                          icon="paperclip"
-                          size={16}
-                          style={styles.attachmentIcon}
-                        />
-                        <Text variant="bodySmall" style={styles.attachmentText}>
-                          Has attachments
-                        </Text>
-                      </View>
-                    )}
                   </Card.Content>
                 </Card>
               ))}
@@ -307,73 +332,92 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   card: {
-    marginBottom: 12,
-    elevation: 1,
+    marginBottom: 16,
+    elevation: 2,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 20,
+    borderRadius: 16,
     marginHorizontal: 4,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 1,
+      height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+    borderWidth: 1,
+  },
+  cardContent: {
+    padding: 16,
   },
   recordHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 12,
-    flexWrap: 'wrap',
-    gap: 8,
+  },
+  titleContainer: {
+    flex: 1,
+    marginRight: 12,
   },
   title: {
-    flex: 1,
-    marginRight: 8,
     color: '#333',
-    fontWeight: '500',
-    fontSize: 15,
+    fontWeight: '600',
+    fontSize: 16,
+    marginBottom: 4,
+    lineHeight: 22,
+  },
+  date: {
+    color: '#666',
+    fontSize: 12,
   },
   categoryChip: {
     height: 28,
     borderRadius: 14,
     paddingHorizontal: 12,
-    alignSelf: 'flex-start',
   },
   description: {
-    marginBottom: 8,
-    color: '#666',
+    color: '#555',
     lineHeight: 20,
     fontSize: 14,
+    marginBottom: 12,
   },
-  recordDetails: {
-    backgroundColor: 'transparent',
-    padding: 0,
-    marginBottom: 4,
-  },
-  detailRow: {
+  recordFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
   },
-  detailLabel: {
-    color: '#666',
-    fontSize: 13,
-    fontWeight: '500',
+  severityChip: {
+    height: 28,
+    borderRadius: 14,
+    marginVertical: 2,
+  },
+  ongoingChip: {
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#E3F2FD',
+    marginVertical: 2,
   },
   attachmentIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginLeft: 'auto',
+    marginVertical: 2,
   },
   attachmentIcon: {
     margin: 0,
+    width: 20,
+    height: 20,
   },
   attachmentText: {
     color: '#666',
     fontSize: 12,
+    marginLeft: -4,
   },
   fab: {
     position: 'absolute',

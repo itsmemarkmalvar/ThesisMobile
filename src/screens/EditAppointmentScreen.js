@@ -14,13 +14,16 @@ import {
   HelperText,
   Switch,
   SegmentedButtons,
+  IconButton,
 } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const REMINDER_OPTIONS = [
   { value: 15, label: '15 min' },
@@ -49,6 +52,7 @@ const EditAppointmentScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { appointmentId } = route.params;
 
   useEffect(() => {
@@ -128,165 +132,225 @@ const EditAppointmentScreen = () => {
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <SafeAreaView style={styles.container}>
+        <LoadingSpinner />
+      </SafeAreaView>
+    );
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.content}>
-          <Text variant="titleLarge" style={styles.title}>
-            Edit Appointment
-          </Text>
-
-          {errors.submit && (
-            <ErrorMessage message={errors.submit} />
-          )}
-
-          <Button
-            mode="outlined"
-            onPress={() => setShowDatePicker(true)}
-            style={styles.dateButton}
-          >
-            Date: {format(appointmentDate, 'MMM d, yyyy')}
-          </Button>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={appointmentDate}
-              mode="date"
-              display="default"
-              onChange={(event, selectedDate) => {
-                setShowDatePicker(false);
-                if (selectedDate) {
-                  setAppointmentDate(selectedDate);
-                }
-              }}
-              minimumDate={new Date()}
-            />
-          )}
-
-          <Button
-            mode="outlined"
-            onPress={() => setShowTimePicker(true)}
-            style={styles.dateButton}
-          >
-            Time: {format(appointmentDate, 'h:mm a')}
-          </Button>
-
-          {showTimePicker && (
-            <DateTimePicker
-              value={appointmentDate}
-              mode="time"
-              display="default"
-              onChange={(event, selectedDate) => {
-                setShowTimePicker(false);
-                if (selectedDate) {
-                  setAppointmentDate(selectedDate);
-                }
-              }}
-            />
-          )}
-
-          <TextInput
-            label="Doctor Name"
-            value={formData.doctor_name}
-            onChangeText={(text) => handleInputChange('doctor_name', text)}
-            style={styles.input}
-            error={!!errors.doctor_name}
-          />
-          <HelperText type="error" visible={!!errors.doctor_name}>
-            {errors.doctor_name}
-          </HelperText>
-
-          <TextInput
-            label="Clinic Location"
-            value={formData.clinic_location}
-            onChangeText={(text) => handleInputChange('clinic_location', text)}
-            style={styles.input}
-          />
-
-          <TextInput
-            label="Purpose"
-            value={formData.purpose}
-            onChangeText={(text) => handleInputChange('purpose', text)}
-            style={styles.input}
-            error={!!errors.purpose}
-            multiline
-          />
-          <HelperText type="error" visible={!!errors.purpose}>
-            {errors.purpose}
-          </HelperText>
-
-          <TextInput
-            label="Notes"
-            value={formData.notes}
-            onChangeText={(text) => handleInputChange('notes', text)}
-            style={styles.input}
-            multiline
-          />
-
-          <View style={styles.reminderSection}>
-            <View style={styles.switchContainer}>
-              <Text variant="bodyLarge">Enable Reminder</Text>
-              <Switch
-                value={formData.reminder_enabled}
-                onValueChange={(value) => handleInputChange('reminder_enabled', value)}
-              />
-            </View>
-
-            {formData.reminder_enabled && (
-              <>
-                <Text variant="titleMedium" style={styles.sectionTitle}>
-                  Remind me before
-                </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.reminderScroll}
-                >
-                  <SegmentedButtons
-                    value={formData.reminder_minutes_before}
-                    onValueChange={(value) =>
-                      handleInputChange('reminder_minutes_before', value)
-                    }
-                    buttons={REMINDER_OPTIONS}
-                    style={styles.segmentedButtons}
-                  />
-                </ScrollView>
-              </>
-            )}
-          </View>
-
-          <View style={styles.buttonContainer}>
-            <Button
-              mode="contained"
-              onPress={handleSubmit}
-              style={styles.submitButton}
-            >
-              Update Appointment
-            </Button>
-            <Button
-              mode="outlined"
+    <SafeAreaView style={styles.container}>
+      <LinearGradient
+        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradient}
+      >
+        <View style={styles.header}>
+          <View style={styles.headerRow}>
+            <IconButton
+              icon="arrow-left"
+              size={24}
               onPress={() => navigation.goBack()}
-              style={styles.cancelButton}
-            >
-              Cancel
-            </Button>
+              style={styles.backButton}
+            />
+            <Text variant="titleLarge" style={styles.headerTitle}>
+              Edit Appointment
+            </Text>
           </View>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+        >
+          <ScrollView style={styles.scrollView}>
+            <View style={styles.content}>
+              {errors.submit && (
+                <HelperText type="error" visible={true} style={styles.errorText}>
+                  {errors.submit}
+                </HelperText>
+              )}
+
+              <View style={styles.dateTimeSection}>
+                <Button
+                  mode="outlined"
+                  onPress={() => setShowDatePicker(true)}
+                  style={styles.dateButton}
+                  contentStyle={styles.dateButtonContent}
+                  labelStyle={styles.dateButtonLabel}
+                  textColor="#1976D2"
+                >
+                  Date: {format(appointmentDate, 'MMM d, yyyy')}
+                </Button>
+
+                <Button
+                  mode="outlined"
+                  onPress={() => setShowTimePicker(true)}
+                  style={styles.dateButton}
+                  contentStyle={styles.dateButtonContent}
+                  labelStyle={styles.dateButtonLabel}
+                  textColor="#1976D2"
+                >
+                  Time: {format(appointmentDate, 'h:mm a')}
+                </Button>
+              </View>
+
+              {showDatePicker && (
+                <DateTimePicker
+                  value={appointmentDate}
+                  mode="date"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowDatePicker(false);
+                    if (selectedDate) {
+                      setAppointmentDate(selectedDate);
+                    }
+                  }}
+                  minimumDate={new Date()}
+                />
+              )}
+
+              {showTimePicker && (
+                <DateTimePicker
+                  value={appointmentDate}
+                  mode="time"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowTimePicker(false);
+                    if (selectedDate) {
+                      setAppointmentDate(selectedDate);
+                    }
+                  }}
+                />
+              )}
+
+              <View style={styles.formSection}>
+                <TextInput
+                  label="Doctor Name"
+                  value={formData.doctor_name}
+                  onChangeText={(text) => handleInputChange('doctor_name', text)}
+                  style={styles.input}
+                  error={!!errors.doctor_name}
+                />
+                <HelperText type="error" visible={!!errors.doctor_name}>
+                  {errors.doctor_name}
+                </HelperText>
+
+                <TextInput
+                  label="Clinic Location"
+                  value={formData.clinic_location}
+                  onChangeText={(text) => handleInputChange('clinic_location', text)}
+                  style={styles.input}
+                />
+
+                <TextInput
+                  label="Purpose"
+                  value={formData.purpose}
+                  onChangeText={(text) => handleInputChange('purpose', text)}
+                  style={styles.input}
+                  error={!!errors.purpose}
+                  multiline
+                />
+                <HelperText type="error" visible={!!errors.purpose}>
+                  {errors.purpose}
+                </HelperText>
+
+                <TextInput
+                  label="Notes"
+                  value={formData.notes}
+                  onChangeText={(text) => handleInputChange('notes', text)}
+                  style={styles.input}
+                  multiline
+                />
+
+                <View style={styles.reminderSection}>
+                  <View style={styles.switchContainer}>
+                    <Text variant="bodyLarge">Enable Reminder</Text>
+                    <Switch
+                      value={formData.reminder_enabled}
+                      onValueChange={(value) => handleInputChange('reminder_enabled', value)}
+                    />
+                  </View>
+
+                  {formData.reminder_enabled && (
+                    <>
+                      <Text variant="titleMedium" style={styles.sectionTitle}>
+                        Remind me before
+                      </Text>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.reminderScroll}
+                      >
+                        <SegmentedButtons
+                          value={formData.reminder_minutes_before}
+                          onValueChange={(value) =>
+                            handleInputChange('reminder_minutes_before', value)
+                          }
+                          buttons={REMINDER_OPTIONS}
+                          style={styles.segmentedButtons}
+                        />
+                      </ScrollView>
+                    </>
+                  )}
+                </View>
+
+                <View style={styles.buttonContainer}>
+                  <Button
+                    mode="contained"
+                    onPress={handleSubmit}
+                    style={styles.submitButton}
+                  >
+                    Update Appointment
+                  </Button>
+                  <Button
+                    mode="outlined"
+                    onPress={() => navigation.goBack()}
+                    style={styles.cancelButton}
+                    textColor="#1976D2"
+                  >
+                    Cancel
+                  </Button>
+                </View>
+              </View>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </LinearGradient>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'transparent',
+  },
+  gradient: {
+    flex: 1,
+  },
+  header: {
+    backgroundColor: 'transparent',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  backButton: {
+    marginLeft: -8,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: 8,
+  },
+  keyboardView: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
@@ -294,16 +358,28 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
   },
-  title: {
-    marginBottom: 24,
-    fontWeight: 'bold',
+  errorText: {
+    marginBottom: 16,
   },
-  input: {
-    marginBottom: 8,
-    backgroundColor: 'white',
+  dateTimeSection: {
+    marginBottom: 16,
   },
   dateButton: {
-    marginVertical: 8,
+    marginBottom: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderColor: '#1976D2',
+  },
+  dateButtonContent: {
+    height: 48,
+  },
+  dateButtonLabel: {
+    fontSize: 16,
+  },
+  formSection: {
+    gap: 8,
+  },
+  input: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
   reminderSection: {
     marginTop: 16,
@@ -328,10 +404,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   submitButton: {
-    padding: 8,
+    backgroundColor: '#1976D2',
   },
   cancelButton: {
-    padding: 8,
+    borderColor: '#1976D2',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
 });
 

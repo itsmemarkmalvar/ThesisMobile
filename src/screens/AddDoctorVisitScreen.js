@@ -34,7 +34,7 @@ const AddDoctorVisitScreen = () => {
   const [formData, setFormData] = useState({
     doctor_name: '',
     clinic_location: '',
-    reason: '',
+    reason_for_visit: '',
     diagnosis: '',
     treatment: '',
     notes: '',
@@ -79,8 +79,8 @@ const AddDoctorVisitScreen = () => {
     if (!formData.doctor_name.trim()) {
       newErrors.doctor_name = 'Doctor name is required';
     }
-    if (!formData.reason.trim()) {
-      newErrors.reason = 'Reason for visit is required';
+    if (!formData.reason_for_visit.trim()) {
+      newErrors.reason_for_visit = 'Reason for visit is required';
     }
 
     setErrors(newErrors);
@@ -211,11 +211,11 @@ const AddDoctorVisitScreen = () => {
 
               <TextInput
                 label="Reason for Visit"
-                value={formData.reason}
-                onChangeText={(text) => handleInputChange('reason', text)}
+                value={formData.reason_for_visit}
+                onChangeText={(text) => handleInputChange('reason_for_visit', text)}
                 style={styles.input}
                 mode="outlined"
-                error={!!errors.reason}
+                error={!!errors.reason_for_visit}
                 multiline
                 numberOfLines={3}
                 textColor="#333333"
@@ -229,8 +229,8 @@ const AddDoctorVisitScreen = () => {
                   },
                 }}
               />
-              <HelperText type="error" visible={!!errors.reason}>
-                {errors.reason}
+              <HelperText type="error" visible={!!errors.reason_for_visit}>
+                {errors.reason_for_visit}
               </HelperText>
 
               <TextInput

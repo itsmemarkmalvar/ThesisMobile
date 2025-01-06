@@ -23,22 +23,8 @@ const getApiUrl = () => {
   const environment = getEnvironment();
   console.log('Current environment:', environment);
   
-  if (environment === 'expo') {
-    // When running in Expo Go
-    return `http://${LOCAL_IP}:8000/api`;
-  }
-
-  // For development in simulators/emulators
-  if (__DEV__) {
-    return Platform.select({
-      ios: 'http://localhost:8000/api',
-      android: 'http://10.0.2.2:8000/api',
-      default: `http://${LOCAL_IP}:8000/api`
-    });
-  }
-
-  // Production URL
-  return `http://${LOCAL_IP}:8000/api`;
+  // Production URL for all environments
+  return 'https://binibaby-api.com/api';
 };
 
 export const API_URL = getApiUrl();

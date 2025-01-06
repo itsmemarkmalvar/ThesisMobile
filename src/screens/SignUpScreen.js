@@ -18,14 +18,11 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config';
 import { APP_CONFIG } from '../config';
-import FacebookAuthService, { useFacebookAuth } from '../services/FacebookAuthService';
-
 
 const SignUpScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [request, response, promptAsync] = useFacebookAuth();
   
   // Test API connection when component mounts
   React.useEffect(() => {
@@ -178,25 +175,6 @@ const SignUpScreen = ({ navigation }) => {
     }
   };
 
-  const handleFacebookSignUp = async () => {
-    try {
-      setLoading(true);
-      const result = await FacebookAuthService.login(promptAsync);
-      if (result.success) {
-        await AsyncStorage.setItem('hasCompletedOnboarding', 'false');
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Onboarding' }],
-        });
-      }
-    } catch (error) {
-      console.error('Facebook sign up error:', error);
-      Alert.alert('Error', 'Facebook sign up failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
@@ -269,18 +247,18 @@ const SignUpScreen = ({ navigation }) => {
                   <MaterialIcons name="lock-outline" size={20} color="#666" />
                   <TextInput
                     style={signUpStyles.input}
-                    placeholder="Create a password"
+                    placeholder="Enter your password"
                     placeholderTextColor="#999"
                     secureTextEntry={!showPassword}
                     value={formData.password}
                     onChangeText={(text) => setFormData({ ...formData, password: text })}
                   />
                   <TouchableOpacity
-                    style={signUpStyles.passwordToggle}
                     onPress={() => setShowPassword(!showPassword)}
+                    style={signUpStyles.eyeIcon}
                   >
                     <Ionicons
-                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                       size={20}
                       color="#666"
                     />
@@ -303,11 +281,11 @@ const SignUpScreen = ({ navigation }) => {
                     onChangeText={(text) => setFormData({ ...formData, password_confirmation: text })}
                   />
                 </View>
+                {errors.password_confirmation && (
+                  <Text style={signUpStyles.errorText}>{errors.password_confirmation}</Text>
+                )}
               </View>
-            </View>
 
-            {/* Bottom Section */}
-            <View style={signUpStyles.bottomSection}>
               {/* Terms and Conditions */}
               <TouchableOpacity
                 style={signUpStyles.termsContainer}
@@ -320,10 +298,7 @@ const SignUpScreen = ({ navigation }) => {
                   style={signUpStyles.checkbox}
                 />
                 <Text style={signUpStyles.termsText}>
-                  I agree to the{' '}
-                  <Text style={signUpStyles.termsLink}>Terms and Conditions</Text>
-                  {' '}and{' '}
-                  <Text style={signUpStyles.termsLink}>Privacy Policy</Text>
+                  I agree to the Terms and Conditions
                 </Text>
               </TouchableOpacity>
 
@@ -333,42 +308,21 @@ const SignUpScreen = ({ navigation }) => {
                   signUpStyles.signUpButton,
                   (!acceptedTerms || loading) && { opacity: 0.7 }
                 ]}
-                disabled={!acceptedTerms || loading}
                 onPress={handleSignUp}
+                disabled={!acceptedTerms || loading}
               >
-                <Text style={signUpStyles.signUpButtonText}>
-                  {loading ? 'Creating Account...' : 'Sign Up'}
-                </Text>
+                {loading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={signUpStyles.signUpButtonText}>Sign Up</Text>
+                )}
               </TouchableOpacity>
 
-              {/* Divider */}
-              <View style={signUpStyles.divider}>
-                <View style={signUpStyles.dividerLine} />
-                <Text style={signUpStyles.dividerText}>or sign up with</Text>
-                <View style={signUpStyles.dividerLine} />
-              </View>
-
-              {/* Social Buttons */}
-              <View style={signUpStyles.socialButtonsContainer}>
-                <TouchableOpacity style={signUpStyles.socialButton}>
-                  <FontAwesome5 name="google" size={20} color="#DB4437" style={signUpStyles.socialButtonIcon} />
-                  <Text style={signUpStyles.socialButtonText}>Google</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={signUpStyles.socialButton}
-                  onPress={handleFacebookSignUp}
-                  disabled={loading}
-                >
-                  <FontAwesome5 name="facebook" size={20} color="#1877F2" style={signUpStyles.socialButtonIcon} />
-                  <Text style={signUpStyles.socialButtonText}>Facebook</Text>
-                  {loading && (
-                    <ActivityIndicator 
-                      size="small" 
-                      color="#1877F2" 
-                      style={signUpStyles.buttonLoader} 
-                    />
-                  )}
+              {/* Login Link */}
+              <View style={signUpStyles.loginContainer}>
+                <Text style={signUpStyles.loginText}>Already have an account? </Text>
+                <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                  <Text style={signUpStyles.loginLink}>Login</Text>
                 </TouchableOpacity>
               </View>
             </View>

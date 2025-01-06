@@ -11,6 +11,19 @@
     "preview": {
       "distribution": "internal"
     },
+    "development-apk": {
+      "android": {
+        "buildType": "apk",
+        "releaseChannel": "production"
+      },
+      "distribution": "internal",
+      "developmentClient": false,
+      "env": {
+        "EXPO_NO_DEV": "1",
+        "NODE_ENV": "production",
+        "APP_ENV": "production"
+      }
+    },
     "production": {
       "autoIncrement": true
     }

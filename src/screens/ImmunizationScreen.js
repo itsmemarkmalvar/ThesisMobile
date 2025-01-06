@@ -12,6 +12,7 @@ import {
   Switch,
   PermissionsAndroid,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -110,6 +111,7 @@ const ImmunizationScreen = ({ navigation }) => {
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [selectedVaccineForScheduling, setSelectedVaccineForScheduling] = useState(null);
   const [downloading, setDownloading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     setupNotifications();
@@ -650,7 +652,7 @@ const ImmunizationScreen = ({ navigation }) => {
         >
           <MaterialIcons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Immunization</Text>
+        <Text style={styles.headerTitle}>Vaccination</Text>
       </View>
       <View style={styles.headerRight}>
         <TouchableOpacity 
@@ -693,9 +695,24 @@ const ImmunizationScreen = ({ navigation }) => {
 
       const history = await immunizationApi.getVaccinationHistory(token);
       setVaccinationHistory(history);
+      return true; // Return success status
     } catch (error) {
       console.error('Error loading vaccination history:', error);
-      Alert.alert('Error', 'Failed to load vaccination history');
+      Alert.alert(
+        'Error',
+        'Failed to load vaccination history. Please try again.'
+      );
+      return false; // Return failure status
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadVaccinations();
+      await loadVaccinationHistory();
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -703,7 +720,7 @@ const ImmunizationScreen = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <LinearGradient
-          colors={['#FF9A9E', '#FAD0C4', '#FFF']}
+          colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
@@ -718,7 +735,7 @@ const ImmunizationScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={['#FF9A9E', '#FAD0C4', '#FFF']}
+        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.gradient}
@@ -726,7 +743,17 @@ const ImmunizationScreen = ({ navigation }) => {
         {renderHeader()}
         
         {viewMode === 'list' ? (
-          <ScrollView style={styles.content}>
+          <ScrollView 
+            style={styles.content}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={['#4A90E2']}
+                tintColor="#4A90E2"
+              />
+            }
+          >
             {vaccines.map((ageGroup) => (
               <View key={`age-group-${ageGroup.id || 'default'}-${ageGroup.ageGroup}`} style={styles.ageGroupContainer}>
                 <Text style={styles.ageGroupTitle}>{ageGroup.ageGroup}</Text>
@@ -735,7 +762,17 @@ const ImmunizationScreen = ({ navigation }) => {
             ))}
           </ScrollView>
         ) : (
-          <ScrollView style={styles.content}>
+          <ScrollView 
+            style={styles.content}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={['#4A90E2']}
+                tintColor="#4A90E2"
+              />
+            }
+          >
             <View style={styles.calendarCard}>
               <VaccineCalendar
                 markedDates={getMarkedDates()}
@@ -764,7 +801,7 @@ const ImmunizationScreen = ({ navigation }) => {
                       <Text style={styles.historyVaccineName}>{record.vaccine_name}</Text>
                       <Text style={styles.historyDate}>
                         {record.status === 'completed' ? 'Completed on: ' : 'Scheduled for: '}
-                        {new Date(record.date).toLocaleDateString()}
+                        {new Date(record.status === 'completed' ? record.given_at : record.scheduled_date).toLocaleDateString()}
                       </Text>
                       {record.administered_by && (
                         <Text style={styles.historyAdministered}>
@@ -814,6 +851,7 @@ const ImmunizationScreen = ({ navigation }) => {
           visible={showHistory}
           onClose={() => setShowHistory(false)}
           history={vaccinationHistory}
+          onRefresh={loadVaccinationHistory}
         />
 
         <VaccineScheduleForm
@@ -830,7 +868,7 @@ const ImmunizationScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FF9A9E'
+    backgroundColor: 'transparent',
   },
   gradient: {
     flex: 1,

@@ -12,15 +12,19 @@ import {
   Button,
   useTheme,
   HelperText,
+  IconButton,
 } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const EditDoctorVisitScreen = () => {
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
@@ -119,162 +123,219 @@ const EditDoctorVisitScreen = () => {
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <LinearGradient
+          colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradient}
+        >
+          <View style={[styles.header, { paddingTop: insets.top }]}>
+            <IconButton
+              icon="arrow-left"
+              size={24}
+              onPress={() => navigation.goBack()}
+            />
+            <Text variant="titleLarge" style={styles.title}>
+              Edit Doctor Visit
+            </Text>
+          </View>
+          <LoadingSpinner />
+        </LinearGradient>
+      </SafeAreaView>
+    );
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.content}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <LinearGradient
+        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradient}
+      >
+        <View style={[styles.header, { paddingTop: insets.top }]}>
+          <IconButton
+            icon="arrow-left"
+            size={24}
+            onPress={() => navigation.goBack()}
+          />
           <Text variant="titleLarge" style={styles.title}>
             Edit Doctor Visit
           </Text>
-
-          {errors.submit && (
-            <ErrorMessage message={errors.submit} />
-          )}
-
-          <Button
-            mode="outlined"
-            onPress={() => setShowVisitDatePicker(true)}
-            style={styles.dateButton}
-          >
-            Visit Date: {format(visitDate, 'MMM d, yyyy')}
-          </Button>
-
-          {showVisitDatePicker && (
-            <DateTimePicker
-              value={visitDate}
-              mode="date"
-              display="default"
-              onChange={(event, selectedDate) => {
-                setShowVisitDatePicker(false);
-                if (selectedDate) {
-                  setVisitDate(selectedDate);
-                }
-              }}
-            />
-          )}
-
-          <TextInput
-            label="Doctor Name"
-            value={formData.doctor_name}
-            onChangeText={(text) => handleInputChange('doctor_name', text)}
-            style={styles.input}
-            error={!!errors.doctor_name}
-          />
-          <HelperText type="error" visible={!!errors.doctor_name}>
-            {errors.doctor_name}
-          </HelperText>
-
-          <TextInput
-            label="Clinic Location"
-            value={formData.clinic_location}
-            onChangeText={(text) => handleInputChange('clinic_location', text)}
-            style={styles.input}
-          />
-
-          <TextInput
-            label="Reason for Visit"
-            value={formData.reason_for_visit}
-            onChangeText={(text) => handleInputChange('reason_for_visit', text)}
-            style={styles.input}
-            error={!!errors.reason_for_visit}
-            multiline
-          />
-          <HelperText type="error" visible={!!errors.reason_for_visit}>
-            {errors.reason_for_visit}
-          </HelperText>
-
-          <TextInput
-            label="Diagnosis"
-            value={formData.diagnosis}
-            onChangeText={(text) => handleInputChange('diagnosis', text)}
-            style={styles.input}
-            multiline
-          />
-
-          <TextInput
-            label="Prescription"
-            value={formData.prescription}
-            onChangeText={(text) => handleInputChange('prescription', text)}
-            style={styles.input}
-            multiline
-          />
-
-          <TextInput
-            label="Notes"
-            value={formData.notes}
-            onChangeText={(text) => handleInputChange('notes', text)}
-            style={styles.input}
-            multiline
-          />
-
-          <TextInput
-            label="Follow-up Instructions"
-            value={formData.follow_up_instructions}
-            onChangeText={(text) => handleInputChange('follow_up_instructions', text)}
-            style={styles.input}
-            multiline
-          />
-
-          <Button
-            mode="outlined"
-            onPress={() => setShowNextVisitDatePicker(true)}
-            style={styles.dateButton}
-          >
-            {nextVisitDate
-              ? `Next Visit: ${format(nextVisitDate, 'MMM d, yyyy')}`
-              : 'Set Next Visit Date'}
-          </Button>
-
-          {showNextVisitDatePicker && (
-            <DateTimePicker
-              value={nextVisitDate || new Date()}
-              mode="date"
-              display="default"
-              onChange={(event, selectedDate) => {
-                setShowNextVisitDatePicker(false);
-                if (selectedDate) {
-                  setNextVisitDate(selectedDate);
-                }
-              }}
-              minimumDate={new Date()}
-            />
-          )}
-
-          <View style={styles.buttonContainer}>
-            <Button
-              mode="contained"
-              onPress={handleSubmit}
-              style={styles.submitButton}
-              loading={saving}
-              disabled={saving}
-            >
-              Save Changes
-            </Button>
-            <Button
-              mode="outlined"
-              onPress={() => navigation.goBack()}
-              style={styles.cancelButton}
-              disabled={saving}
-            >
-              Cancel
-            </Button>
-          </View>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+        >
+          <ScrollView style={styles.scrollView}>
+            <View style={styles.content}>
+              {errors.submit && (
+                <ErrorMessage message={errors.submit} />
+              )}
+
+              <Button
+                mode="outlined"
+                onPress={() => setShowVisitDatePicker(true)}
+                style={styles.dateButton}
+                icon="calendar"
+              >
+                Visit Date: {format(visitDate, 'MMM d, yyyy')}
+              </Button>
+
+              {showVisitDatePicker && (
+                <DateTimePicker
+                  value={visitDate}
+                  mode="date"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowVisitDatePicker(false);
+                    if (selectedDate) {
+                      setVisitDate(selectedDate);
+                    }
+                  }}
+                />
+              )}
+
+              <TextInput
+                label="Doctor Name"
+                value={formData.doctor_name}
+                onChangeText={(text) => handleInputChange('doctor_name', text)}
+                style={styles.input}
+                error={!!errors.doctor_name}
+              />
+              <HelperText type="error" visible={!!errors.doctor_name}>
+                {errors.doctor_name}
+              </HelperText>
+
+              <TextInput
+                label="Clinic Location"
+                value={formData.clinic_location}
+                onChangeText={(text) => handleInputChange('clinic_location', text)}
+                style={styles.input}
+              />
+
+              <TextInput
+                label="Reason for Visit"
+                value={formData.reason_for_visit}
+                onChangeText={(text) => handleInputChange('reason_for_visit', text)}
+                style={styles.input}
+                error={!!errors.reason_for_visit}
+                multiline
+              />
+              <HelperText type="error" visible={!!errors.reason_for_visit}>
+                {errors.reason_for_visit}
+              </HelperText>
+
+              <TextInput
+                label="Diagnosis"
+                value={formData.diagnosis}
+                onChangeText={(text) => handleInputChange('diagnosis', text)}
+                style={styles.input}
+                multiline
+              />
+
+              <TextInput
+                label="Prescription"
+                value={formData.prescription}
+                onChangeText={(text) => handleInputChange('prescription', text)}
+                style={styles.input}
+                multiline
+              />
+
+              <TextInput
+                label="Notes"
+                value={formData.notes}
+                onChangeText={(text) => handleInputChange('notes', text)}
+                style={styles.input}
+                multiline
+              />
+
+              <TextInput
+                label="Follow-up Instructions"
+                value={formData.follow_up_instructions}
+                onChangeText={(text) => handleInputChange('follow_up_instructions', text)}
+                style={styles.input}
+                multiline
+              />
+
+              <Button
+                mode="outlined"
+                onPress={() => setShowNextVisitDatePicker(true)}
+                style={styles.dateButton}
+                icon="calendar"
+              >
+                {nextVisitDate
+                  ? `Next Visit: ${format(nextVisitDate, 'MMM d, yyyy')}`
+                  : 'Set Next Visit Date'}
+              </Button>
+
+              {showNextVisitDatePicker && (
+                <DateTimePicker
+                  value={nextVisitDate || new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowNextVisitDatePicker(false);
+                    if (selectedDate) {
+                      setNextVisitDate(selectedDate);
+                    }
+                  }}
+                  minimumDate={new Date()}
+                />
+              )}
+
+              <View style={styles.buttonContainer}>
+                <Button
+                  mode="contained"
+                  onPress={handleSubmit}
+                  style={styles.submitButton}
+                  loading={saving}
+                  disabled={saving}
+                >
+                  Save Changes
+                </Button>
+                <Button
+                  mode="outlined"
+                  onPress={() => navigation.goBack()}
+                  style={styles.cancelButton}
+                  disabled={saving}
+                >
+                  Cancel
+                </Button>
+              </View>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </LinearGradient>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'transparent',
+  },
+  gradient: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+    backgroundColor: 'transparent',
+  },
+  title: {
+    flex: 1,
+    marginLeft: 8,
+    fontWeight: '600',
+  },
+  keyboardView: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
@@ -282,16 +343,13 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
   },
-  title: {
-    marginBottom: 24,
-    fontWeight: 'bold',
-  },
   input: {
     marginBottom: 8,
     backgroundColor: 'white',
   },
   dateButton: {
     marginVertical: 8,
+    backgroundColor: 'white',
   },
   buttonContainer: {
     marginTop: 24,

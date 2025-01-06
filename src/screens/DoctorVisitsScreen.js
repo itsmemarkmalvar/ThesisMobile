@@ -37,8 +37,9 @@ const DoctorVisitsScreen = () => {
   const fetchVisits = async () => {
     try {
       setError(null);
-      const response = await HealthService.getDoctorVisits();
-      setVisits(response.data || []);
+      const data = await HealthService.getDoctorVisits();
+      console.log('Doctor visits data:', data);
+      setVisits(data || []);
     } catch (err) {
       setError('Failed to load doctor visits');
       console.error('Error fetching doctor visits:', err);
@@ -61,68 +62,71 @@ const DoctorVisitsScreen = () => {
     loadData();
   }, []);
 
-  const renderVisitCard = (visit) => (
-    <Card
-      key={visit.id}
-      style={styles.card}
-      onPress={() => navigation.navigate('DoctorVisitDetails', { visitId: visit.id })}
-    >
-      <Card.Content style={styles.cardContent}>
-        <View style={styles.visitHeader}>
-          <View style={styles.doctorInfo}>
-            <IconButton
-              icon="doctor"
-              size={24}
-              style={styles.doctorIcon}
-              iconColor={theme.colors.primary}
-            />
-            <View>
-              <Text variant="titleMedium" style={styles.doctorName}>
-                Dr. {visit.doctor_name}
-              </Text>
-              <Text variant="bodySmall" style={styles.dateText}>
-                {format(new Date(visit.visit_date), 'MMM d, yyyy')}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.visitContent}>
-          <Text variant="bodyMedium" style={styles.reasonTitle}>
-            Reason for Visit:
-          </Text>
-          <Text variant="bodyMedium" style={styles.reason}>
-            {visit.reason_for_visit}
-          </Text>
-
-          {visit.diagnosis && (
-            <View style={styles.diagnosisContainer}>
-              <Text variant="bodyMedium" style={styles.diagnosisTitle}>
-                Diagnosis:
-              </Text>
-              <Text variant="bodySmall" style={styles.diagnosis} numberOfLines={2}>
-                {visit.diagnosis}
-              </Text>
-            </View>
-          )}
-
-          {visit.next_visit_date && (
-            <View style={[styles.nextVisitContainer, { backgroundColor: `${theme.colors.primary}10` }]}>
+  const renderVisitCard = (visit) => {
+    console.log('Rendering visit:', visit);
+    return (
+      <Card
+        key={visit.id}
+        style={styles.card}
+        onPress={() => navigation.navigate('DoctorVisitDetails', { visitId: visit.id })}
+      >
+        <Card.Content style={styles.cardContent}>
+          <View style={styles.visitHeader}>
+            <View style={styles.doctorInfo}>
               <IconButton
-                icon="calendar"
-                size={20}
-                style={styles.calendarIcon}
+                icon="doctor"
+                size={24}
+                style={styles.doctorIcon}
                 iconColor={theme.colors.primary}
               />
-              <Text style={[styles.nextVisitText, { color: theme.colors.primary }]}>
-                Next Visit: {format(new Date(visit.next_visit_date), 'MMM d, yyyy')}
-              </Text>
+              <View>
+                <Text variant="titleMedium" style={styles.doctorName}>
+                  Dr. {visit.doctor_name}
+                </Text>
+                <Text variant="bodySmall" style={styles.dateText}>
+                  {format(new Date(visit.visit_date), 'MMM d, yyyy')}
+                </Text>
+              </View>
             </View>
-          )}
-        </View>
-      </Card.Content>
-    </Card>
-  );
+          </View>
+
+          <View style={styles.visitContent}>
+            <Text variant="bodyMedium" style={styles.reasonTitle}>
+              Reason for Visit:
+            </Text>
+            <Text variant="bodyMedium" style={styles.reason}>
+              {visit.reason_for_visit}
+            </Text>
+
+            {visit.diagnosis && (
+              <View style={styles.diagnosisContainer}>
+                <Text variant="bodyMedium" style={styles.diagnosisTitle}>
+                  Diagnosis:
+                </Text>
+                <Text variant="bodySmall" style={styles.diagnosis} numberOfLines={2}>
+                  {visit.diagnosis}
+                </Text>
+              </View>
+            )}
+
+            {visit.next_visit_date && (
+              <View style={[styles.nextVisitContainer, { backgroundColor: `${theme.colors.primary}10` }]}>
+                <IconButton
+                  icon="calendar"
+                  size={20}
+                  style={styles.calendarIcon}
+                  iconColor={theme.colors.primary}
+                />
+                <Text style={[styles.nextVisitText, { color: theme.colors.primary }]}>
+                  Next Visit: {format(new Date(visit.next_visit_date), 'MMM d, yyyy')}
+                </Text>
+              </View>
+            )}
+          </View>
+        </Card.Content>
+      </Card>
+    );
+  };
 
   if (loading) {
     return <LoadingSpinner />;
