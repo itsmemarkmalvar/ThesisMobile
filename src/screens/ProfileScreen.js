@@ -118,7 +118,8 @@ const ProfileScreen = ({ navigation, route }) => {
   const formatDate = (dateString) => {
     if (!dateString) return 'Not set';
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+    const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+    return localDate.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
@@ -128,9 +129,19 @@ const ProfileScreen = ({ navigation, route }) => {
   const handleEdit = (field, value) => {
     setEditField(field);
     if (field === 'birthday') {
-      const dateValue = value ? new Date(value) : new Date();
+      let dateValue;
+      if (value) {
+        dateValue = new Date(value);
+      } else {
+        dateValue = new Date();
+      }
+      
+      if (isNaN(dateValue.getTime())) {
+        dateValue = new Date();
+      }
+      
+      console.log('Initial date value:', dateValue.toISOString());
       setDate(dateValue);
-      setEditValue(dateValue.toISOString().split('T')[0]);
       if (Platform.OS === 'android') {
         setShowDatePicker(true);
       }
@@ -143,39 +154,50 @@ const ProfileScreen = ({ navigation, route }) => {
   };
 
   const onDateChange = (event, selectedDate) => {
+    if (!selectedDate) return;
+    
+    console.log('Selected date:', selectedDate.toISOString());
+    setDate(selectedDate);
+    
     if (Platform.OS === 'android') {
       setModalVisible(false);
-      if (selectedDate) {
-        setDate(selectedDate);
-        const formattedDate = selectedDate.toISOString().split('T')[0];
-        setEditValue(formattedDate);
-        handleDateSave();
-      }
-    } else {
-      if (selectedDate) {
-        setDate(selectedDate);
-        const formattedDate = selectedDate.toISOString().split('T')[0];
-        setEditValue(formattedDate);
-      }
+      setTimeout(() => {
+        console.log('Saving date:', selectedDate.toISOString());
+        handleDateSave(selectedDate);
+      }, 100);
     }
   };
 
-  const handleDateSave = async () => {
+  const handleDateSave = async (selectedDate) => {
     try {
       setFieldLoading(prev => ({ ...prev, [editField]: true }));
       const token = await AsyncStorage.getItem('userToken');
       if (!token) throw new Error('No token found');
 
+      const dateToUse = selectedDate || date;
+      console.log('Date to use for saving:', dateToUse.toISOString());
+
+      const year = dateToUse.getFullYear();
+      const month = String(dateToUse.getMonth() + 1).padStart(2, '0');
+      const day = String(dateToUse.getDate()).padStart(2, '0');
+      const formattedDate = `${year}-${month}-${day}`;
+
+      console.log('Formatted date to send:', formattedDate);
+
       const response = await axios.put(
         `${API_URL}/auth/user/update`,
-        { [editField]: editValue },
+        { birthday: formattedDate },
         {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
           }
         }
       );
+
+      console.log('Birthday update response:', response.data);
 
       if (response.data.user) {
         setUserData(response.data.user);
@@ -184,8 +206,11 @@ const ProfileScreen = ({ navigation, route }) => {
         await fetchUserData();
       }
     } catch (error) {
-      console.error('Error updating birthday:', error);
-      Alert.alert('Error', 'Failed to update birthday');
+      console.error('Error updating birthday:', error.response?.data || error);
+      Alert.alert(
+        'Error',
+        error.response?.data?.message || 'Failed to update birthday. Please try again.'
+      );
     } finally {
       setFieldLoading(prev => ({ ...prev, [editField]: false }));
       setModalVisible(false);
