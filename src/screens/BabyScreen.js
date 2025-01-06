@@ -360,9 +360,7 @@ const BabyScreen = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={['#FF9A9E', '#FAD0C4', '#FFF']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
         style={styles.gradient}
       >
         <ScrollView 
@@ -526,10 +524,10 @@ const calculateAge = (birthDate) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F8FF',
+    backgroundColor: '#FFB6C1'
   },
   gradient: {
-    flex: 1,
+    flex: 1
   },
   scrollView: {
     flex: 1,

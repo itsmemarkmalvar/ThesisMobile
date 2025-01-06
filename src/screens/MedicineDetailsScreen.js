@@ -124,7 +124,7 @@ const MedicineDetailsScreen = ({ route, navigation }) => {
         return (
             <View style={styles.container}>
                 <LinearGradient
-                    colors={['#FF9A9E', '#FAD0C4', '#FFF']}
+                    colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.gradient}
@@ -141,7 +141,7 @@ const MedicineDetailsScreen = ({ route, navigation }) => {
         return (
             <View style={styles.container}>
                 <LinearGradient
-                    colors={['#FF9A9E', '#FAD0C4', '#FFF']}
+                    colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.gradient}
@@ -163,7 +163,7 @@ const MedicineDetailsScreen = ({ route, navigation }) => {
     return (
         <View style={styles.container}>
             <LinearGradient
-                colors={['#FF9A9E', '#FAD0C4', '#FFF']}
+                colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.gradient}
@@ -279,7 +279,7 @@ const MedicineDetailsScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FF9A9E'
+        backgroundColor: '#FFB6C1'
     },
     gradient: {
         flex: 1
@@ -287,20 +287,27 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingVertical: 12,
         backgroundColor: 'transparent'
     },
     backButton: {
         padding: 8,
-        marginRight: 8,
-        borderRadius: 20
+        borderRadius: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 3
     },
     headerTitle: {
-        flex: 1,
         fontSize: 20,
         fontWeight: '600',
-        color: '#2E3A59'
+        color: '#2E3A59',
+        flex: 1,
+        marginLeft: 16
     },
     headerActions: {
         flexDirection: 'row',
@@ -308,18 +315,28 @@ const styles = StyleSheet.create({
     },
     actionButton: {
         padding: 8,
-        borderRadius: 20
+        borderRadius: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 3
     },
     content: {
-        flex: 1
+        flex: 1,
+        padding: 16
     },
     detailsCard: {
-        marginHorizontal: 16,
-        marginTop: 8,
-        marginBottom: 16,
         borderRadius: 12,
         padding: 16,
-        elevation: 3
+        margin: 0,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4
     },
     medicineHeader: {
         flexDirection: 'row',
@@ -329,10 +346,10 @@ const styles = StyleSheet.create({
     },
     medicineInfo: {
         flex: 1,
-        marginRight: 12
+        marginRight: 16
     },
     medicineName: {
-        fontSize: 20,
+        fontSize: 24,
         fontWeight: '600',
         color: '#2E3A59',
         marginBottom: 4
@@ -342,19 +359,19 @@ const styles = StyleSheet.create({
         color: '#8F9BB3'
     },
     statusBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 12
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20
     },
     statusText: {
-        fontSize: 12,
+        fontSize: 14,
         fontWeight: '500'
     },
     section: {
-        marginTop: 16
+        marginTop: 20
     },
     sectionTitle: {
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: '600',
         color: '#2E3A59',
         marginBottom: 8
@@ -391,10 +408,15 @@ const styles = StyleSheet.create({
         padding: 5
     },
     scheduleItem: {
-        backgroundColor: '#F8F9FC',
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
         borderRadius: 12,
-        padding: 12,
-        marginBottom: 10
+        padding: 16,
+        marginBottom: 12,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 3
     },
     scheduleContent: {
         flexDirection: 'row',
@@ -403,21 +425,13 @@ const styles = StyleSheet.create({
     timeContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginRight: 12,
-        backgroundColor: '#FFF',
-        padding: 8,
-        borderRadius: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 1
+        marginRight: 16
     },
     scheduleTime: {
-        fontSize: 14,
+        fontSize: 16,
         fontWeight: '500',
         color: '#2E3A59',
-        marginLeft: 4
+        marginLeft: 8
     },
     scheduleDetails: {
         flex: 1
@@ -462,7 +476,7 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 24
+        padding: 16
     },
     errorText: {
         fontSize: 16,
@@ -471,10 +485,10 @@ const styles = StyleSheet.create({
         marginBottom: 16
     },
     retryButton: {
-        backgroundColor: '#FF9A9E',
+        backgroundColor: '#4A90E2',
+        borderRadius: 12,
         paddingHorizontal: 24,
-        paddingVertical: 12,
-        borderRadius: 8
+        paddingVertical: 12
     },
     retryText: {
         color: '#FFF',

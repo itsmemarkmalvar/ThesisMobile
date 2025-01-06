@@ -72,6 +72,25 @@ const MedicineScreen = ({ navigation }) => {
         setRefreshing(false);
     };
 
+    const formatTime = (timeString) => {
+        try {
+            // Split the time string into hours and minutes
+            const [hours, minutes] = timeString.split(':');
+            
+            // Create a base date for today
+            const date = new Date();
+            date.setHours(parseInt(hours, 10));
+            date.setMinutes(parseInt(minutes, 10));
+            date.setSeconds(0);
+            date.setMilliseconds(0);
+            
+            return format(date, 'h:mm a');
+        } catch (error) {
+            console.error('Error formatting time:', error);
+            return timeString; // Return original string if formatting fails
+        }
+    };
+
     const renderUpcomingSchedules = () => {
         if (upcomingSchedules.length === 0) return null;
 
@@ -82,9 +101,9 @@ const MedicineScreen = ({ navigation }) => {
                     {upcomingSchedules.map((schedule) => (
                         <View key={schedule.id} style={styles.upcomingItem}>
                             <View style={styles.upcomingTime}>
-                                <Icon name="access-time" size={20} color="#FF9A9E" />
+                                <Icon name="access-time" size={20} color="#4A90E2" />
                                 <Text style={styles.timeText}>
-                                    {format(new Date(`2000-01-01 ${schedule.time}`), 'h:mm a')}
+                                    {formatTime(schedule.time)}
                                 </Text>
                             </View>
                             <View style={styles.upcomingDetails}>
@@ -154,13 +173,13 @@ const MedicineScreen = ({ navigation }) => {
         return (
             <View style={styles.container}>
                 <LinearGradient
-                    colors={['#FF9A9E', '#FAD0C4', '#FFF']}
+                    colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.gradient}
                 >
                     <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color="#FF9A9E" />
+                        <ActivityIndicator size="large" color="#4A90E2" />
                     </View>
                 </LinearGradient>
             </View>
@@ -171,7 +190,7 @@ const MedicineScreen = ({ navigation }) => {
         return (
             <View style={styles.container}>
                 <LinearGradient
-                    colors={['#FF9A9E', '#FAD0C4', '#FFF']}
+                    colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.gradient}
@@ -193,7 +212,7 @@ const MedicineScreen = ({ navigation }) => {
     return (
         <View style={styles.container}>
             <LinearGradient
-                colors={['#FF9A9E', '#FAD0C4', '#FFF']}
+                colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.gradient}
@@ -212,8 +231,8 @@ const MedicineScreen = ({ navigation }) => {
                         <RefreshControl
                             refreshing={refreshing}
                             onRefresh={onRefresh}
-                            colors={['#FF9A9E']}
-                            tintColor="#FF9A9E"
+                            colors={['#4A90E2']}
+                            tintColor="#4A90E2"
                         />
                     }
                     contentContainerStyle={styles.scrollContent}
@@ -228,7 +247,7 @@ const MedicineScreen = ({ navigation }) => {
                             <Icon
                                 name="add"
                                 size={24}
-                                color="#FF9A9E"
+                                color="#4A90E2"
                                 style={{ marginRight: 8 }}
                             />
                             <Text style={styles.addButtonTitle}>Add Medicine</Text>
@@ -244,7 +263,7 @@ const MedicineScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FF9A9E'
+        backgroundColor: '#FFB6C1'
     },
     gradient: {
         flex: 1
@@ -276,6 +295,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         padding: 16,
         elevation: 3,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
@@ -294,7 +314,7 @@ const styles = StyleSheet.create({
     upcomingItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F8F9FC',
+        backgroundColor: 'rgba(255, 255, 255, 0.8)',
         padding: 12,
         borderRadius: 8
     },
@@ -315,8 +335,10 @@ const styles = StyleSheet.create({
     addButton: {
         marginHorizontal: 16,
         marginVertical: 8,
-        borderRadius: 12,
-        overflow: 'hidden'
+        borderRadius: 8,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderWidth: 1,
+        borderColor: '#4A90E2'
     },
     addButtonInner: {
         flexDirection: 'row',
@@ -324,14 +346,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         paddingVertical: 12,
         paddingHorizontal: 16,
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        borderWidth: 1,
-        borderColor: '#FF9A9E'
     },
     addButtonTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#FF9A9E'
+        color: '#4A90E2'
     },
     medicineCard: {
         marginHorizontal: 16,
@@ -341,6 +360,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         padding: 16,
         margin: 0,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
         elevation: 2,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
@@ -388,7 +408,10 @@ const styles = StyleSheet.create({
     emptyContainer: {
         padding: 24,
         alignItems: 'center',
-        marginTop: 32
+        marginTop: 32,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        margin: 16,
+        borderRadius: 12
     },
     emptyText: {
         fontSize: 18,
@@ -420,7 +443,7 @@ const styles = StyleSheet.create({
         marginBottom: 16
     },
     retryButton: {
-        backgroundColor: '#FF9A9E',
+        backgroundColor: '#4A90E2',
         paddingHorizontal: 24,
         paddingVertical: 12,
         borderRadius: 8

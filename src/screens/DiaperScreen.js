@@ -22,6 +22,12 @@ import { format } from 'date-fns';
 import { shadowStyles } from '../utils/shadowStyles';
 
 const DiaperScreen = ({ navigation }) => {
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: false
+    });
+  }, [navigation]);
+
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [diaperLogs, setDiaperLogs] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -201,18 +207,15 @@ ${log.notes ? `Notes: ${log.notes}` : ''}`).join('\n')}
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={['#FFE5E5', '#FFF0F0', '#FFFFFF']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
         style={styles.gradient}
       >
-        {/* Fixed Header */}
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <MaterialIcons name="arrow-back-ios" size={24} color="#333" />
+            <MaterialIcons name="arrow-back" size={24} color="#2E3A59" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Diaper Changes</Text>
           <TouchableOpacity
@@ -223,7 +226,6 @@ ${log.notes ? `Notes: ${log.notes}` : ''}`).join('\n')}
           </TouchableOpacity>
         </View>
 
-        {/* Scrollable Content */}
         <ScrollView 
           style={styles.scrollContainer}
           refreshControl={
@@ -235,70 +237,72 @@ ${log.notes ? `Notes: ${log.notes}` : ''}`).join('\n')}
             />
           }
         >
-          {/* Date Filter */}
-          <DateFilter
-            selectedDate={selectedDate}
-            onDateChange={setSelectedDate}
-          />
+          <View style={styles.content}>
+            {/* Date Filter */}
+            <DateFilter
+              selectedDate={selectedDate}
+              onDateChange={setSelectedDate}
+            />
 
-          {/* Statistics */}
-          <DiaperStats
-            diaperLogs={diaperLogs}
-            selectedDate={selectedDate}
-          />
+            {/* Statistics */}
+            <DiaperStats
+              diaperLogs={diaperLogs}
+              selectedDate={selectedDate}
+            />
 
-          {/* Quick Actions */}
-          <View style={styles.quickActions}>
-            <TouchableOpacity 
-              style={[styles.quickActionButton, { backgroundColor: '#E3F2FD' }]}
-              onPress={() => handleQuickAction('wet')}
-            >
-              <MaterialIcons name="opacity" size={24} color="#4A90E2" />
-              <Text style={[styles.quickActionText, { color: '#4A90E2' }]}>Wet</Text>
-            </TouchableOpacity>
+            {/* Quick Actions */}
+            <View style={styles.quickActions}>
+              <TouchableOpacity 
+                style={[styles.quickActionButton, { backgroundColor: 'rgba(227, 242, 253, 0.9)' }]}
+                onPress={() => handleQuickAction('wet')}
+              >
+                <MaterialIcons name="opacity" size={24} color="#4A90E2" />
+                <Text style={[styles.quickActionText, { color: '#4A90E2' }]}>Wet</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.quickActionButton, { backgroundColor: '#FFF3E0' }]}
-              onPress={() => handleQuickAction('dirty')}
-            >
-              <MaterialIcons name="child-care" size={24} color="#FF9800" />
-              <Text style={[styles.quickActionText, { color: '#FF9800' }]}>Dirty</Text>
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity 
+                style={[styles.quickActionButton, { backgroundColor: 'rgba(255, 243, 224, 0.9)' }]}
+                onPress={() => handleQuickAction('dirty')}
+              >
+                <MaterialIcons name="child-care" size={24} color="#FF9800" />
+                <Text style={[styles.quickActionText, { color: '#FF9800' }]}>Dirty</Text>
+              </TouchableOpacity>
+            </View>
 
-          {/* Today's Summary */}
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>Today's Summary</Text>
-            <View style={styles.summaryContent}>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>{filteredLogs.length}</Text>
-                <Text style={styles.summaryLabel}>Total Changes</Text>
-              </View>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>
-                  {filteredLogs.filter(log => log.type === 'wet').length}
-                </Text>
-                <Text style={styles.summaryLabel}>Wet</Text>
-              </View>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>
-                  {filteredLogs.filter(log => log.type === 'dirty').length}
-                </Text>
-                <Text style={styles.summaryLabel}>Dirty</Text>
+            {/* Today's Summary */}
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryTitle}>Today's Summary</Text>
+              <View style={styles.summaryContent}>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryValue}>{filteredLogs.length}</Text>
+                  <Text style={styles.summaryLabel}>Total Changes</Text>
+                </View>
+                <View style={styles.summaryDivider} />
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryValue}>
+                    {filteredLogs.filter(log => log.type === 'wet').length}
+                  </Text>
+                  <Text style={styles.summaryLabel}>Wet</Text>
+                </View>
+                <View style={styles.summaryDivider} />
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryValue}>
+                    {filteredLogs.filter(log => log.type === 'dirty').length}
+                  </Text>
+                  <Text style={styles.summaryLabel}>Dirty</Text>
+                </View>
               </View>
             </View>
-          </View>
 
-          {/* Diaper Logs */}
-          <View style={styles.logsSection}>
-            <Text style={styles.sectionTitle}>Recent Changes</Text>
-            {isLoading ? (
-              <ActivityIndicator size="large" color="#4A90E2" style={styles.loader} />
-            ) : (
-              diaperLogs.map(renderDiaperLog)
-            )}
+            {/* Diaper Logs */}
+            <View style={styles.logsSection}>
+              <Text style={styles.sectionTitle}>Recent Changes</Text>
+              {isLoading ? (
+                <ActivityIndicator size="large" color="#4A90E2" style={styles.loader} />
+              ) : (
+                filteredLogs.map(renderDiaperLog)
+              )}
+            </View>
           </View>
         </ScrollView>
 
@@ -316,135 +320,163 @@ ${log.notes ? `Notes: ${log.notes}` : ''}`).join('\n')}
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFB6C1'
   },
   gradient: {
-    flex: 1,
+    flex: 1
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: 'transparent',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    flex: 1,
-    textAlign: 'center',
+    padding: 16,
+    paddingTop: 8
   },
   backButton: {
     padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#2E3A59',
+    flex: 1,
+    marginLeft: 16
   },
   shareButton: {
     padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3
   },
   scrollContainer: {
-    flex: 1,
-    paddingHorizontal: 16,
+    flex: 1
+  },
+  content: {
+    padding: 16
   },
   quickActions: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: 16,
-    marginBottom: 16,
+    marginBottom: 16
   },
   quickActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    padding: 16,
     borderRadius: 12,
-    minWidth: 120,
+    minWidth: 140,
     justifyContent: 'center',
-    ...shadowStyles.small,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3
   },
   quickActionText: {
     marginLeft: 8,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '500'
   },
   summaryCard: {
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    ...shadowStyles.small,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4
   },
   summaryTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
+    color: '#2E3A59',
+    marginBottom: 12
   },
   summaryContent: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   summaryItem: {
-    alignItems: 'center',
+    alignItems: 'center'
   },
   summaryValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#2E3A59'
   },
   summaryLabel: {
     fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    color: '#8F9BB3',
+    marginTop: 4
   },
   summaryDivider: {
     width: 1,
     height: 40,
-    backgroundColor: '#EEE',
+    backgroundColor: 'rgba(224, 224, 224, 0.8)'
   },
   logsSection: {
     flex: 1,
-    marginBottom: 16,
+    marginBottom: 16
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
+    color: '#2E3A59',
+    marginBottom: 12
   },
   logCard: {
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    ...shadowStyles.small,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3
   },
   logHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   logType: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   logTypeText: {
     marginLeft: 8,
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
+    color: '#2E3A59'
   },
   logTime: {
     fontSize: 14,
-    color: '#666',
+    color: '#8F9BB3'
   },
   logNotes: {
     marginTop: 8,
     fontSize: 14,
-    color: '#666',
+    color: '#8F9BB3'
   },
   loader: {
-    marginTop: 20,
-  },
+    marginTop: 20
+  }
 });
 
 export default DiaperScreen; 

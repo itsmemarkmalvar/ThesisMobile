@@ -233,7 +233,7 @@ const EditFeedingScreen = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={['#FF9A9E', '#FAD0C4', '#FFF']}
+        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
         style={styles.gradient}
       >
         <View style={styles.header}>
@@ -241,32 +241,35 @@ const EditFeedingScreen = ({ navigation, route }) => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <MaterialIcons name="arrow-back" size={24} color="#333" />
+            <MaterialIcons name="arrow-back" size={24} color="#2E3A59" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Feeding</Text>
           <View style={styles.headerButtons}>
             <TouchableOpacity
-              style={[styles.headerButton, styles.deleteButton]}
+              style={styles.deleteButton}
               onPress={handleDelete}
               disabled={loading}
             >
-              <MaterialIcons name="delete" size={24} color="#FF6B6B" />
+              <MaterialIcons name="delete" size={24} color="#FF3D71" />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.headerButton, styles.saveButton]}
+              style={[styles.saveButton, loading && styles.saveButtonDisabled]}
               onPress={handleUpdate}
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator size="small" color="#FFF" />
+                <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <MaterialIcons name="check" size={24} color="#FFF" />
+                <MaterialIcons name="check" size={24} color="#FFFFFF" />
               )}
             </TouchableOpacity>
           </View>
         </View>
 
-        <ScrollView style={styles.content}>
+        <ScrollView 
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
           {renderTypeSelector()}
           {renderError('type')}
 
@@ -285,14 +288,12 @@ const EditFeedingScreen = ({ navigation, route }) => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Duration (minutes)</Text>
             <TextInput
-              style={[
-                styles.input,
-                validationErrors.duration && styles.inputError
-              ]}
+              style={styles.input}
               value={duration}
               onChangeText={setDuration}
               keyboardType="numeric"
-              placeholder="Enter duration in minutes"
+              placeholder="Enter duration"
+              placeholderTextColor="#8F9BB3"
             />
             {renderError('duration')}
           </View>
@@ -300,43 +301,41 @@ const EditFeedingScreen = ({ navigation, route }) => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Notes</Text>
             <TextInput
-              style={[
-                styles.input,
-                styles.notesInput,
-                validationErrors.notes && styles.inputError
-              ]}
+              style={[styles.input, styles.textArea]}
               value={notes}
               onChangeText={setNotes}
-              placeholder="Add notes"
+              placeholder="Add any notes"
+              placeholderTextColor="#8F9BB3"
               multiline
+              numberOfLines={4}
+              textAlignVertical="top"
             />
-            {renderError('notes')}
           </View>
 
-          <View style={styles.reminderSection}>
-            <View style={styles.reminderHeader}>
-              <MaterialIcons name="notifications" size={24} color="#4A90E2" />
-              <Text style={styles.reminderTitle}>Feeding Reminder</Text>
+          <View style={styles.section}>
+            <View style={styles.reminderCard}>
+              <View style={styles.reminderHeader}>
+                <MaterialIcons name="notifications" size={20} color="#4A90E2" />
+                <Text style={styles.reminderTitle}>Feeding Reminder</Text>
+              </View>
+              <View style={styles.reminderContent}>
+                <Text style={styles.reminderLabel}>Remind me for next feeding</Text>
+                <Switch
+                  value={enableReminder}
+                  onValueChange={setEnableReminder}
+                  trackColor={{ false: '#E4E9F2', true: '#4A90E2' }}
+                  thumbColor={enableReminder ? '#FFFFFF' : '#FFFFFF'}
+                />
+              </View>
+              {enableReminder && (
+                <Text style={styles.reminderInfo}>
+                  You'll be reminded {
+                    type === 'breast' ? '2 hours' :
+                    type === 'bottle' ? '3 hours' : '4 hours'
+                  } after this feeding
+                </Text>
+              )}
             </View>
-            <View style={styles.reminderToggle}>
-              <Text style={styles.reminderText}>
-                Remind me for next feeding
-              </Text>
-              <Switch
-                value={enableReminder}
-                onValueChange={setEnableReminder}
-                trackColor={{ false: '#767577', true: '#4A90E2' }}
-                thumbColor={enableReminder ? '#FFF' : '#f4f3f4'}
-              />
-            </View>
-            {enableReminder && (
-              <Text style={styles.reminderInfo}>
-                You'll be reminded {
-                  type === 'breast' ? '2 hours' :
-                  type === 'bottle' ? '3 hours' : '4 hours'
-                } after this feeding
-              </Text>
-            )}
           </View>
         </ScrollView>
 
@@ -362,185 +361,219 @@ const EditFeedingScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFB6C1'
   },
   gradient: {
-    flex: 1,
+    flex: 1
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
+    marginTop: 8
   },
   backButton: {
     padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '600',
+    color: '#2E3A59',
+    flex: 1,
+    marginLeft: 16
   },
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  headerButton: {
-    padding: 8,
-    borderRadius: 8,
-    marginLeft: 8,
+    gap: 8
   },
   deleteButton: {
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#FF6B6B',
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3
   },
   saveButton: {
+    padding: 12,
+    borderRadius: 20,
     backgroundColor: '#4A90E2',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4
+  },
+  saveButtonDisabled: {
+    opacity: 0.7
   },
   content: {
     flex: 1,
-    padding: 16,
+    padding: 16
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 20
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
+    fontWeight: '600',
+    color: '#2E3A59',
+    marginBottom: 12
   },
   typeButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 12
   },
   typeButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF',
     padding: 12,
-    borderRadius: 8,
-    marginHorizontal: 4,
+    gap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#4A90E2',
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3
   },
   typeButtonActive: {
     backgroundColor: '#4A90E2',
+    borderColor: '#4A90E2'
   },
   typeButtonText: {
-    marginLeft: 8,
+    fontSize: 16,
     color: '#4A90E2',
-    fontWeight: 'bold',
+    fontWeight: '500'
   },
   typeButtonTextActive: {
-    color: '#FFF',
+    color: '#FFFFFF'
   },
   timeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#E4E9F2',
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3
   },
   timeText: {
-    marginLeft: 8,
     fontSize: 16,
-    color: '#333',
+    color: '#2E3A59'
   },
   sideButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 12
   },
   sideButton: {
     flex: 1,
-    backgroundColor: '#FFF',
     padding: 12,
-    borderRadius: 8,
-    marginHorizontal: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E4E9F2',
     alignItems: 'center',
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3
   },
   sideButtonActive: {
     backgroundColor: '#4A90E2',
+    borderColor: '#4A90E2'
   },
   sideButtonText: {
-    color: '#4A90E2',
-    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#2E3A59',
+    fontWeight: '500'
   },
   sideButtonTextActive: {
-    color: '#FFF',
+    color: '#FFFFFF'
   },
   input: {
-    backgroundColor: '#FFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 12,
     padding: 12,
-    borderRadius: 8,
     fontSize: 16,
+    color: '#2E3A59',
+    borderWidth: 1,
+    borderColor: '#E4E9F2',
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3
   },
-  notesInput: {
+  textArea: {
     height: 100,
-    textAlignVertical: 'top',
+    textAlignVertical: 'top'
   },
-  errorText: {
-    color: '#FF6B6B',
-    fontSize: 12,
-    marginTop: 4,
-    marginLeft: 4,
-  },
-  inputError: {
-    borderColor: '#FF6B6B',
-    borderWidth: 1,
-  },
-  reminderSection: {
-    backgroundColor: '#FFF',
+  reminderCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 24,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    borderWidth: 1,
+    borderColor: '#E4E9F2'
   },
   reminderHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
+    gap: 8
   },
   reminderTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginLeft: 8,
+    fontWeight: '600',
+    color: '#2E3A59'
   },
-  reminderToggle: {
+  reminderContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    marginBottom: 8
   },
-  reminderText: {
+  reminderLabel: {
     fontSize: 14,
-    color: '#666',
+    color: '#2E3A59'
   },
   reminderInfo: {
-    fontSize: 12,
-    color: '#999',
-    fontStyle: 'italic',
+    fontSize: 14,
+    color: '#8F9BB3',
+    fontStyle: 'italic'
   },
+  errorText: {
+    color: '#FF3D71',
+    fontSize: 14,
+    marginTop: 4
+  }
 });
 
 export default EditFeedingScreen; 

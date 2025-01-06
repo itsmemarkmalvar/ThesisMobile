@@ -20,6 +20,7 @@ import { LineChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
 
 const SleepScreen = ({ navigation }) => {
     const { baby, babyData, loading: babyLoading, error: babyError } = useBaby();
@@ -180,9 +181,7 @@ const SleepScreen = ({ navigation }) => {
         return (
             <SafeAreaView style={styles.container}>
                 <LinearGradient
-                    colors={['#FF9A9E', '#FAD0C4', '#FFF']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
+                    colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
                     style={styles.gradient}
                 >
                     <View style={styles.loadingContainer}>
@@ -197,9 +196,7 @@ const SleepScreen = ({ navigation }) => {
         return (
             <SafeAreaView style={styles.container}>
                 <LinearGradient
-                    colors={['#FF9A9E', '#FAD0C4', '#FFF']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
+                    colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
                     style={styles.gradient}
                 >
                     <View style={styles.errorContainer}>
@@ -223,9 +220,7 @@ const SleepScreen = ({ navigation }) => {
         return (
             <SafeAreaView style={styles.container}>
                 <LinearGradient
-                    colors={['#FF9A9E', '#FAD0C4', '#FFF']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
+                    colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
                     style={styles.gradient}
                 >
                     <View style={styles.errorContainer}>
@@ -242,55 +237,46 @@ const SleepScreen = ({ navigation }) => {
     }
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
             <LinearGradient
-                colors={['#FF9A9E', '#FAD0C4', '#FFF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+                colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
                 style={styles.gradient}
             >
-                <View style={[styles.header, { marginTop: StatusBar.currentHeight || 44 }]}>
+                <View style={styles.header}>
                     <TouchableOpacity
                         style={styles.backButton}
                         onPress={() => navigation.goBack()}
                     >
-                        <Icon name="arrow-back" size={24} color="#2E3A59" />
+                        <MaterialIcons name="arrow-back" size={24} color="#2E3A59" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Sleep Tracking</Text>
+                    <TouchableOpacity
+                        style={styles.addButton}
+                        onPress={() => navigation.navigate('AddSleep')}
+                    >
+                        <MaterialIcons name="add" size={24} color="#FFFFFF" />
+                    </TouchableOpacity>
                 </View>
+
                 <ScrollView
                     refreshControl={
                         <RefreshControl 
                             refreshing={refreshing} 
                             onRefresh={onRefresh}
-                            colors={['#FF9A9E']}
-                            tintColor="#FF9A9E"
+                            colors={['#4A90E2']}
+                            tintColor="#4A90E2"
                         />
                     }
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
                     {renderSleepStats()}
-                    <TouchableOpacity
-                        style={styles.addButton}
-                        onPress={() => navigation.navigate('AddSleep')}
-                    >
-                        <View style={styles.addButtonInner}>
-                            <Icon
-                                name="add"
-                                size={24}
-                                color="#FF9A9E"
-                                style={{ marginRight: 8 }}
-                            />
-                            <Text style={styles.addButtonTitle}>Add Sleep Log</Text>
-                        </View>
-                    </TouchableOpacity>
                     {sleepLogs.length === 0 ? (
                         <View style={styles.emptyContainer}>
-                            <Icon name="nightlight" size={48} color="#8F9BB3" />
+                            <MaterialIcons name="nightlight" size={48} color="#8F9BB3" />
                             <Text style={styles.emptyText}>No sleep logs found</Text>
                             <Text style={styles.emptySubText}>
-                                Add your first sleep log to start tracking
+                                Tap the + button to add a sleep log
                             </Text>
                         </View>
                     ) : (
@@ -298,27 +284,56 @@ const SleepScreen = ({ navigation }) => {
                     )}
                 </ScrollView>
             </LinearGradient>
-        </View>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FF9A9E'
+        backgroundColor: '#FFB6C1'
     },
     gradient: {
         flex: 1
     },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
+    header: {
+        flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F5F7FA'
+        justifyContent: 'space-between',
+        padding: 16,
+        paddingTop: 0
+    },
+    backButton: {
+        padding: 8,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 3
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#2E3A59',
+        flex: 1,
+        marginLeft: 16
+    },
+    addButton: {
+        padding: 12,
+        borderRadius: 20,
+        backgroundColor: '#4A90E2',
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4
+    },
+    scrollContent: {
+        padding: 16
     },
     statsCard: {
-        marginHorizontal: 16,
-        marginTop: 0,
         marginBottom: 16,
         borderRadius: 12,
         elevation: 3,
@@ -326,14 +341,19 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
-        backgroundColor: '#FFFFFF'
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        padding: 16
+    },
+    cardTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#2E3A59',
+        marginBottom: 16
     },
     statsContainer: {
         flexDirection: 'row',
         justifyContent: 'space-around',
-        marginTop: 12,
-        paddingHorizontal: 8,
-        paddingBottom: 12
+        paddingHorizontal: 8
     },
     statItem: {
         alignItems: 'center',
@@ -341,165 +361,109 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8
     },
     statLabel: {
-        fontSize: 13,
+        fontSize: 14,
         color: '#8F9BB3',
-        marginBottom: 4,
-        fontWeight: '500'
+        marginTop: 8,
+        marginBottom: 4
     },
     statValue: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#2E3A59',
-        marginTop: 4
-    },
-    addButton: {
-        marginHorizontal: 16,
-        marginVertical: 8,
-        borderRadius: 12,
-        overflow: 'hidden'
-    },
-    addButtonInner: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        borderWidth: 1,
-        borderColor: '#FF9A9E'
-    },
-    addButtonTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#FF9A9E'
+        color: '#2E3A59'
     },
     logCard: {
-        margin: 16,
-        marginTop: 8,
-        marginBottom: 8,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
         borderRadius: 12,
+        marginBottom: 12,
         padding: 16,
         elevation: 2,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.08,
         shadowRadius: 3,
-        backgroundColor: '#FFFFFF'
+        borderWidth: 1,
+        borderColor: '#E4E9F2'
     },
     logHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 8
-    },
-    logType: {
-        fontSize: 17,
-        fontWeight: '600',
-        color: '#2E3A59'
-    },
-    logDuration: {
-        fontSize: 15,
-        color: '#8F9BB3',
-        fontWeight: '500'
-    },
-    logDetails: {
-        marginTop: 8
-    },
-    logTime: {
-        fontSize: 15,
-        color: '#8F9BB3',
-        marginBottom: 4
-    },
-    logQuality: {
-        fontSize: 15,
-        color: '#8F9BB3',
-        marginTop: 4
-    },
-    errorContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 24,
-        backgroundColor: '#F5F7FA'
-    },
-    errorText: {
-        fontSize: 16,
-        color: '#FF3D71',
-        textAlign: 'center',
-        marginBottom: 24,
-        lineHeight: 24
-    },
-    retryButton: {
-        width: 200,
-        borderRadius: 8
-    },
-    emptyContainer: {
-        padding: 24,
-        alignItems: 'center',
-        marginTop: 32
-    },
-    emptyText: {
-        fontSize: 18,
-        color: '#2E3A59',
-        marginBottom: 12,
-        fontWeight: '600'
-    },
-    emptySubText: {
-        fontSize: 15,
-        color: '#8F9BB3',
-        textAlign: 'center',
-        lineHeight: 22
-    },
-    cardTitle: {
-        fontSize: 20,
-        color: '#2E3A59',
-        fontWeight: '600',
-        textAlign: 'left',
-        marginLeft: 8,
-        marginBottom: 8
-    },
-    scrollContent: {
-        paddingBottom: 24
-    },
-    logTouchable: {
-        marginHorizontal: 16,
-        marginVertical: 8
+        marginBottom: 12
     },
     logTypeContainer: {
         flexDirection: 'row',
         alignItems: 'center'
     },
-    logIcon: {
-        marginRight: 8
+    logType: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#2E3A59',
+        marginLeft: 8
+    },
+    logDuration: {
+        fontSize: 14,
+        color: '#4A90E2',
+        fontWeight: '500'
+    },
+    logDetails: {
+        marginTop: 8
     },
     logTimeContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 8
     },
+    logTime: {
+        fontSize: 14,
+        color: '#8F9BB3',
+        marginLeft: 8
+    },
     logQualityContainer: {
         flexDirection: 'row',
         alignItems: 'center'
     },
-    detailIcon: {
-        marginRight: 6
+    logQuality: {
+        fontSize: 14,
+        color: '#8F9BB3',
+        marginLeft: 8
     },
-    header: {
-        flexDirection: 'row',
+    emptyContainer: {
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        backgroundColor: 'transparent'
+        justifyContent: 'center',
+        padding: 24,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderRadius: 12,
+        marginTop: 24
     },
-    backButton: {
-        padding: 8,
-        marginRight: 8,
-        borderRadius: 20
-    },
-    headerTitle: {
-        fontSize: 20,
+    emptyText: {
+        fontSize: 16,
         fontWeight: '600',
-        color: '#2E3A59'
+        color: '#2E3A59',
+        marginTop: 16,
+        marginBottom: 8
+    },
+    emptySubText: {
+        fontSize: 14,
+        color: '#8F9BB3',
+        textAlign: 'center'
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24
+    },
+    errorText: {
+        fontSize: 16,
+        color: '#FF3D71',
+        textAlign: 'center',
+        marginBottom: 16,
+        lineHeight: 24
     }
 });
 

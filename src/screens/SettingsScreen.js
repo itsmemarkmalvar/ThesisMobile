@@ -15,6 +15,7 @@ import { CommonActions } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../config';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const SettingItem = ({ icon, title, subtitle, onPress, rightElement }) => (
   <TouchableOpacity style={styles.settingItem} onPress={onPress}>
@@ -31,7 +32,6 @@ const SettingItem = ({ icon, title, subtitle, onPress, rightElement }) => (
 
 const SettingsScreen = ({ navigation }) => {
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
-  const [darkMode, setDarkMode] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
 
   const handleLogout = async () => {
@@ -80,114 +80,106 @@ const SettingsScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Settings</Text>
-      </View>
-
-      <ScrollView 
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
+      <LinearGradient
+        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
+        style={styles.gradient}
       >
-        {/* App Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>App Settings</Text>
-          <SettingItem
-            icon="notifications-none"
-            title="Push Notifications"
-            subtitle={notificationsEnabled ? "Enabled" : "Disabled"}
-            rightElement={
-              <Switch
-                value={notificationsEnabled}
-                onValueChange={setNotificationsEnabled}
-                trackColor={{ false: "#D1D1D6", true: "#4A90E2" }}
-                thumbColor={Platform.OS === 'ios' ? "#FFFFFF" : notificationsEnabled ? "#FFFFFF" : "#F4F3F4"}
-              />
-            }
-          />
-          <SettingItem
-            icon="dark-mode"
-            title="Dark Mode"
-            subtitle={darkMode ? "On" : "Off"}
-            rightElement={
-              <Switch
-                value={darkMode}
-                onValueChange={setDarkMode}
-                trackColor={{ false: "#D1D1D6", true: "#4A90E2" }}
-                thumbColor={Platform.OS === 'ios' ? "#FFFFFF" : darkMode ? "#FFFFFF" : "#F4F3F4"}
-              />
-            }
-          />
-          <SettingItem
-            icon="language"
-            title="Language"
-            subtitle="English (US)"
-          />
-          <SettingItem
-            icon="access-time"
-            title="Time Zone"
-            subtitle="GMT+8"
-          />
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Settings</Text>
         </View>
 
-        {/* Security */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Security</Text>
-          <SettingItem
-            icon="lock-outline"
-            title="Change Password"
-            subtitle="Last changed 3 months ago"
-          />
-          <SettingItem
-            icon="fingerprint"
-            title="Biometric Login"
-            subtitle="Enable face or fingerprint login"
-          />
-          <SettingItem
-            icon="security"
-            title="App Lock"
-            subtitle="Require authentication to open app"
-          />
-        </View>
+        <ScrollView 
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* App Settings */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>App Settings</Text>
+            <SettingItem
+              icon="notifications-none"
+              title="Push Notifications"
+              subtitle={notificationsEnabled ? "Enabled" : "Disabled"}
+              rightElement={
+                <Switch
+                  value={notificationsEnabled}
+                  onValueChange={setNotificationsEnabled}
+                  trackColor={{ false: "#D1D1D6", true: "#4A90E2" }}
+                  thumbColor={Platform.OS === 'ios' ? "#FFFFFF" : notificationsEnabled ? "#FFFFFF" : "#F4F3F4"}
+                />
+              }
+            />
+            <SettingItem
+              icon="language"
+              title="Language"
+              subtitle="English (US)"
+            />
+            <SettingItem
+              icon="access-time"
+              title="Time Zone"
+              subtitle="GMT+8"
+            />
+          </View>
 
-        {/* Support */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Support</Text>
-          <SettingItem
-            icon="help-outline"
-            title="Help Center"
-            subtitle="FAQs and support resources"
-          />
-          <SettingItem
-            icon="info-outline"
-            title="About"
-            subtitle="Version 1.0.0"
-          />
-          <SettingItem
-            icon="policy"
-            title="Privacy Policy"
-          />
-          <SettingItem
-            icon="description"
-            title="Terms of Service"
-          />
-        </View>
+          {/* Security */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Security</Text>
+            <SettingItem
+              icon="lock-outline"
+              title="Change Password"
+              subtitle="Last changed 3 months ago"
+            />
+            <SettingItem
+              icon="fingerprint"
+              title="Biometric Login"
+              subtitle="Enable face or fingerprint login"
+            />
+            <SettingItem
+              icon="security"
+              title="App Lock"
+              subtitle="Require authentication to open app"
+            />
+          </View>
 
-        {/* Account Actions */}
-        <View style={styles.accountActions}>
-          <TouchableOpacity 
-            style={styles.logoutButton}
-            onPress={handleLogout}
-            disabled={loading}
-          >
-            <MaterialIcons name="logout" size={20} color="#FF4B4B" />
-            <Text style={styles.logoutText}>Log Out</Text>
-          </TouchableOpacity>
+          {/* Support */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Support</Text>
+            <SettingItem
+              icon="help-outline"
+              title="Help Center"
+              subtitle="FAQs and support resources"
+            />
+            <SettingItem
+              icon="info-outline"
+              title="About"
+              subtitle="Version 1.0.0"
+            />
+            <SettingItem
+              icon="policy"
+              title="Privacy Policy"
+            />
+            <SettingItem
+              icon="description"
+              title="Terms of Service"
+            />
+          </View>
 
-          <TouchableOpacity style={styles.deleteAccountButton}>
-            <Text style={styles.deleteAccountText}>Delete Account</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+          {/* Account Actions */}
+          <View style={styles.accountActions}>
+            <TouchableOpacity 
+              style={styles.logoutButton}
+              onPress={handleLogout}
+              disabled={loading}
+            >
+              <MaterialIcons name="logout" size={20} color="#FF4B4B" />
+              <Text style={styles.logoutText}>Log Out</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.deleteAccountButton}>
+              <Text style={styles.deleteAccountText}>Delete Account</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </LinearGradient>
     </SafeAreaView>
   );
 };
@@ -195,14 +187,16 @@ const SettingsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FFB6C1',
+  },
+  gradient: {
+    flex: 1,
   },
   header: {
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    backgroundColor: 'transparent',
+    borderBottomWidth: 0,
   },
   headerTitle: {
     fontSize: 24,
@@ -214,8 +208,15 @@ const styles = StyleSheet.create({
   },
   section: {
     marginTop: 20,
-    backgroundColor: '#FFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     paddingVertical: 8,
+    borderRadius: 15,
+    marginHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   sectionTitle: {
     fontSize: 16,
@@ -228,9 +229,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#FFF',
+    backgroundColor: 'transparent',
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: 'rgba(240, 240, 240, 0.5)',
   },
   settingIcon: {
     width: 40,

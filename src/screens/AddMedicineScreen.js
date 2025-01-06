@@ -80,7 +80,7 @@ const AddMedicineScreen = ({ navigation }) => {
     return (
         <View style={styles.container}>
             <LinearGradient
-                colors={['#FF9A9E', '#FAD0C4', '#FFF']}
+                colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.gradient}
@@ -243,7 +243,7 @@ const AddMedicineScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FF9A9E'
+        backgroundColor: '#FFB6C1'
     },
     gradient: {
         flex: 1
@@ -267,7 +267,8 @@ const styles = StyleSheet.create({
     },
     content: {
         flex: 1,
-        padding: 16
+        padding: 16,
+        backgroundColor: 'transparent'
     },
     formGroup: {
         marginBottom: 20
@@ -279,24 +280,34 @@ const styles = StyleSheet.create({
         marginBottom: 8
     },
     input: {
-        backgroundColor: '#FFF',
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
         borderRadius: 12,
         padding: 12,
         fontSize: 16,
         color: '#2E3A59',
         borderWidth: 1,
-        borderColor: '#E4E9F2'
+        borderColor: '#E4E9F2',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 3
     },
     textArea: {
         height: 100,
         textAlignVertical: 'top'
     },
     pickerContainer: {
-        backgroundColor: '#FFF',
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
         borderRadius: 12,
         borderWidth: 1,
         borderColor: '#E4E9F2',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 3
     },
     picker: {
         height: 50,
@@ -306,23 +317,33 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: '#FFF',
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
         borderRadius: 12,
         padding: 12,
         borderWidth: 1,
-        borderColor: '#E4E9F2'
+        borderColor: '#E4E9F2',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 3
     },
     dateButtonText: {
         fontSize: 16,
         color: '#2E3A59'
     },
     saveButton: {
-        backgroundColor: '#FF9A9E',
+        backgroundColor: '#4A90E2',
         borderRadius: 12,
         padding: 16,
         alignItems: 'center',
         marginTop: 20,
-        marginBottom: 40
+        marginBottom: 40,
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4
     },
     saveButtonDisabled: {
         opacity: 0.7

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -13,8 +13,11 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { Picker } from '@react-native-picker/picker';
 import { format } from 'date-fns';
 import { SleepService } from '../services/SleepService';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
 
-const EditSleepScreen = ({ route, navigation }) => {
+const EditSleepScreen = ({ navigation, route }) => {
     const { sleepLog } = route.params;
     const [loading, setLoading] = useState(false);
     const [sleepData, setSleepData] = useState({
@@ -28,6 +31,12 @@ const EditSleepScreen = ({ route, navigation }) => {
     const [showStartPicker, setShowStartPicker] = useState(false);
     const [showEndPicker, setShowEndPicker] = useState(false);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        navigation.setOptions({
+            headerShown: false
+        });
+    }, [navigation]);
 
     const handleUpdate = async () => {
         try {
@@ -90,133 +99,207 @@ const EditSleepScreen = ({ route, navigation }) => {
     };
 
     return (
-        <ScrollView style={styles.container}>
-            <View style={styles.form}>
-                <View style={styles.switchContainer}>
-                    <Text style={styles.label}>Is this a nap?</Text>
-                    <Switch
-                        value={sleepData.is_nap}
-                        onValueChange={(value) =>
-                            setSleepData(prev => ({ ...prev, is_nap: value }))
-                        }
-                    />
-                </View>
-
-                <TouchableOpacity
-                    style={styles.dateButton}
-                    onPress={() => setShowStartPicker(true)}
-                >
-                    <Text style={styles.label}>Start Time</Text>
-                    <Text style={styles.dateText}>
-                        {format(sleepData.start_time, 'MMM d, yyyy h:mm a')}
-                    </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={styles.dateButton}
-                    onPress={() => setShowEndPicker(true)}
-                >
-                    <Text style={styles.label}>End Time</Text>
-                    <Text style={styles.dateText}>
-                        {format(sleepData.end_time, 'MMM d, yyyy h:mm a')}
-                    </Text>
-                </TouchableOpacity>
-
-                <View style={styles.pickerContainer}>
-                    <Text style={styles.label}>Quality</Text>
-                    <Picker
-                        selectedValue={sleepData.quality}
-                        onValueChange={(value) =>
-                            setSleepData(prev => ({ ...prev, quality: value }))
-                        }
-                        style={styles.picker}
+        <SafeAreaView style={styles.container}>
+            <LinearGradient
+                colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
+                style={styles.gradient}
+            >
+                <View style={styles.header}>
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={() => navigation.goBack()}
                     >
-                        {SleepService.getSleepQualityOptions().map(option => (
-                            <Picker.Item
-                                key={option.value}
-                                label={option.label}
-                                value={option.value}
-                            />
-                        ))}
-                    </Picker>
+                        <MaterialIcons name="arrow-back" size={24} color="#2E3A59" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Edit Sleep Log</Text>
+                    <View style={styles.headerRight} />
                 </View>
 
-                <View style={styles.pickerContainer}>
-                    <Text style={styles.label}>Location</Text>
-                    <Picker
-                        selectedValue={sleepData.location}
-                        onValueChange={(value) =>
-                            setSleepData(prev => ({ ...prev, location: value }))
-                        }
-                        style={styles.picker}
-                    >
-                        {SleepService.getSleepLocationOptions().map(option => (
-                            <Picker.Item
-                                key={option.value}
-                                label={option.label}
-                                value={option.value}
+                <ScrollView style={styles.scrollView}>
+                    <View style={styles.form}>
+                        <View style={styles.card}>
+                            <View style={styles.switchContainer}>
+                                <Text style={styles.label}>Is this a nap?</Text>
+                                <Switch
+                                    value={sleepData.is_nap}
+                                    onValueChange={(value) =>
+                                        setSleepData(prev => ({ ...prev, is_nap: value }))
+                                    }
+                                    trackColor={{ false: '#E4E9F2', true: '#4A90E2' }}
+                                    thumbColor={sleepData.is_nap ? '#FFFFFF' : '#FFFFFF'}
+                                />
+                            </View>
+
+                            <TouchableOpacity
+                                style={styles.dateButton}
+                                onPress={() => setShowStartPicker(true)}
+                            >
+                                <Text style={styles.label}>Start Time</Text>
+                                <Text style={styles.dateText}>
+                                    {format(sleepData.start_time, 'MMM d, yyyy h:mm a')}
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.dateButton}
+                                onPress={() => setShowEndPicker(true)}
+                            >
+                                <Text style={styles.label}>End Time</Text>
+                                <Text style={styles.dateText}>
+                                    {format(sleepData.end_time, 'MMM d, yyyy h:mm a')}
+                                </Text>
+                            </TouchableOpacity>
+
+                            <View style={styles.pickerContainer}>
+                                <Text style={styles.label}>Quality</Text>
+                                <View style={styles.pickerWrapper}>
+                                    <Picker
+                                        selectedValue={sleepData.quality}
+                                        onValueChange={(value) =>
+                                            setSleepData(prev => ({ ...prev, quality: value }))
+                                        }
+                                        style={styles.picker}
+                                    >
+                                        {SleepService.getSleepQualityOptions().map(option => (
+                                            <Picker.Item
+                                                key={option.value}
+                                                label={option.label}
+                                                value={option.value}
+                                            />
+                                        ))}
+                                    </Picker>
+                                </View>
+                            </View>
+
+                            <View style={styles.pickerContainer}>
+                                <Text style={styles.label}>Location</Text>
+                                <View style={styles.pickerWrapper}>
+                                    <Picker
+                                        selectedValue={sleepData.location}
+                                        onValueChange={(value) =>
+                                            setSleepData(prev => ({ ...prev, location: value }))
+                                        }
+                                        style={styles.picker}
+                                    >
+                                        {SleepService.getSleepLocationOptions().map(option => (
+                                            <Picker.Item
+                                                key={option.value}
+                                                label={option.label}
+                                                value={option.value}
+                                            />
+                                        ))}
+                                    </Picker>
+                                </View>
+                            </View>
+
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.label}>Notes</Text>
+                                <Input
+                                    value={sleepData.notes}
+                                    onChangeText={(text) =>
+                                        setSleepData(prev => ({ ...prev, notes: text }))
+                                    }
+                                    multiline
+                                    numberOfLines={3}
+                                    placeholder="Add any notes about this sleep session..."
+                                    containerStyle={styles.notesInput}
+                                    inputContainerStyle={styles.notesInputContainer}
+                                />
+                            </View>
+
+                            {error ? <Text style={styles.error}>{error}</Text> : null}
+
+                            <Button
+                                title="Update Sleep Log"
+                                onPress={handleUpdate}
+                                loading={loading}
+                                containerStyle={styles.button}
+                                buttonStyle={styles.buttonStyle}
                             />
-                        ))}
-                    </Picker>
-                </View>
 
-                <Input
-                    label="Notes"
-                    value={sleepData.notes}
-                    onChangeText={(text) =>
-                        setSleepData(prev => ({ ...prev, notes: text }))
-                    }
-                    multiline
-                    numberOfLines={3}
-                    placeholder="Add any notes about this sleep session..."
+                            <Button
+                                title="Delete Sleep Log"
+                                onPress={handleDelete}
+                                type="outline"
+                                buttonStyle={styles.deleteButton}
+                                titleStyle={styles.deleteButtonText}
+                                containerStyle={styles.button}
+                            />
+                        </View>
+                    </View>
+                </ScrollView>
+
+                <DateTimePickerModal
+                    isVisible={showStartPicker}
+                    mode="datetime"
+                    onConfirm={handleStartTimeConfirm}
+                    onCancel={() => setShowStartPicker(false)}
+                    date={sleepData.start_time}
                 />
 
-                {error ? <Text style={styles.error}>{error}</Text> : null}
-
-                <Button
-                    title="Update Sleep Log"
-                    onPress={handleUpdate}
-                    loading={loading}
-                    containerStyle={styles.button}
+                <DateTimePickerModal
+                    isVisible={showEndPicker}
+                    mode="datetime"
+                    onConfirm={handleEndTimeConfirm}
+                    onCancel={() => setShowEndPicker(false)}
+                    date={sleepData.end_time}
+                    minimumDate={sleepData.start_time}
                 />
-
-                <Button
-                    title="Delete Sleep Log"
-                    onPress={handleDelete}
-                    type="outline"
-                    buttonStyle={styles.deleteButton}
-                    titleStyle={styles.deleteButtonText}
-                    containerStyle={styles.button}
-                />
-            </View>
-
-            <DateTimePickerModal
-                isVisible={showStartPicker}
-                mode="datetime"
-                onConfirm={handleStartTimeConfirm}
-                onCancel={() => setShowStartPicker(false)}
-                date={sleepData.start_time}
-            />
-
-            <DateTimePickerModal
-                isVisible={showEndPicker}
-                mode="datetime"
-                onConfirm={handleEndTimeConfirm}
-                onCancel={() => setShowEndPicker(false)}
-                date={sleepData.end_time}
-                minimumDate={sleepData.start_time}
-            />
-        </ScrollView>
+            </LinearGradient>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff'
+        backgroundColor: '#FFB6C1'
+    },
+    gradient: {
+        flex: 1
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 16,
+        paddingTop: 8
+    },
+    backButton: {
+        padding: 8,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 3
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#2E3A59',
+        flex: 1,
+        marginLeft: 16
+    },
+    headerRight: {
+        width: 40
+    },
+    scrollView: {
+        flex: 1
     },
     form: {
-        padding: 20
+        padding: 16
+    },
+    card: {
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderRadius: 12,
+        padding: 16,
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4
     },
     switchContainer: {
         flexDirection: 'row',
@@ -228,37 +311,69 @@ const styles = StyleSheet.create({
     dateButton: {
         padding: 10,
         marginBottom: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: '#ddd'
+        backgroundColor: 'rgba(255, 255, 255, 0.5)',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#E4E9F2'
     },
     label: {
         fontSize: 16,
-        color: '#86939e',
-        marginBottom: 5
+        color: '#2E3A59',
+        marginBottom: 5,
+        fontWeight: '500'
     },
     dateText: {
         fontSize: 16,
-        color: '#000'
+        color: '#2E3A59'
     },
     pickerContainer: {
         marginBottom: 20
     },
+    pickerWrapper: {
+        backgroundColor: 'rgba(255, 255, 255, 0.5)',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#E4E9F2',
+        marginTop: 5
+    },
     picker: {
         marginTop: 5
+    },
+    inputContainer: {
+        marginBottom: 20
+    },
+    notesInput: {
+        paddingHorizontal: 0
+    },
+    notesInputContainer: {
+        backgroundColor: 'rgba(255, 255, 255, 0.5)',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#E4E9F2',
+        paddingHorizontal: 10
     },
     button: {
         marginTop: 20
     },
+    buttonStyle: {
+        backgroundColor: '#4A90E2',
+        borderRadius: 8,
+        paddingVertical: 12
+    },
     deleteButton: {
-        borderColor: '#ff0000'
+        borderColor: '#FF3D71',
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingVertical: 12
     },
     deleteButtonText: {
-        color: '#ff0000'
+        color: '#FF3D71'
     },
     error: {
-        color: 'red',
+        color: '#FF3D71',
         textAlign: 'center',
-        marginTop: 10
+        marginTop: 10,
+        fontSize: 14
     }
 });
 
