@@ -8,6 +8,11 @@ import {
   Switch,
   Platform,
   Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,6 +41,9 @@ const SettingsScreen = ({ navigation }) => {
   const [currentTimeZone, setCurrentTimeZone] = useState('auto');
   const [userData, setUserData] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     loadTimeZone();
@@ -177,22 +185,32 @@ const SettingsScreen = ({ navigation }) => {
   };
 
   const promptPasswordConfirmation = () => {
-    Alert.prompt(
-      'Confirm Password',
-      'Please enter your password to confirm account deletion',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Confirm',
-          style: 'destructive',
-          onPress: (password) => performAccountDeletion(password),
-        },
-      ],
-      'secure-text'
-    );
+    if (Platform.OS === 'ios') {
+      Alert.prompt(
+        'Confirm Password',
+        'Please enter your password to confirm account deletion',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Confirm',
+            style: 'destructive',
+            onPress: (password) => performAccountDeletion(password),
+          },
+        ],
+        'secure-text'
+      );
+    } else {
+      setShowPasswordModal(true);
+    }
+  };
+
+  const handlePasswordConfirm = () => {
+    setShowPasswordModal(false);
+    performAccountDeletion(password);
+    setPassword('');
   };
 
   const performAccountDeletion = async (password) => {
@@ -205,7 +223,9 @@ const SettingsScreen = ({ navigation }) => {
       setDeleteLoading(true);
       const token = await AsyncStorage.getItem('userToken');
       
-      await axios.post(
+      console.log('Attempting to delete account with token:', token);
+      
+      const response = await axios.post(
         `${API_URL}/auth/delete-account`,
         { password },
         {
@@ -213,9 +233,12 @@ const SettingsScreen = ({ navigation }) => {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json',
             'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
           },
         }
       );
+
+      console.log('Delete account response:', response.data);
 
       // Clear all local storage data
       await AsyncStorage.multiRemove([
@@ -245,10 +268,26 @@ const SettingsScreen = ({ navigation }) => {
         ]
       );
     } catch (error) {
-      console.error('Delete account error:', error);
+      console.error('Delete account error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        headers: error.response?.headers
+      });
+
+      let errorMessage = 'Failed to delete account. Please try again.';
+      
+      if (error.response?.status === 422) {
+        errorMessage = 'Incorrect password. Please try again.';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error. Please try again later.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+
       Alert.alert(
         'Error',
-        error.response?.data?.message || 'Failed to delete account. Please try again.'
+        errorMessage
       );
     } finally {
       setDeleteLoading(false);
@@ -335,6 +374,72 @@ const SettingsScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </ScrollView>
+
+        <Modal
+          visible={showPasswordModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => {
+            setShowPasswordModal(false);
+            setPassword('');
+            setShowPassword(false);
+          }}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.modalContainer}
+          >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Confirm Password</Text>
+                <Text style={styles.modalSubtitle}>
+                  Please enter your password to confirm account deletion
+                </Text>
+                
+                <View style={styles.passwordInputContainer}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    placeholder="Enter your password"
+                    secureTextEntry={!showPassword}
+                    value={password}
+                    onChangeText={setPassword}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity
+                    style={styles.passwordVisibilityButton}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <MaterialIcons
+                      name={showPassword ? "visibility" : "visibility-off"}
+                      size={24}
+                      color="#666"
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.cancelButton]}
+                    onPress={() => {
+                      setShowPasswordModal(false);
+                      setPassword('');
+                      setShowPassword(false);
+                    }}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.confirmButton]}
+                    onPress={handlePasswordConfirm}
+                  >
+                    <Text style={styles.confirmButtonText}>Confirm</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </KeyboardAvoidingView>
+        </Modal>
       </LinearGradient>
     </SafeAreaView>
   );
@@ -458,6 +563,83 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FF4B4B',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 10,
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  passwordInputContainer: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    backgroundColor: 'white',
+  },
+  passwordInput: {
+    flex: 1,
+    padding: 15,
+    fontSize: 16,
+  },
+  passwordVisibilityButton: {
+    padding: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  modalButton: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 10,
+    marginHorizontal: 5,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#f8f8f8',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  confirmButton: {
+    backgroundColor: '#FF4B4B',
+  },
+  cancelButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  confirmButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
