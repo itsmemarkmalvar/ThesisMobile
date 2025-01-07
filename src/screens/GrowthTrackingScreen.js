@@ -189,7 +189,7 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
         return;
       }
 
-      console.log('Fetching growth data...');
+      console.log('Fetching growth data from API...');
       const response = await axios.get(`${API_URL}/growth/charts`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -197,7 +197,7 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
         }
       });
 
-      console.log('Raw API Response:', response.data);
+      console.log('Raw API Response:', JSON.stringify(response.data, null, 2));
 
       if (response.data?.data) {
         const formattedData = response.data.data
@@ -205,12 +205,18 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
           .map(record => {
             // Ensure date is properly formatted
             let formattedDate;
-            if (record.created_at) {
+            if (record.date) {
+              formattedDate = new Date(record.date).toISOString().split('T')[0];
+              console.log('Using date from API:', record.date, '→', formattedDate);
+            } else if (record.created_at) {
               formattedDate = new Date(record.created_at).toISOString().split('T')[0];
+              console.log('Using created_at date:', record.created_at, '→', formattedDate);
             } else if (record.date_recorded) {
               formattedDate = new Date(record.date_recorded).toISOString().split('T')[0];
+              console.log('Using date_recorded:', record.date_recorded, '→', formattedDate);
             } else {
               formattedDate = new Date().toISOString().split('T')[0];
+              console.log('No date found, using current date:', formattedDate);
             }
 
             return {
@@ -223,7 +229,7 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
           })
           .sort((a, b) => new Date(b.date_recorded) - new Date(a.date_recorded)); // Sort by newest first
 
-        console.log('Formatted Data:', formattedData);
+        console.log('Formatted Growth Data:', JSON.stringify(formattedData, null, 2));
         setGrowthData(formattedData);
       } else {
         console.warn('No data in API response:', response.data);
@@ -290,12 +296,18 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
       const height = parseFloat(newRecord.height);
       const weight = parseFloat(newRecord.weight);
       const headSize = parseFloat(newRecord.head_size);
-      const date = new Date(newRecord.date_recorded);
+      const selectedDate = new Date(newRecord.date_recorded);
 
-      if (isNaN(date.getTime())) {
+      if (isNaN(selectedDate.getTime())) {
         Alert.alert('Error', 'Please select a valid date');
         return;
       }
+
+      // Ensure we're using the selected date, not just the date portion
+      const year = selectedDate.getFullYear();
+      const month = selectedDate.getMonth();
+      const day = selectedDate.getDate();
+      const date = new Date(year, month, day);
 
       if (isNaN(height) || height <= 0 || height > 200) {
         Alert.alert('Error', 'Please enter a valid height (0-200 cm)');
@@ -318,6 +330,8 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
         notes: newRecord.notes.trim()
       };
 
+      console.log('Sending measurement data:', measurementData);
+
       const response = await axios.post(`${API_URL}/growth/record`, measurementData, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -329,11 +343,13 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
       if (response.data.success) {
         await fetchGrowthData(); // Refresh data after successful addition
         setModalVisible(false);
+        // Keep the selected date when resetting the form
+        const currentSelectedDate = new Date(newRecord.date_recorded);
         setNewRecord({
           height: '',
           weight: '',
           head_size: '',
-          date_recorded: new Date(),
+          date_recorded: currentSelectedDate,
           notes: ''
         });
       }
@@ -346,26 +362,32 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
   };
 
   const formatDate = (dateString) => {
+    console.log('formatDate input:', dateString);
     try {
       // First try parsing as ISO string
       let date = new Date(dateString);
+      console.log('Initial date parsing:', date);
       
       // If invalid, try parsing as YYYY-MM-DD
       if (isNaN(date.getTime()) && typeof dateString === 'string') {
         const [year, month, day] = dateString.split('-').map(Number);
+        console.log('Split date parts:', { year, month, day });
         date = new Date(year, month - 1, day);
+        console.log('Date after YYYY-MM-DD parsing:', date);
       }
       
       if (isNaN(date.getTime())) {
-        console.log('Invalid date:', dateString);
+        console.log('Invalid date after parsing attempts:', dateString);
         return 'Invalid Date';
       }
       
-      return date.toLocaleDateString('en-US', {
+      const formattedResult = date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric'
       });
+      console.log('Final formatted date:', formattedResult);
+      return formattedResult;
     } catch (e) {
       console.error('Date parsing error:', e);
       return 'Invalid Date';
@@ -618,6 +640,7 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
             />
           );
         }
+        console.log('Rendering history tab with data:', JSON.stringify(growthData, null, 2));
         return (
           <ScrollView
             refreshControl={
@@ -634,7 +657,10 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
           >
             <View style={styles.historySection}>
               <Text style={styles.sectionTitle}>Growth History</Text>
-              {growthData.map((record, index) => renderHistoryCard(record, index))}
+              {growthData.map((record, index) => {
+                console.log(`Rendering record ${index}:`, JSON.stringify(record, null, 2));
+                return renderHistoryCard(record, index);
+              })}
             </View>
           </ScrollView>
         );
@@ -761,49 +787,53 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
     </View>
   );
 
-  const renderHistoryCard = (record, index) => (
-    <View key={index} style={styles.historyCard}>
-      <View style={styles.historyCardHeader}>
-        <View style={styles.dateContainer}>
-          <MaterialIcons name="event" size={20} color="#666" />
-          <Text style={styles.dateText}>
-            {formatDate(record.date_recorded)}
-          </Text>
+  const renderHistoryCard = (record, index) => {
+    console.log('Rendering history card for record:', record);
+    console.log('Record date_recorded:', record.date_recorded);
+    return (
+      <View key={index} style={styles.historyCard}>
+        <View style={styles.historyCardHeader}>
+          <View style={styles.dateContainer}>
+            <MaterialIcons name="event" size={20} color="#666" />
+            <Text style={styles.dateText}>
+              {formatDate(record.date_recorded)}
+            </Text>
+          </View>
         </View>
+        <View style={styles.measurementsGrid}>
+          <View style={styles.measurementItem}>
+            <View style={[styles.measurementIcon, { backgroundColor: '#E3F2FD' }]}>
+              <MaterialIcons name="straighten" size={24} color="#1976D2" />
+            </View>
+            <Text style={styles.measurementValue}>{record.height} cm</Text>
+            <Text style={styles.measurementLabel}>Height</Text>
+          </View>
+          <View style={[styles.divider, { backgroundColor: '#F0F0F0' }]} />
+          <View style={styles.measurementItem}>
+            <View style={[styles.measurementIcon, { backgroundColor: '#FFF3E0' }]}>
+              <MaterialIcons name="monitor-weight" size={24} color="#F57C00" />
+            </View>
+            <Text style={styles.measurementValue}>{record.weight} kg</Text>
+            <Text style={styles.measurementLabel}>Weight</Text>
+          </View>
+          <View style={[styles.divider, { backgroundColor: '#F0F0F0' }]} />
+          <View style={styles.measurementItem}>
+            <View style={[styles.measurementIcon, { backgroundColor: '#E8F5E9' }]}>
+              <MaterialIcons name="radio-button-checked" size={24} color="#388E3C" />
+            </View>
+            <Text style={styles.measurementValue}>{record.head_size} cm</Text>
+            <Text style={styles.measurementLabel}>Head Size</Text>
+          </View>
+        </View>
+        {record.notes && (
+          <View style={styles.notesContainer}>
+            <Text style={styles.notesLabel}>Notes</Text>
+            <Text style={styles.notesText}>{record.notes}</Text>
+          </View>
+        )}
       </View>
-      <View style={styles.measurementsGrid}>
-        <View style={styles.measurementItem}>
-          <View style={[styles.measurementIcon, { backgroundColor: '#E3F2FD' }]}>
-            <MaterialIcons name="straighten" size={24} color="#1976D2" />
-          </View>
-          <Text style={styles.measurementValue}>{record.height} cm</Text>
-          <Text style={styles.measurementLabel}>Height</Text>
-        </View>
-        <View style={[styles.divider, { backgroundColor: '#F0F0F0' }]} />
-        <View style={styles.measurementItem}>
-          <View style={[styles.measurementIcon, { backgroundColor: '#FFF3E0' }]}>
-            <MaterialIcons name="monitor-weight" size={24} color="#F57C00" />
-          </View>
-          <Text style={styles.measurementValue}>{record.weight} kg</Text>
-          <Text style={styles.measurementLabel}>Weight</Text>
-        </View>
-        <View style={[styles.divider, { backgroundColor: '#F0F0F0' }]} />
-        <View style={styles.measurementItem}>
-          <View style={[styles.measurementIcon, { backgroundColor: '#E8F5E9' }]}>
-            <MaterialIcons name="radio-button-checked" size={24} color="#388E3C" />
-          </View>
-          <Text style={styles.measurementValue}>{record.head_size} cm</Text>
-          <Text style={styles.measurementLabel}>Head Size</Text>
-        </View>
-      </View>
-      {record.notes && (
-        <View style={styles.notesContainer}>
-          <Text style={styles.notesLabel}>Notes</Text>
-          <Text style={styles.notesText}>{record.notes}</Text>
-        </View>
-      )}
-    </View>
-  );
+    );
+  };
 
   if (loading) {
     return (
