@@ -82,21 +82,70 @@ const MedicineDetailsScreen = ({ route, navigation }) => {
         );
     };
 
+    const formatDaysOfWeek = (days) => {
+        if (!days || !Array.isArray(days)) return '';
+        
+        const dayNames = {
+            1: 'Sun',
+            2: 'Mon',
+            3: 'Tue',
+            4: 'Wed',
+            5: 'Thu',
+            6: 'Fri',
+            7: 'Sat'
+        };
+        
+        return days.map(day => dayNames[day]).join(', ');
+    };
+
     const formatTime = (timeString) => {
         try {
-            // Create a base date for today
-            const baseDate = new Date();
-            // Split the time string into hours and minutes
-            const [hours, minutes] = timeString.split(':');
-            // Set the time components
-            baseDate.setHours(parseInt(hours, 10));
-            baseDate.setMinutes(parseInt(minutes, 10));
-            // Format the time
-            return format(baseDate, 'h:mm a');
+            console.log('Received time string:', timeString);
+            if (!timeString) return '';
+            
+            // Extract time portion from ISO string
+            const date = new Date(timeString);
+            const hours = date.getHours();
+            const minutes = date.getMinutes();
+            
+            console.log('Parsed hours:', hours);
+            console.log('Parsed minutes:', minutes);
+            
+            if (isNaN(hours) || isNaN(minutes)) {
+                console.error('Invalid time format:', timeString);
+                return timeString;
+            }
+
+            const period = hours >= 12 ? 'PM' : 'AM';
+            const displayHour = hours % 12 || 12;
+            const displayMinute = minutes.toString().padStart(2, '0');
+            
+            console.log('Display hour:', displayHour);
+            console.log('Display minutes:', displayMinute);
+            console.log('Period:', period);
+            
+            const formattedTime = `${displayHour}:${displayMinute} ${period}`;
+            console.log('Final formatted time:', formattedTime);
+            
+            return formattedTime;
         } catch (error) {
             console.error('Error formatting time:', error);
-            return timeString; // Return original string if formatting fails
+            return timeString;
         }
+    };
+
+    const formatFrequency = (schedule) => {
+        const frequencyText = schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1);
+        
+        if (schedule.frequency === 'as_needed') {
+            return 'As needed';
+        }
+        
+        if (schedule.frequency === 'weekly' && schedule.days_of_week) {
+            return `${frequencyText} • ${formatDaysOfWeek(schedule.days_of_week)}`;
+        }
+        
+        return frequencyText;
     };
 
     const renderSchedule = (schedule) => {
@@ -105,13 +154,14 @@ const MedicineDetailsScreen = ({ route, navigation }) => {
                 <View style={styles.scheduleContent}>
                     <View style={styles.timeContainer}>
                         <Icon name="access-time" size={18} color="#FF9A9E" />
-                        <Text style={styles.scheduleTime}>{formatTime(schedule.time)}</Text>
+                        <Text style={styles.scheduleTime}>
+                            {schedule.frequency === 'as_needed' ? 'Any time' : formatTime(schedule.time)}
+                        </Text>
                     </View>
                     <View style={styles.scheduleDetails}>
                         <Text style={styles.scheduleDosage}>{schedule.dosage}</Text>
                         <Text style={styles.scheduleFrequency}>
-                            {schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)}
-                            {schedule.days_of_week && ` • ${schedule.days_of_week}`}
+                            {formatFrequency(schedule)}
                         </Text>
                         {schedule.notes && <Text style={styles.scheduleNotes}>{schedule.notes}</Text>}
                     </View>

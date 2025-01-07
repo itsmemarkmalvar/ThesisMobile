@@ -17,24 +17,25 @@ import { format } from 'date-fns';
 import { Picker } from '@react-native-picker/picker';
 
 const FREQUENCIES = [
-    'Daily',
-    'Weekly',
-    'Monthly',
-    'As needed'
+    { label: 'Daily', value: 'daily' },
+    { label: 'Weekly', value: 'weekly' },
+    { label: 'Monthly', value: 'monthly' },
+    { label: 'As Needed', value: 'as_needed' }
 ];
 
 const DAYS_OF_WEEK = [
-    'Sunday',
-    'Monday',
-    'Tuesday',
-    'Wednesday',
-    'Thursday',
-    'Friday',
-    'Saturday'
+    { name: 'Sunday', value: 1 },
+    { name: 'Monday', value: 2 },
+    { name: 'Tuesday', value: 3 },
+    { name: 'Wednesday', value: 4 },
+    { name: 'Thursday', value: 5 },
+    { name: 'Friday', value: 6 },
+    { name: 'Saturday', value: 7 }
 ];
 
 const AddMedicineScheduleScreen = ({ route, navigation }) => {
     const { medicineId } = route.params;
+
     const [time, setTime] = useState(new Date());
     const [dosage, setDosage] = useState('');
     const [frequency, setFrequency] = useState('');
@@ -46,12 +47,7 @@ const AddMedicineScheduleScreen = ({ route, navigation }) => {
     const handleTimeConfirm = (selectedTime) => {
         setTimePickerVisible(false);
         if (selectedTime) {
-            const newTime = new Date();
-            newTime.setHours(selectedTime.getHours());
-            newTime.setMinutes(selectedTime.getMinutes());
-            newTime.setSeconds(0);
-            newTime.setMilliseconds(0);
-            setTime(newTime);
+            setTime(selectedTime);
         }
     };
 
@@ -73,35 +69,55 @@ const AddMedicineScheduleScreen = ({ route, navigation }) => {
 
         try {
             setLoading(true);
-            const formattedTime = format(time, 'HH:mm');
+            const hours = time.getHours().toString().padStart(2, '0');
+            const minutes = time.getMinutes().toString().padStart(2, '0');
+            const formattedTime = `${hours}:${minutes}`;
+
+            const validDays = frequency === 'weekly' 
+                ? selectedDays
+                    .map(Number)
+                    .filter(day => !isNaN(day) && day >= 1 && day <= 7)
+                : null;
 
             const scheduleData = {
                 time: formattedTime,
                 dosage: dosage.trim(),
                 frequency: frequency.toLowerCase(),
-                days_of_week: frequency === 'weekly' ? selectedDays.join(', ') : null,
+                days_of_week: validDays,
                 notes: notes.trim()
             };
 
+            console.log('Creating schedule with data:', scheduleData);
             await MedicineService.createSchedule(medicineId, scheduleData);
             navigation.goBack();
         } catch (error) {
-            console.error('Error saving schedule:', error);
-            const errorMessage = error.response?.data?.errors?.time?.[0] || 
-                               error.response?.data?.message || 
-                               'Failed to save schedule';
-            Alert.alert('Error', errorMessage);
+            console.error('Error creating schedule:', error);
+            if (error.response?.data?.errors) {
+                console.error('Validation errors:', error.response.data.errors);
+                const errorMessages = Object.values(error.response.data.errors)
+                    .flat()
+                    .join('\n');
+                Alert.alert('Validation Error', errorMessages);
+            } else {
+                Alert.alert('Error', 'Failed to save schedule');
+            }
         } finally {
             setLoading(false);
         }
     };
 
     const toggleDaySelection = (day) => {
-        if (selectedDays.includes(day)) {
-            setSelectedDays(selectedDays.filter(d => d !== day));
-        } else {
-            setSelectedDays([...selectedDays, day]);
+        const dayValue = Number(day.value);
+        if (isNaN(dayValue) || dayValue < 1 || dayValue > 7) {
+            return;
         }
+
+        setSelectedDays(prevDays => {
+            const currentDays = prevDays.map(Number).filter(d => !isNaN(d) && d >= 1 && d <= 7);
+            return currentDays.includes(dayValue)
+                ? currentDays.filter(d => d !== dayValue)
+                : [...currentDays, dayValue];
+        });
     };
 
     return (
@@ -161,9 +177,9 @@ const AddMedicineScheduleScreen = ({ route, navigation }) => {
                                 <Picker.Item label="Select frequency" value="" />
                                 {FREQUENCIES.map((freq) => (
                                     <Picker.Item
-                                        key={freq}
-                                        label={freq}
-                                        value={freq.toLowerCase()}
+                                        key={freq.value}
+                                        label={freq.label}
+                                        value={freq.value}
                                     />
                                 ))}
                             </Picker>
@@ -176,18 +192,18 @@ const AddMedicineScheduleScreen = ({ route, navigation }) => {
                             <View style={styles.daysContainer}>
                                 {DAYS_OF_WEEK.map((day) => (
                                     <TouchableOpacity
-                                        key={day}
+                                        key={day.name}
                                         style={[
                                             styles.dayButton,
-                                            selectedDays.includes(day) && styles.dayButtonSelected
+                                            selectedDays.includes(day.value) && styles.dayButtonSelected
                                         ]}
                                         onPress={() => toggleDaySelection(day)}
                                     >
                                         <Text style={[
                                             styles.dayButtonText,
-                                            selectedDays.includes(day) && styles.dayButtonTextSelected
+                                            selectedDays.includes(day.value) && styles.dayButtonTextSelected
                                         ]}>
-                                            {day.slice(0, 3)}
+                                            {day.name.slice(0, 3)}
                                         </Text>
                                     </TouchableOpacity>
                                 ))}

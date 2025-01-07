@@ -4,11 +4,11 @@
     "slug": "binibaby",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/Logo.png",
+    "icon": "./assets/Icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/Logo.png",
+      "image": "./assets/Icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -25,9 +25,10 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/Logo.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/Icon.png",
+        "backgroundColor": "#FFFFFF"
       },
+      "icon": "./assets/Icon.png",
       "package": "com.binibaby.app",
       "permissions": [
         "INTERNET",
