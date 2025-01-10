@@ -32,6 +32,7 @@ import VaccineScheduleForm from '../components/VaccineScheduleForm';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import RNHTMLtoPDF from 'react-native-html-to-pdf';
+import { DateTimeService } from '../services/DateTimeService';
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -187,21 +188,23 @@ const ImmunizationScreen = ({ navigation }) => {
     vaccines.forEach(ageGroup => {
       ageGroup.vaccines.forEach(vaccine => {
         if (vaccine.date) {
-          const dateStr = new Date(vaccine.date).toISOString().split('T')[0];
-          if (markedDates[dateStr]) {
-            markedDates[dateStr].dots.push({
-              key: vaccine.id,
-              color: vaccine.completed ? '#4CAF50' : '#FF9800',
-            });
-          } else {
-            markedDates[dateStr] = {
-              dots: [{
+          const dateStr = DateTimeService.getCalendarDate(vaccine.date);
+          if (dateStr) {
+            if (markedDates[dateStr]) {
+              markedDates[dateStr].dots.push({
                 key: vaccine.id,
                 color: vaccine.completed ? '#4CAF50' : '#FF9800',
-              }],
-              selected: true,
-              selectedColor: 'rgba(74, 144, 226, 0.1)'
-            };
+              });
+            } else {
+              markedDates[dateStr] = {
+                dots: [{
+                  key: vaccine.id,
+                  color: vaccine.completed ? '#4CAF50' : '#FF9800',
+                }],
+                selected: true,
+                selectedColor: 'rgba(74, 144, 226, 0.1)'
+              };
+            }
           }
         }
       });
@@ -213,14 +216,12 @@ const ImmunizationScreen = ({ navigation }) => {
     const vaccinesOnDate = [];
     vaccines.forEach(ageGroup => {
       ageGroup.vaccines.forEach(vaccine => {
-        if (vaccine.date) {
-          const vaccineDate = new Date(vaccine.date).toISOString().split('T')[0];
-          if (vaccineDate === date) {
-            vaccinesOnDate.push({
-              ...vaccine,
-              ageGroup: ageGroup.ageGroup
-            });
-          }
+        if (vaccine.date && DateTimeService.areDatesEqual(vaccine.date, date)) {
+          vaccinesOnDate.push({
+            ...vaccine,
+            ageGroup: ageGroup.ageGroup,
+            displayDate: DateTimeService.formatForDisplay(vaccine.date)
+          });
         }
       });
     });
@@ -230,25 +231,18 @@ const ImmunizationScreen = ({ navigation }) => {
   const handleDayPress = (day) => {
     const vaccinesOnDate = getVaccinesForDate(day.dateString);
     if (vaccinesOnDate.length > 0) {
-      // Create a formatted message for the vaccines
       const message = vaccinesOnDate.map(vaccine => {
         const status = vaccine.completed ? '✅ Completed' : '⏳ Scheduled';
-        return `${vaccine.name}\n${status}\nAge Group: ${vaccine.ageGroup}`;
+        return `${vaccine.name}\n${status}\nAge Group: ${vaccine.ageGroup}\nDate: ${vaccine.displayDate}`;
       }).join('\n\n');
 
       Alert.alert(
-        `Vaccines - ${new Date(day.dateString).toLocaleDateString()}`,
+        `Vaccines - ${DateTimeService.formatForDisplay(day.dateString)}`,
         message,
-        [
-          { 
-            text: 'OK',
-            style: 'cancel'
-          }
-        ],
+        [{ text: 'OK', style: 'cancel' }],
         { cancelable: true }
       );
     } else {
-      // Optionally show a message when no vaccines are scheduled for this date
       Alert.alert(
         'No Vaccines',
         'No vaccines are scheduled or completed for this date.',
@@ -293,43 +287,45 @@ const ImmunizationScreen = ({ navigation }) => {
 
   const handleVaccineCompletion = async (details) => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      if (!token) throw new Error('No token found');
+        const token = await AsyncStorage.getItem('userToken');
+        if (!token) throw new Error('No token found');
 
-      const now = new Date().toISOString();
-      await immunizationApi.markVaccineCompleted(token, {
-        vaccine_id: selectedVaccineForCompletion.id,
-        given_at: now,
-        administered_by: details.administered_by,
-        administered_at: details.administered_at,
-        notes: details.notes
-      });
+        // Convert completion date to UTC for API
+        const completionDate = DateTimeService.formatForAPI(new Date());
+        
+        await immunizationApi.markVaccineCompleted(token, {
+            vaccine_id: selectedVaccineForCompletion.id,
+            given_at: completionDate,
+            administered_by: details.administered_by,
+            administered_at: details.administered_at,
+            notes: details.notes
+        });
 
-      // Update local state
-      setVaccines(prevVaccines => 
-        prevVaccines.map(ageGroup => ({
-          ...ageGroup,
-          vaccines: ageGroup.vaccines.map(v => 
-            v.id === selectedVaccineForCompletion.id
-              ? { ...v, completed: true, date: now }
-              : v
-          )
-        }))
-      );
+        // Update local state with Manila time
+        setVaccines(prevVaccines => 
+            prevVaccines.map(ageGroup => ({
+                ...ageGroup,
+                vaccines: ageGroup.vaccines.map(v => 
+                    v.id === selectedVaccineForCompletion.id
+                        ? { ...v, completed: true, date: completionDate }
+                        : v
+                )
+            }))
+        );
 
-      // Cancel any existing reminders for this vaccine
-      cancelVaccineReminder(selectedVaccineForCompletion.id);
+        // Cancel any existing reminders for this vaccine
+        cancelVaccineReminder(selectedVaccineForCompletion.id);
 
-      // Refresh vaccination history
-      loadVaccinationHistory();
+        // Refresh vaccination history
+        loadVaccinationHistory();
 
-      // Close form and show success message
-      setShowCompletionForm(false);
-      Alert.alert('Success', 'Vaccine marked as completed successfully.');
+        // Close form and show success message
+        setShowCompletionForm(false);
+        Alert.alert('Success', 'Vaccine marked as completed successfully.');
 
     } catch (error) {
-      console.error('Error completing vaccination:', error);
-      Alert.alert('Error', 'Failed to complete vaccination');
+        console.error('Error completing vaccination:', error);
+        Alert.alert('Error', 'Failed to complete vaccination');
     }
   };
 
@@ -406,47 +402,58 @@ const ImmunizationScreen = ({ navigation }) => {
 
   const handleScheduleVaccine = async (scheduleDetails) => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      if (!token) throw new Error('No token found');
+        const token = await AsyncStorage.getItem('userToken');
+        if (!token) throw new Error('No token found');
 
-      await immunizationApi.scheduleVaccine(token, {
-        vaccine_id: selectedVaccineForScheduling.id,
-        scheduled_date: scheduleDetails.date.toISOString(),
-        notes: scheduleDetails.notes
-      });
+        // Convert schedule date to UTC for API
+        const scheduledDate = DateTimeService.formatForAPI(scheduleDetails.date);
+        
+        if (!scheduledDate) {
+            throw new Error('Invalid schedule date');
+        }
 
-      // Update local state
-      setVaccines(prevVaccines => 
-        prevVaccines.map(ageGroup => ({
-          ...ageGroup,
-          vaccines: ageGroup.vaccines.map(v => 
-            v.id === selectedVaccineForScheduling.id
-              ? { ...v, date: scheduleDetails.date.toISOString() }
-              : v
-          )
-        }))
-      );
+        await immunizationApi.scheduleVaccine(token, {
+            vaccine_id: selectedVaccineForScheduling.id,
+            scheduled_date: scheduledDate,
+            notes: scheduleDetails.notes
+        });
 
-      // Get stored reminder settings
-      const storedSettings = await AsyncStorage.getItem('vaccineReminderSettings');
-      const settings = storedSettings ? JSON.parse(storedSettings) : {
-        enabled: true,
-        reminderDays: 7,
-        reminderTime: '09:00'
-      };
+        // Update local state
+        setVaccines(prevVaccines => 
+            prevVaccines.map(ageGroup => ({
+                ...ageGroup,
+                vaccines: ageGroup.vaccines.map(v => 
+                    v.id === selectedVaccineForScheduling.id
+                        ? { ...v, date: scheduledDate }
+                        : v
+                )
+            }))
+        );
 
-      // Set up reminder if enabled
-      if (settings.enabled) {
-        await scheduleVaccineReminder(selectedVaccineForScheduling, scheduleDetails.date, settings);
-      }
+        // Get stored reminder settings
+        const storedSettings = await AsyncStorage.getItem('vaccineReminderSettings');
+        const settings = storedSettings ? JSON.parse(storedSettings) : {
+            enabled: true,
+            reminderDays: 7,
+            reminderTime: '09:00'
+        };
 
-      // Close form and show success message
-      setShowScheduleForm(false);
-      Alert.alert('Success', 'Vaccine scheduled successfully.');
+        // Set up reminder if enabled
+        if (settings.enabled) {
+            await scheduleVaccineReminder(
+                selectedVaccineForScheduling,
+                DateTimeService.toManilaTime(scheduleDetails.date),
+                settings
+            );
+        }
+
+        // Close form and show success message
+        setShowScheduleForm(false);
+        Alert.alert('Success', 'Vaccine scheduled successfully.');
 
     } catch (error) {
-      console.error('Error scheduling vaccination:', error);
-      Alert.alert('Error', 'Failed to schedule vaccination');
+        console.error('Error scheduling vaccination:', error);
+        Alert.alert('Error', 'Failed to schedule vaccination');
     }
   };
 
@@ -865,7 +872,9 @@ const ImmunizationScreen = ({ navigation }) => {
                       <Text style={styles.historyVaccineName}>{record.vaccine_name}</Text>
                       <Text style={styles.historyDate}>
                         {record.status === 'completed' ? 'Completed on: ' : 'Scheduled for: '}
-                        {new Date(record.status === 'completed' ? record.given_at : record.scheduled_date).toLocaleDateString()}
+                        {DateTimeService.formatForDisplay(
+                          record.status === 'completed' ? record.given_at : record.scheduled_date
+                        )}
                       </Text>
                       {record.administered_by && (
                         <Text style={styles.historyAdministered}>
