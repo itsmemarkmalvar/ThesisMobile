@@ -28,39 +28,68 @@ const AddSleepScreen = ({ navigation }) => {
     const { baby } = useBaby();
     const [loading, setLoading] = useState(false);
     const [sleepData, setSleepData] = useState(() => {
-        const now = new Date();
-        const defaultEndTime = new Date(now);
-        const defaultStartTime = new Date(now);
-        defaultStartTime.setHours(defaultStartTime.getHours() - 8); // Default to 8 hours ago
-        
-        console.log('Initial Sleep Data:', {
-            now: now.toISOString(),
-            defaultStartTime: defaultStartTime.toISOString(),
-            defaultEndTime: defaultEndTime.toISOString(),
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-        });
-        
-        return {
-            start_time: defaultStartTime,
-            end_time: defaultEndTime,
-            is_nap: false,
-            quality: 'good',
-            location: 'crib',
-            notes: ''
-        };
+        try {
+            const now = new Date();
+            const defaultEndTime = new Date(now);
+            const defaultStartTime = new Date(now);
+            defaultStartTime.setHours(defaultStartTime.getHours() - 1); // Default to 1 hour ago
+            
+            // Validate the dates
+            if (isNaN(defaultStartTime.getTime()) || isNaN(defaultEndTime.getTime())) {
+                throw new Error('Invalid default dates');
+            }
+            
+            console.log('Initializing with time:', {
+                now: SleepService.formatTimeForDisplay(now),
+                defaultStartTime: SleepService.formatTimeForDisplay(defaultStartTime),
+                defaultEndTime: SleepService.formatTimeForDisplay(defaultEndTime)
+            });
+            
+            return {
+                start_time: defaultStartTime,
+                end_time: defaultEndTime,
+                is_nap: false,
+                quality: 'good',
+                location: 'crib',
+                notes: ''
+            };
+        } catch (error) {
+            console.error('Error initializing sleep data:', error);
+            // Fallback to current time if there's an error
+            const fallbackTime = new Date();
+            return {
+                start_time: fallbackTime,
+                end_time: new Date(fallbackTime.getTime() + 60 * 60 * 1000), // 1 hour later
+                is_nap: false,
+                quality: 'good',
+                location: 'crib',
+                notes: ''
+            };
+        }
     });
     const [showStartPicker, setShowStartPicker] = useState(false);
     const [showEndPicker, setShowEndPicker] = useState(false);
     const [error, setError] = useState('');
+
+    const validateDates = (start, end) => {
+        if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
+            return 'Invalid date values';
+        }
+        if (end <= start) {
+            return 'End time must be after start time';
+        }
+        return null;
+    };
 
     const handleSave = async () => {
         try {
             setLoading(true);
             setError('');
 
-            // Validate times
-            if (sleepData.end_time <= sleepData.start_time) {
-                setError('End time must be after start time');
+            // Validate dates
+            const dateError = validateDates(sleepData.start_time, sleepData.end_time);
+            if (dateError) {
+                setError(dateError);
                 return;
             }
 
@@ -87,39 +116,62 @@ const AddSleepScreen = ({ navigation }) => {
                 return;
             }
 
-            console.log('Saving sleep data:', {
-                start_time: sleepData.start_time.toISOString(),
-                end_time: sleepData.end_time.toISOString(),
-                is_nap: sleepData.is_nap,
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+            console.log('⏰ Creating sleep log:', {
+                start_time: SleepService.formatTimeForDisplay(sleepData.start_time),
+                end_time: SleepService.formatTimeForDisplay(sleepData.end_time),
+                duration: `${Math.round((sleepData.end_time - sleepData.start_time) / (1000 * 60))} minutes`
             });
 
             await SleepService.createSleepLog(sleepData);
             navigation.goBack();
         } catch (error) {
-            setError('Failed to save sleep log. Please try again.');
             console.error('Error saving sleep log:', error);
+            setError(error.message || 'Failed to save sleep log. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
     const handleStartTimeConfirm = (date) => {
-        console.log('Start time selected:', {
-            selected: date.toISOString(),
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-        });
-        setSleepData(prev => ({ ...prev, start_time: date }));
-        setShowStartPicker(false);
+        try {
+            if (!date || isNaN(date.getTime())) {
+                throw new Error('Invalid start time selected');
+            }
+
+            console.log('Start time selected:', {
+                selected: SleepService.formatTimeForDisplay(date)
+            });
+            
+            setSleepData(prev => {
+                // Ensure end time is after start time
+                const newEndTime = prev.end_time < date ? new Date(date.getTime() + 60 * 60 * 1000) : prev.end_time;
+                return { ...prev, start_time: date, end_time: newEndTime };
+            });
+        } catch (error) {
+            console.error('Error setting start time:', error);
+            setError('Invalid start time selected');
+        } finally {
+            setShowStartPicker(false);
+        }
     };
 
     const handleEndTimeConfirm = (date) => {
-        console.log('End time selected:', {
-            selected: date.toISOString(),
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-        });
-        setSleepData(prev => ({ ...prev, end_time: date }));
-        setShowEndPicker(false);
+        try {
+            if (!date || isNaN(date.getTime())) {
+                throw new Error('Invalid end time selected');
+            }
+
+            console.log('End time selected:', {
+                selected: SleepService.formatTimeForDisplay(date)
+            });
+            
+            setSleepData(prev => ({ ...prev, end_time: date }));
+        } catch (error) {
+            console.error('Error setting end time:', error);
+            setError('Invalid end time selected');
+        } finally {
+            setShowEndPicker(false);
+        }
     };
 
     return (
@@ -160,7 +212,7 @@ const AddSleepScreen = ({ navigation }) => {
                             >
                                 <Text style={styles.label}>Start Time</Text>
                                 <Text style={styles.dateText}>
-                                    {format(sleepData.start_time, 'MMM d, yyyy h:mm a')}
+                                    {SleepService.formatTimeForDisplay(sleepData.start_time)}
                                 </Text>
                             </TouchableOpacity>
 
@@ -170,7 +222,7 @@ const AddSleepScreen = ({ navigation }) => {
                             >
                                 <Text style={styles.label}>End Time</Text>
                                 <Text style={styles.dateText}>
-                                    {format(sleepData.end_time, 'MMM d, yyyy h:mm a')}
+                                    {SleepService.formatTimeForDisplay(sleepData.end_time)}
                                 </Text>
                             </TouchableOpacity>
 
@@ -250,7 +302,6 @@ const AddSleepScreen = ({ navigation }) => {
                     onConfirm={handleStartTimeConfirm}
                     onCancel={() => setShowStartPicker(false)}
                     date={sleepData.start_time}
-                    maximumDate={new Date()}
                     is24Hour={false}
                 />
 
@@ -260,9 +311,8 @@ const AddSleepScreen = ({ navigation }) => {
                     onConfirm={handleEndTimeConfirm}
                     onCancel={() => setShowEndPicker(false)}
                     date={sleepData.end_time}
-                    minimumDate={sleepData.start_time}
-                    maximumDate={new Date()}
                     is24Hour={false}
+                    minimumDate={sleepData.start_time}
                 />
             </LinearGradient>
         </SafeAreaView>

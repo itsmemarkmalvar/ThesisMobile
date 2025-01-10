@@ -11,6 +11,7 @@ import {
 import { Button, Input } from '@rneui/themed';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { Picker } from '@react-native-picker/picker';
+import { format } from 'date-fns';
 import { SleepService } from '../services/SleepService';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,13 +21,34 @@ import { validateSleepDuration, validateSleepTime } from '../utils/dateUtils';
 const EditSleepScreen = ({ navigation, route }) => {
     const { sleepLog } = route.params;
     const [loading, setLoading] = useState(false);
-    const [sleepData, setSleepData] = useState({
-        start_time: new Date(sleepLog.start_time),
-        end_time: new Date(sleepLog.end_time),
-        is_nap: sleepLog.is_nap,
-        quality: sleepLog.quality || 'good',
-        location: sleepLog.location || 'crib',
-        notes: sleepLog.notes || ''
+    const [sleepData, setSleepData] = useState(() => {
+        // The incoming sleepLog times are in UTC, convert them to Manila time
+        const utcStart = new Date(sleepLog.start_time);
+        const utcEnd = new Date(sleepLog.end_time);
+        
+        // Convert UTC to Manila time by adding 8 hours
+        const manilaStart = new Date(utcStart.getTime() + (8 * 60 * 60 * 1000));
+        const manilaEnd = new Date(utcEnd.getTime() + (8 * 60 * 60 * 1000));
+
+        console.log('Initializing sleep data:', {
+            utc: {
+                start: utcStart.toISOString(),
+                end: utcEnd.toISOString()
+            },
+            manila: {
+                start: format(manilaStart, "yyyy-MM-dd HH:mm:ss"),
+                end: format(manilaEnd, "yyyy-MM-dd HH:mm:ss")
+            }
+        });
+
+        return {
+            start_time: manilaStart,
+            end_time: manilaEnd,
+            is_nap: sleepLog.is_nap,
+            quality: sleepLog.quality || 'good',
+            location: sleepLog.location || 'crib',
+            notes: sleepLog.notes || ''
+        };
     });
     const [showStartPicker, setShowStartPicker] = useState(false);
     const [showEndPicker, setShowEndPicker] = useState(false);
@@ -37,18 +59,6 @@ const EditSleepScreen = ({ navigation, route }) => {
             headerShown: false
         });
     }, [navigation]);
-
-    const formatTimeForDisplay = (date) => {
-        const hours = date.getUTCHours();
-        const minutes = date.getUTCMinutes();
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        const displayHours = hours % 12 || 12;
-        const displayMinutes = minutes.toString().padStart(2, '0');
-        const month = date.toLocaleString('en-US', { month: 'short' });
-        const day = date.getUTCDate();
-        
-        return `${month} ${day}, ${displayHours}:${displayMinutes} ${ampm}`;
-    };
 
     const handleUpdate = async () => {
         try {
@@ -85,17 +95,20 @@ const EditSleepScreen = ({ navigation, route }) => {
             }
 
             console.log('Updating sleep log:', {
-                start: sleepData.start_time.toISOString(),
-                end: sleepData.end_time.toISOString(),
-                displayStart: formatTimeForDisplay(sleepData.start_time),
-                displayEnd: formatTimeForDisplay(sleepData.end_time)
+                id: sleepLog.id,
+                manila: {
+                    start: format(sleepData.start_time, "yyyy-MM-dd HH:mm:ss"),
+                    end: format(sleepData.end_time, "yyyy-MM-dd HH:mm:ss")
+                },
+                duration: `${Math.round((sleepData.end_time - sleepData.start_time) / (1000 * 60))} minutes`
             });
 
+            // The updateSleepLog service method will handle the conversion to UTC
             await SleepService.updateSleepLog(sleepLog.id, sleepData);
             navigation.goBack();
         } catch (error) {
             setError('Failed to update sleep log. Please try again.');
-            console.error('Error updating sleep log:', error);
+            console.error('Error updating sleep log:', error.message);
         } finally {
             setLoading(false);
         }
@@ -131,19 +144,11 @@ const EditSleepScreen = ({ navigation, route }) => {
     };
 
     const handleStartTimeConfirm = (date) => {
-        console.log('Start time selected:', {
-            date: date.toISOString(),
-            display: formatTimeForDisplay(date)
-        });
         setSleepData(prev => ({ ...prev, start_time: date }));
         setShowStartPicker(false);
     };
 
     const handleEndTimeConfirm = (date) => {
-        console.log('End time selected:', {
-            date: date.toISOString(),
-            display: formatTimeForDisplay(date)
-        });
         setSleepData(prev => ({ ...prev, end_time: date }));
         setShowEndPicker(false);
     };
@@ -186,7 +191,7 @@ const EditSleepScreen = ({ navigation, route }) => {
                             >
                                 <Text style={styles.label}>Start Time</Text>
                                 <Text style={styles.dateText}>
-                                    {formatTimeForDisplay(sleepData.start_time)}
+                                    {format(sleepData.start_time, 'MMM d, yyyy h:mm a')}
                                 </Text>
                             </TouchableOpacity>
 
@@ -196,7 +201,7 @@ const EditSleepScreen = ({ navigation, route }) => {
                             >
                                 <Text style={styles.label}>End Time</Text>
                                 <Text style={styles.dateText}>
-                                    {formatTimeForDisplay(sleepData.end_time)}
+                                    {format(sleepData.end_time, 'MMM d, yyyy h:mm a')}
                                 </Text>
                             </TouchableOpacity>
 

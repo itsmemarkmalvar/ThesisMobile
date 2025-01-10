@@ -30,26 +30,19 @@ const SleepScreen = ({ navigation }) => {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
     const [dateRange, setDateRange] = useState(() => {
-        // Get current date and time
         const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth();
+        const currentDate = now.getDate();
         
-        // Create end date (today at 23:59:59.999)
-        const endDate = new Date(now);
-        endDate.setHours(23, 59, 59, 999);
+        // Create today's date with the current year, ensuring we start at midnight
+        const todayDate = new Date(currentYear, currentMonth, currentDate, 0, 0, 0);
         
-        // Create start date (7 days ago at 00:00:00.000)
-        const startDate = new Date(now);
-        startDate.setDate(now.getDate() - 7);
-        startDate.setHours(0, 0, 0, 0);
+        // Create start date (7 days ago at 00:00:00)
+        const startDate = new Date(currentYear, currentMonth, currentDate - 7, 0, 0, 0);
         
-        console.log('Date Range Initialization:', {
-            now: now.toISOString(),
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString(),
-            currentYear: now.getFullYear(),
-            currentMonth: now.getMonth(),
-            currentDate: now.getDate()
-        });
+        // Create end date (today at 23:59:59)
+        const endDate = new Date(currentYear, currentMonth, currentDate, 23, 59, 59);
         
         return { startDate, endDate };
     });
@@ -65,18 +58,8 @@ const SleepScreen = ({ navigation }) => {
             setError(null);
 
             // Format dates for API request
-            const formattedStartDate = format(dateRange.startDate, "yyyy-MM-dd'T'HH:mm:ss");
-            const formattedEndDate = format(dateRange.endDate, "yyyy-MM-dd'T'HH:mm:ss");
-
-            console.log('=== Sleep Data Fetch Process ===');
-            console.log('1. Initial Date Range:', {
-                startDate: dateRange.startDate.toISOString(),
-                endDate: dateRange.endDate.toISOString()
-            });
-            console.log('2. Formatted Dates:', {
-                formattedStartDate,
-                formattedEndDate
-            });
+            const formattedStartDate = format(dateRange.startDate, 'yyyy-MM-dd');
+            const formattedEndDate = format(dateRange.endDate, 'yyyy-MM-dd');
 
             const [logsResponse, statsResponse] = await Promise.all([
                 SleepService.getSleepLogs({
@@ -89,20 +72,18 @@ const SleepScreen = ({ navigation }) => {
                 })
             ]);
 
-            console.log('3. Sleep Logs Response:', {
-                total: logsResponse.data?.length || 0,
-                logs: logsResponse.data
+            console.log('📊 Sleep Overview Card:', {
+                totalSleep: `${SleepService.formatDuration(statsResponse.total_sleep_minutes)}`,
+                dailyAverage: `${SleepService.formatDuration(statsResponse.average_sleep_minutes_per_day)}`,
+                totalNaps: statsResponse.naps.count,
+                sleepQuality: statsResponse.quality_distribution,
+                sleepLocations: statsResponse.location_distribution
             });
-            console.log('4. Sleep Stats Response:', statsResponse);
 
             setSleepLogs(logsResponse.data);
             setStats(statsResponse);
         } catch (error) {
-            console.error('5. Error in loadData:', {
-                message: error.message,
-                responseData: error.response?.data,
-                status: error.response?.status
-            });
+            console.error('❌ Error:', error.message);
             setError(error.response?.data?.message || 'Failed to load sleep data');
             
             if (error.response?.status === 401) {
@@ -169,46 +150,93 @@ const SleepScreen = ({ navigation }) => {
     };
 
     const renderSleepLogs = () => {
-        return sleepLogs.map((log) => (
-            <TouchableOpacity
-                key={log.id}
-                onPress={() => navigation.navigate('EditSleep', { sleepLog: log })}
-                style={styles.logTouchable}
-            >
-                <Card containerStyle={styles.logCard}>
-                    <View style={styles.logHeader}>
-                        <View style={styles.logTypeContainer}>
-                            <Icon
-                                name={log.is_nap ? 'brightness-5' : 'brightness-3'}
-                                size={20}
-                                color="#FF9A9E"
-                                style={styles.logIcon}
-                            />
-                            <Text style={styles.logType}>
-                                {log.is_nap ? 'Nap' : 'Night Sleep'}
-                            </Text>
-                        </View>
-                        <Text style={styles.logDuration}>
-                            {SleepService.formatDuration(log.duration_minutes)}
-                        </Text>
-                    </View>
-                    <View style={styles.logDetails}>
-                        <View style={styles.logTimeContainer}>
-                            <Icon name="schedule" size={16} color="#8F9BB3" style={styles.detailIcon} />
-                            <Text style={styles.logTime}>
-                                {SleepService.formatDateForDisplay(log.start_time)}
-                            </Text>
-                        </View>
-                        <View style={styles.logQualityContainer}>
-                            <Icon name="star" size={16} color="#8F9BB3" style={styles.detailIcon} />
-                            <Text style={styles.logQuality}>
-                                Quality: {log.quality || 'Not specified'}
-                            </Text>
-                        </View>
-                    </View>
-                </Card>
-            </TouchableOpacity>
-        ));
+        return sleepLogs.map((log) => {
+            try {
+                // Log the raw data for debugging
+                console.log('Raw sleep log data:', {
+                    id: log.id,
+                    start_time: log.start_time,
+                    end_time: log.end_time,
+                    is_nap: log.is_nap,
+                    duration: log.duration_minutes
+                });
+
+                // Use SleepService to handle time conversion
+                const manilaStartTime = SleepService.convertToManilaTime(log.start_time);
+                const manilaEndTime = SleepService.convertToManilaTime(log.end_time);
+
+                if (!manilaStartTime || !manilaEndTime) {
+                    console.error('Invalid time values for log:', {
+                        id: log.id,
+                        start: log.start_time,
+                        end: log.end_time,
+                        convertedStart: manilaStartTime,
+                        convertedEnd: manilaEndTime
+                    });
+                    return null;
+                }
+
+                // Format times for display
+                const startTimeDisplay = SleepService.formatTimeForDisplay(manilaStartTime);
+                const endTimeDisplay = format(manilaEndTime, 'h:mm a');
+
+                console.log('Formatted sleep log:', {
+                    id: log.id,
+                    type: log.is_nap ? 'Nap' : 'Night Sleep',
+                    startTime: startTimeDisplay,
+                    endTime: endTimeDisplay,
+                    duration: SleepService.formatDuration(log.duration_minutes)
+                });
+
+                return (
+                    <TouchableOpacity
+                        key={log.id}
+                        onPress={() => navigation.navigate('EditSleep', { sleepLog: log })}
+                        style={styles.logTouchable}
+                    >
+                        <Card containerStyle={styles.logCard}>
+                            <View style={styles.logHeader}>
+                                <View style={styles.logTypeContainer}>
+                                    <Icon
+                                        name={log.is_nap ? 'brightness-5' : 'brightness-3'}
+                                        size={20}
+                                        color="#FF9A9E"
+                                        style={styles.logIcon}
+                                    />
+                                    <Text style={styles.logType}>
+                                        {log.is_nap ? 'Nap' : 'Night Sleep'}
+                                    </Text>
+                                </View>
+                                <Text style={styles.logDuration}>
+                                    {SleepService.formatDuration(log.duration_minutes)}
+                                </Text>
+                            </View>
+                            <View style={styles.logDetails}>
+                                <View style={styles.logTimeContainer}>
+                                    <Icon name="schedule" size={16} color="#8F9BB3" style={styles.detailIcon} />
+                                    <Text style={styles.logTime}>
+                                        {startTimeDisplay} - {endTimeDisplay}
+                                    </Text>
+                                </View>
+                                <View style={styles.logQualityContainer}>
+                                    <Icon name="star" size={16} color="#8F9BB3" style={styles.detailIcon} />
+                                    <Text style={styles.logQuality}>
+                                        Quality: {log.quality || 'Not specified'}
+                                    </Text>
+                                </View>
+                            </View>
+                        </Card>
+                    </TouchableOpacity>
+                );
+            } catch (error) {
+                console.error('Error rendering sleep log:', {
+                    id: log?.id,
+                    error: error.message,
+                    stack: error.stack
+                });
+                return null;
+            }
+        }).filter(Boolean); // Remove any null entries from failed renders
     };
 
     if (babyLoading || loading) {
