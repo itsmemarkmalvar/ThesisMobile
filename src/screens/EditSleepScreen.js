@@ -11,7 +11,6 @@ import {
 import { Button, Input } from '@rneui/themed';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { Picker } from '@react-native-picker/picker';
-import { format } from 'date-fns';
 import { SleepService } from '../services/SleepService';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -38,6 +37,18 @@ const EditSleepScreen = ({ navigation, route }) => {
             headerShown: false
         });
     }, [navigation]);
+
+    const formatTimeForDisplay = (date) => {
+        const hours = date.getUTCHours();
+        const minutes = date.getUTCMinutes();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const displayHours = hours % 12 || 12;
+        const displayMinutes = minutes.toString().padStart(2, '0');
+        const month = date.toLocaleString('en-US', { month: 'short' });
+        const day = date.getUTCDate();
+        
+        return `${month} ${day}, ${displayHours}:${displayMinutes} ${ampm}`;
+    };
 
     const handleUpdate = async () => {
         try {
@@ -72,6 +83,13 @@ const EditSleepScreen = ({ navigation, route }) => {
                 setError(timeValidation.error);
                 return;
             }
+
+            console.log('Updating sleep log:', {
+                start: sleepData.start_time.toISOString(),
+                end: sleepData.end_time.toISOString(),
+                displayStart: formatTimeForDisplay(sleepData.start_time),
+                displayEnd: formatTimeForDisplay(sleepData.end_time)
+            });
 
             await SleepService.updateSleepLog(sleepLog.id, sleepData);
             navigation.goBack();
@@ -113,11 +131,19 @@ const EditSleepScreen = ({ navigation, route }) => {
     };
 
     const handleStartTimeConfirm = (date) => {
+        console.log('Start time selected:', {
+            date: date.toISOString(),
+            display: formatTimeForDisplay(date)
+        });
         setSleepData(prev => ({ ...prev, start_time: date }));
         setShowStartPicker(false);
     };
 
     const handleEndTimeConfirm = (date) => {
+        console.log('End time selected:', {
+            date: date.toISOString(),
+            display: formatTimeForDisplay(date)
+        });
         setSleepData(prev => ({ ...prev, end_time: date }));
         setShowEndPicker(false);
     };
@@ -160,7 +186,7 @@ const EditSleepScreen = ({ navigation, route }) => {
                             >
                                 <Text style={styles.label}>Start Time</Text>
                                 <Text style={styles.dateText}>
-                                    {format(sleepData.start_time, 'MMM d, yyyy h:mm a')}
+                                    {formatTimeForDisplay(sleepData.start_time)}
                                 </Text>
                             </TouchableOpacity>
 
@@ -170,7 +196,7 @@ const EditSleepScreen = ({ navigation, route }) => {
                             >
                                 <Text style={styles.label}>End Time</Text>
                                 <Text style={styles.dateText}>
-                                    {format(sleepData.end_time, 'MMM d, yyyy h:mm a')}
+                                    {formatTimeForDisplay(sleepData.end_time)}
                                 </Text>
                             </TouchableOpacity>
 

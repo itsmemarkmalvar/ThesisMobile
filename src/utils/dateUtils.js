@@ -174,57 +174,60 @@ export const calculateDurationInMinutes = (startDate, endDate) => {
 };
 
 // Validate sleep duration based on type (nap or night sleep)
-export const validateSleepDuration = (startDate, endDate, isNap) => {
-  try {
-    const durationMinutes = calculateDurationInMinutes(startDate, endDate);
+export const validateSleepDuration = (startTime, endTime, isNap) => {
+    const durationInMinutes = Math.round((endTime - startTime) / (1000 * 60));
     
+    console.log('Validating sleep duration:', {
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        isNap,
+        durationInMinutes,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    });
+
     if (isNap) {
-      if (durationMinutes > MAX_NAP_DURATION_MINUTES) {
-        return {
-          isValid: false,
-          error: `Nap duration cannot exceed ${MAX_NAP_DURATION_MINUTES / 60} hours`
-        };
-      }
+        if (durationInMinutes > 180) { // 3 hours
+            return {
+                isValid: false,
+                error: 'Nap duration cannot exceed 3 hours'
+            };
+        }
     } else {
-      if (durationMinutes > MAX_NIGHT_SLEEP_DURATION_MINUTES) {
-        return {
-          isValid: false,
-          error: `Night sleep duration cannot exceed ${MAX_NIGHT_SLEEP_DURATION_MINUTES / 60} hours`
-        };
-      }
-      if (durationMinutes < MIN_NIGHT_SLEEP_DURATION_MINUTES) {
-        return {
-          isValid: false,
-          error: `Night sleep duration should be at least ${MIN_NIGHT_SLEEP_DURATION_MINUTES / 60} hours`
-        };
-      }
+        if (durationInMinutes > 720) { // 12 hours
+            return {
+                isValid: false,
+                error: 'Night sleep duration cannot exceed 12 hours'
+            };
+        }
     }
-    
+
+    if (durationInMinutes < 15) {
+        return {
+            isValid: false,
+            error: 'Sleep duration must be at least 15 minutes'
+        };
+    }
+
     return { isValid: true };
-  } catch (error) {
-    console.error('Error validating sleep duration:', error);
-    return { isValid: false, error: 'Invalid date values' };
-  }
 };
 
 // Validate if the sleep time is not in the future
-export const validateSleepTime = (startDate, endDate) => {
-  try {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+export const validateSleepTime = (startTime, endTime) => {
+    const now = new Date();
     
-    // For editing past logs, we don't need to validate against current time
-    // Only validate that end time is after start time
-    if (start >= end) {
-      return {
-        isValid: false,
-        error: 'End time must be after start time'
-      };
+    console.log('Validating sleep time:', {
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        now: now.toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    });
+
+    if (startTime > now || endTime > now) {
+        return {
+            isValid: false,
+            error: 'Sleep times cannot be in the future'
+        };
     }
 
     return { isValid: true };
-  } catch (error) {
-    console.error('Error validating sleep time:', error);
-    return { isValid: false, error: 'Invalid date values' };
-  }
 }; 

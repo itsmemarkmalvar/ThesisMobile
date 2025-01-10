@@ -33,6 +33,13 @@ const AddSleepScreen = ({ navigation }) => {
         const defaultStartTime = new Date(now);
         defaultStartTime.setHours(defaultStartTime.getHours() - 8); // Default to 8 hours ago
         
+        console.log('Initial Sleep Data:', {
+            now: now.toISOString(),
+            defaultStartTime: defaultStartTime.toISOString(),
+            defaultEndTime: defaultEndTime.toISOString(),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        });
+        
         return {
             start_time: defaultStartTime,
             end_time: defaultEndTime,
@@ -80,6 +87,13 @@ const AddSleepScreen = ({ navigation }) => {
                 return;
             }
 
+            console.log('Saving sleep data:', {
+                start_time: sleepData.start_time.toISOString(),
+                end_time: sleepData.end_time.toISOString(),
+                is_nap: sleepData.is_nap,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+            });
+
             await SleepService.createSleepLog(sleepData);
             navigation.goBack();
         } catch (error) {
@@ -91,11 +105,19 @@ const AddSleepScreen = ({ navigation }) => {
     };
 
     const handleStartTimeConfirm = (date) => {
+        console.log('Start time selected:', {
+            selected: date.toISOString(),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        });
         setSleepData(prev => ({ ...prev, start_time: date }));
         setShowStartPicker(false);
     };
 
     const handleEndTimeConfirm = (date) => {
+        console.log('End time selected:', {
+            selected: date.toISOString(),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        });
         setSleepData(prev => ({ ...prev, end_time: date }));
         setShowEndPicker(false);
     };
@@ -228,6 +250,8 @@ const AddSleepScreen = ({ navigation }) => {
                     onConfirm={handleStartTimeConfirm}
                     onCancel={() => setShowStartPicker(false)}
                     date={sleepData.start_time}
+                    maximumDate={new Date()}
+                    is24Hour={false}
                 />
 
                 <DateTimePickerModal
@@ -237,6 +261,8 @@ const AddSleepScreen = ({ navigation }) => {
                     onCancel={() => setShowEndPicker(false)}
                     date={sleepData.end_time}
                     minimumDate={sleepData.start_time}
+                    maximumDate={new Date()}
+                    is24Hour={false}
                 />
             </LinearGradient>
         </SafeAreaView>

@@ -30,27 +30,25 @@ const SleepScreen = ({ navigation }) => {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
     const [dateRange, setDateRange] = useState(() => {
+        // Get current date and time
         const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth();
-        const currentDate = now.getDate();
         
-        // Create today's date with the current year, ensuring we start at midnight
-        const todayDate = new Date(currentYear, currentMonth, currentDate, 0, 0, 0);
+        // Create end date (today at 23:59:59.999)
+        const endDate = new Date(now);
+        endDate.setHours(23, 59, 59, 999);
         
-        // Create start date (7 days ago at 00:00:00)
-        const startDate = new Date(currentYear, currentMonth, currentDate - 7, 0, 0, 0);
-        
-        // Create end date (today at 23:59:59)
-        const endDate = new Date(currentYear, currentMonth, currentDate, 23, 59, 59);
+        // Create start date (7 days ago at 00:00:00.000)
+        const startDate = new Date(now);
+        startDate.setDate(now.getDate() - 7);
+        startDate.setHours(0, 0, 0, 0);
         
         console.log('Date Range Initialization:', {
             now: now.toISOString(),
-            currentYear,
-            currentMonth,
-            currentDate,
             startDate: startDate.toISOString(),
-            endDate: endDate.toISOString()
+            endDate: endDate.toISOString(),
+            currentYear: now.getFullYear(),
+            currentMonth: now.getMonth(),
+            currentDate: now.getDate()
         });
         
         return { startDate, endDate };
@@ -67,8 +65,8 @@ const SleepScreen = ({ navigation }) => {
             setError(null);
 
             // Format dates for API request
-            const formattedStartDate = format(dateRange.startDate, 'yyyy-MM-dd');
-            const formattedEndDate = format(dateRange.endDate, 'yyyy-MM-dd');
+            const formattedStartDate = format(dateRange.startDate, "yyyy-MM-dd'T'HH:mm:ss");
+            const formattedEndDate = format(dateRange.endDate, "yyyy-MM-dd'T'HH:mm:ss");
 
             console.log('=== Sleep Data Fetch Process ===');
             console.log('1. Initial Date Range:', {
@@ -198,7 +196,7 @@ const SleepScreen = ({ navigation }) => {
                         <View style={styles.logTimeContainer}>
                             <Icon name="schedule" size={16} color="#8F9BB3" style={styles.detailIcon} />
                             <Text style={styles.logTime}>
-                                {format(new Date(log.start_time), 'MMM d, h:mm a')}
+                                {SleepService.formatDateForDisplay(log.start_time)}
                             </Text>
                         </View>
                         <View style={styles.logQualityContainer}>
