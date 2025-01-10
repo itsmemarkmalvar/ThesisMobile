@@ -33,6 +33,29 @@ const STATUS_OPTIONS = [
   { value: 'rescheduled', label: 'Rescheduled' },
 ];
 
+const formatAppointmentDate = (dateString) => {
+  try {
+    // Parse the UTC date string
+    const utcDate = new Date(dateString);
+    
+    // Convert to local time
+    const localDate = new Date(utcDate.getTime() + utcDate.getTimezoneOffset() * 60000);
+    
+    console.log('Date conversion:', {
+      input: dateString,
+      utcDate: utcDate,
+      localDate: localDate,
+      timezoneOffset: utcDate.getTimezoneOffset(),
+      formatted: format(localDate, 'MMM d, yyyy h:mm a')
+    });
+    
+    return format(localDate, 'MMM d, yyyy h:mm a');
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid Date';
+  }
+};
+
 const AppointmentsScreen = () => {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
@@ -52,6 +75,7 @@ const AppointmentsScreen = () => {
         null,
         selectedStatus || undefined
       );
+      console.log('Raw appointments data:', response.data);
       setAppointments(response.data || []);
     } catch (err) {
       setError('Failed to load appointments');
@@ -166,70 +190,76 @@ const AppointmentsScreen = () => {
             />
           ) : (
             <View style={styles.content}>
-              {appointments.map((appointment) => (
-                <Card
-                  key={appointment.id}
-                  style={styles.card}
-                  onPress={() => handleViewAppointment(appointment)}
-                >
-                  <Card.Content>
-                    <View style={styles.appointmentHeader}>
-                      <Text variant="titleMedium" style={styles.doctorName}>
-                        Dr. {appointment.doctor_name}
-                      </Text>
-                      <Chip
-                        style={[
-                          styles.statusChip,
-                          { backgroundColor: `${getStatusColor(appointment.status)}20` }
-                        ]}
-                        textStyle={{
-                          fontSize: 12,
-                          color: getStatusColor(appointment.status),
-                          fontWeight: '600',
-                        }}
-                      >
-                        {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
-                      </Chip>
-                    </View>
-
-                    <Text variant="bodyMedium" style={styles.purpose}>
-                      {appointment.purpose}
-                    </Text>
-
-                    <View style={styles.appointmentDetails}>
-                      <View style={styles.detailRow}>
-                        <Text variant="bodySmall" style={styles.detailLabel}>
-                          Date & Time:
+              {appointments.map((appointment) => {
+                console.log('Processing appointment:', {
+                  id: appointment.id,
+                  raw_date: appointment.appointment_date
+                });
+                return (
+                  <Card
+                    key={appointment.id}
+                    style={styles.card}
+                    onPress={() => handleViewAppointment(appointment)}
+                  >
+                    <Card.Content>
+                      <View style={styles.appointmentHeader}>
+                        <Text variant="titleMedium" style={styles.doctorName}>
+                          Dr. {appointment.doctor_name}
                         </Text>
-                        <Text variant="bodySmall" style={styles.detailValue}>
-                          {format(new Date(appointment.appointment_date), 'MMM d, yyyy h:mm a')}
-                        </Text>
+                        <Chip
+                          style={[
+                            styles.statusChip,
+                            { backgroundColor: `${getStatusColor(appointment.status)}20` }
+                          ]}
+                          textStyle={{
+                            fontSize: 12,
+                            color: getStatusColor(appointment.status),
+                            fontWeight: '600',
+                          }}
+                        >
+                          {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                        </Chip>
                       </View>
 
-                      {appointment.clinic_location && (
+                      <Text variant="bodyMedium" style={styles.purpose}>
+                        {appointment.purpose}
+                      </Text>
+
+                      <View style={styles.appointmentDetails}>
                         <View style={styles.detailRow}>
                           <Text variant="bodySmall" style={styles.detailLabel}>
-                            Location:
+                            Date & Time:
                           </Text>
                           <Text variant="bodySmall" style={styles.detailValue}>
-                            {appointment.clinic_location}
+                            {formatAppointmentDate(appointment.appointment_date)}
                           </Text>
                         </View>
-                      )}
-                    </View>
 
-                    {appointment.reminder_enabled && (
-                      <Chip
-                        icon="bell"
-                        style={styles.reminderChip}
-                        textStyle={{ fontSize: 12, color: '#1976D2' }}
-                      >
-                        Reminder {appointment.reminder_minutes_before} min before
-                      </Chip>
-                    )}
-                  </Card.Content>
-                </Card>
-              ))}
+                        {appointment.clinic_location && (
+                          <View style={styles.detailRow}>
+                            <Text variant="bodySmall" style={styles.detailLabel}>
+                              Location:
+                            </Text>
+                            <Text variant="bodySmall" style={styles.detailValue}>
+                              {appointment.clinic_location}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {appointment.reminder_enabled && (
+                        <Chip
+                          icon="bell"
+                          style={styles.reminderChip}
+                          textStyle={{ fontSize: 12, color: '#1976D2' }}
+                        >
+                          Reminder {appointment.reminder_minutes_before} min before
+                        </Chip>
+                      )}
+                    </Card.Content>
+                  </Card>
+                );
+              })}
             </View>
           )}
         </ScrollView>

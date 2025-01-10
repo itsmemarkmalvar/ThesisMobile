@@ -61,6 +61,8 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
   const [milestonesLoading, setMilestonesLoading] = useState(true);
   const [milestonesError, setMilestonesError] = useState(null);
 
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
   const fetchMilestones = async () => {
     if (!babyData?.id) {
       setMilestonesError('No baby selected');
@@ -177,6 +179,22 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     fetchGrowthData();
+  }, []);
+
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
   }, []);
 
   const fetchGrowthData = async () => {
@@ -882,117 +900,123 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
         </TouchableOpacity>
 
         <Modal
-          animationType={Platform.OS === 'ios' ? 'slide' : 'none'}
-          transparent={true}
           visible={modalVisible}
+          transparent
+          animationType="slide"
           onRequestClose={() => setModalVisible(false)}
-          statusBarTranslucent={true}
         >
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={styles.modalContainer}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
-          >
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-              <View style={[
-                styles.modalContent,
-                { minHeight: Platform.OS === 'ios' ? 500 : 450 }
-              ]}>
-                <Text style={styles.modalTitle}>Add Growth Record</Text>
-                
-                <TextInput
-                  style={styles.input}
-                  placeholder="Height (cm)"
-                  keyboardType="decimal-pad"
-                  value={newRecord.height}
-                  onChangeText={(text) => {
-                    if (/^\d*\.?\d*$/.test(text)) {
-                      setNewRecord(prev => ({...prev, height: text}));
-                    }
-                  }}
-                  maxLength={5}
-                />
-                
-                <TextInput
-                  style={styles.input}
-                  placeholder="Weight (kg)"
-                  keyboardType="decimal-pad"
-                  value={newRecord.weight}
-                  onChangeText={(text) => {
-                    if (/^\d*\.?\d*$/.test(text)) {
-                      setNewRecord(prev => ({...prev, weight: text}));
-                    }
-                  }}
-                  maxLength={5}
-                />
-                
-                <TextInput
-                  style={styles.input}
-                  placeholder="Head Size (cm)"
-                  keyboardType="decimal-pad"
-                  value={newRecord.head_size}
-                  onChangeText={(text) => {
-                    if (/^\d*\.?\d*$/.test(text)) {
-                      setNewRecord(prev => ({...prev, head_size: text}));
-                    }
-                  }}
-                  maxLength={5}
-                />
-                
-                <TouchableOpacity
-                  style={styles.dateButton}
-                  onPress={() => setShowDatePicker(true)}
-                >
-                  <Text style={styles.dateButtonText}>
-                    {newRecord.date_recorded.toLocaleDateString()}
-                  </Text>
-                </TouchableOpacity>
-
-                {showDatePicker && (
-                  <DateTimePicker
-                    value={newRecord.date_recorded}
-                    mode="date"
-                    display="default"
-                    onChange={(event, selectedDate) => {
-                      setShowDatePicker(false);
-                      if (selectedDate) {
-                        setNewRecord(prev => ({...prev, date_recorded: selectedDate}));
-                      }
-                    }}
-                    maximumDate={new Date()}
-                  />
-                )}
-                
-                <TextInput
-                  style={[styles.input, styles.notesInput]}
-                  placeholder="Notes (optional)"
-                  multiline
-                  value={newRecord.notes}
-                  onChangeText={(text) => setNewRecord(prev => ({...prev, notes: text}))}
-                />
-
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity
-                    style={[styles.button, styles.cancelButton]}
-                    onPress={() => setModalVisible(false)}
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalContainer}>
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+                style={{ width: '100%' }}
+              >
+                <View style={[
+                  styles.modalContent,
+                  Platform.OS === 'ios' && { marginBottom: keyboardHeight > 0 ? keyboardHeight / 4 : 0 }
+                ]}>
+                  <Text style={styles.modalTitle}>Add Growth Record</Text>
+                  <ScrollView 
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
                   >
-                    <Text style={styles.buttonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.button, styles.saveButton]}
-                    onPress={handleAddMeasurement}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <ActivityIndicator color="#FFF" />
-                    ) : (
-                      <Text style={styles.buttonText}>Save</Text>
-                    )}
-                  </TouchableOpacity>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Height (cm)"
+                      value={newRecord.height}
+                      onChangeText={(text) => {
+                        if (/^\d*\.?\d*$/.test(text)) {
+                          setNewRecord(prev => ({ ...prev, height: text }));
+                        }
+                      }}
+                      keyboardType="decimal-pad"
+                      returnKeyType="next"
+                      maxLength={5}
+                    />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Weight (kg)"
+                      value={newRecord.weight}
+                      onChangeText={(text) => {
+                        if (/^\d*\.?\d*$/.test(text)) {
+                          setNewRecord(prev => ({ ...prev, weight: text }));
+                        }
+                      }}
+                      keyboardType="decimal-pad"
+                      returnKeyType="next"
+                      maxLength={5}
+                    />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Head Size (cm)"
+                      value={newRecord.head_size}
+                      onChangeText={(text) => {
+                        if (/^\d*\.?\d*$/.test(text)) {
+                          setNewRecord(prev => ({ ...prev, head_size: text }));
+                        }
+                      }}
+                      keyboardType="decimal-pad"
+                      returnKeyType="next"
+                      maxLength={5}
+                    />
+                    <TouchableOpacity
+                      style={styles.dateButton}
+                      onPress={() => setShowDatePicker(true)}
+                    >
+                      <Text style={styles.dateButtonText}>
+                        {newRecord.date_recorded.toLocaleDateString()}
+                      </Text>
+                    </TouchableOpacity>
+                    <TextInput
+                      style={[styles.input, styles.notesInput]}
+                      placeholder="Notes (optional)"
+                      value={newRecord.notes}
+                      onChangeText={(text) => setNewRecord(prev => ({ ...prev, notes: text }))}
+                      multiline
+                      textAlignVertical="top"
+                    />
+                    <View style={styles.modalButtons}>
+                      <TouchableOpacity
+                        style={[styles.button, styles.cancelButton]}
+                        onPress={() => {
+                          Keyboard.dismiss();
+                          setModalVisible(false);
+                        }}
+                      >
+                        <Text style={styles.buttonText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.button, styles.saveButton]}
+                        onPress={handleAddMeasurement}
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <ActivityIndicator color="#FFF" />
+                        ) : (
+                          <Text style={styles.buttonText}>Save</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </ScrollView>
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={newRecord.date_recorded}
+                      mode="date"
+                      display="default"
+                      onChange={(event, selectedDate) => {
+                        setShowDatePicker(false);
+                        if (selectedDate) {
+                          setNewRecord(prev => ({ ...prev, date_recorded: selectedDate }));
+                        }
+                      }}
+                      maximumDate={new Date()}
+                    />
+                  )}
                 </View>
-              </View>
-            </TouchableWithoutFeedback>
-          </KeyboardAvoidingView>
+              </KeyboardAvoidingView>
+            </View>
+          </TouchableWithoutFeedback>
         </Modal>
       </LinearGradient>
     </SafeAreaView>
@@ -1079,22 +1103,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    paddingHorizontal: Platform.OS === 'ios' ? 24 : 20,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    paddingHorizontal: 20,
   },
   modalContent: {
     backgroundColor: 'white',
-    borderRadius: Platform.OS === 'ios' ? 24 : 20,
-    padding: Platform.OS === 'ios' ? 24 : 20,
+    borderRadius: 20,
+    padding: 20,
     width: '100%',
-    maxHeight: Platform.OS === 'ios' ? '80%' : '90%',
+    maxHeight: '80%',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: Platform.OS === 'ios' ? 0.25 : 0.25,
-    shadowRadius: Platform.OS === 'ios' ? 8 : 4,
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
     elevation: 5,
   },
   modalTitle: {

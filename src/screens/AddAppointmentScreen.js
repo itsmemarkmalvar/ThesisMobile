@@ -97,12 +97,18 @@ const AddAppointmentScreen = () => {
 
     setLoading(true);
     try {
-      // Format the date to match backend expectations
-      const formattedDate = format(appointmentDate, "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+      // Convert local date to UTC and format it
+      const utcDate = new Date(appointmentDate.getTime() - appointmentDate.getTimezoneOffset() * 60000);
+      console.log('Appointment date handling:', {
+        original: appointmentDate,
+        utcDate: utcDate,
+        timezoneOffset: appointmentDate.getTimezoneOffset(),
+        formattedForAPI: utcDate.toISOString()
+      });
       
       await HealthService.createAppointment({
         ...formData,
-        appointment_date: formattedDate,
+        appointment_date: utcDate.toISOString(),
       });
       navigation.goBack();
     } catch (error) {
