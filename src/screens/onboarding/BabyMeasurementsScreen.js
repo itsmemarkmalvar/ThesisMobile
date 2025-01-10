@@ -32,10 +32,41 @@ const MeasurementInput = React.memo(({ label, value, unit, onChange, placeholder
     onChange(sanitizedText);
   };
 
+  const isValid = () => {
+    const val = parseFloat(value);
+    switch (fieldName) {
+      case 'height':
+        return !value || (val >= 45 && val <= 99);
+      case 'weight':
+        return !value || (val >= 2 && val <= 15);
+      case 'headSize':
+        return !value || (val >= 30 && val <= 50);
+      default:
+        return true;
+    }
+  };
+
+  const getValidationMessage = () => {
+    if (!value) return '';
+    switch (fieldName) {
+      case 'height':
+        return 'Valid range: 45-99 cm';
+      case 'weight':
+        return 'Valid range: 2-15 kg';
+      case 'headSize':
+        return 'Valid range: 30-50 cm';
+      default:
+        return '';
+    }
+  };
+
   return (
     <View style={styles.inputContainer}>
       <Text style={styles.label}>{label}</Text>
-      <View style={styles.measurementInput}>
+      <View style={[
+        styles.measurementInput,
+        !isValid() && styles.inputError
+      ]}>
         <TextInput
           ref={inputRef}
           style={styles.input}
@@ -47,6 +78,9 @@ const MeasurementInput = React.memo(({ label, value, unit, onChange, placeholder
         />
         <Text style={styles.unit}>{unit}</Text>
       </View>
+      {!isValid() && (
+        <Text style={styles.validationMessage}>{getValidationMessage()}</Text>
+      )}
     </View>
   );
 });
@@ -88,6 +122,24 @@ const BabyMeasurementsScreen = ({ navigation, route }) => {
 
   const handleComplete = async () => {
     try {
+      // Validate measurements
+      const height = parseFloat(measurements.height);
+      const weight = parseFloat(measurements.weight);
+      const headSize = parseFloat(measurements.headSize);
+
+      // Check if any measurements are missing or invalid
+      const isHeightValid = !isNaN(height) && height >= 45 && height <= 99;
+      const isWeightValid = !isNaN(weight) && weight >= 2 && weight <= 15;
+      const isHeadSizeValid = !isNaN(headSize) && headSize >= 30 && headSize <= 50;
+
+      if (!isHeightValid || !isWeightValid || !isHeadSizeValid) {
+        // Focus on the first invalid field
+        if (!isHeightValid) heightInputRef.current?.focus();
+        else if (!isWeightValid) weightInputRef.current?.focus();
+        else if (!isHeadSizeValid) headSizeInputRef.current?.focus();
+        return;
+      }
+
       const token = await AsyncStorage.getItem('userToken');
       console.log('Token when saving:', token ? token.substring(0, 10) + '...' : 'No token');
       
@@ -351,6 +403,16 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  inputError: {
+    borderColor: '#FF6B6B',
+    borderWidth: 1,
+  },
+  validationMessage: {
+    color: '#FF6B6B',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
   },
 });
 

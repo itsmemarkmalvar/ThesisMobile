@@ -104,11 +104,10 @@ const AppointmentDetailsScreen = () => {
         ...appointment,
         status,
       });
-      await fetchAppointment();
+      navigation.goBack();
     } catch (err) {
       setError('Failed to update appointment status');
       console.error('Error updating appointment status:', err);
-    } finally {
       setLoading(false);
     }
   };

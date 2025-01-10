@@ -16,6 +16,7 @@ import { useBaby } from '../context/BabyContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import { validateSleepDuration, validateSleepTime } from '../utils/dateUtils';
 
 const AddSleepScreen = ({ navigation }) => {
     useEffect(() => {
@@ -26,13 +27,20 @@ const AddSleepScreen = ({ navigation }) => {
 
     const { baby } = useBaby();
     const [loading, setLoading] = useState(false);
-    const [sleepData, setSleepData] = useState({
-        start_time: new Date(),
-        end_time: new Date(),
-        is_nap: false,
-        quality: 'good',
-        location: 'crib',
-        notes: ''
+    const [sleepData, setSleepData] = useState(() => {
+        const now = new Date();
+        const defaultEndTime = new Date(now);
+        const defaultStartTime = new Date(now);
+        defaultStartTime.setHours(defaultStartTime.getHours() - 8); // Default to 8 hours ago
+        
+        return {
+            start_time: defaultStartTime,
+            end_time: defaultEndTime,
+            is_nap: false,
+            quality: 'good',
+            location: 'crib',
+            notes: ''
+        };
     });
     const [showStartPicker, setShowStartPicker] = useState(false);
     const [showEndPicker, setShowEndPicker] = useState(false);
@@ -46,6 +54,29 @@ const AddSleepScreen = ({ navigation }) => {
             // Validate times
             if (sleepData.end_time <= sleepData.start_time) {
                 setError('End time must be after start time');
+                return;
+            }
+
+            // Validate sleep duration based on type (nap or night sleep)
+            const durationValidation = validateSleepDuration(
+                sleepData.start_time,
+                sleepData.end_time,
+                sleepData.is_nap
+            );
+
+            if (!durationValidation.isValid) {
+                setError(durationValidation.error);
+                return;
+            }
+
+            // Validate that sleep times are not in the future
+            const timeValidation = validateSleepTime(
+                sleepData.start_time,
+                sleepData.end_time
+            );
+
+            if (!timeValidation.isValid) {
+                setError(timeValidation.error);
                 return;
             }
 

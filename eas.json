@@ -14,7 +14,8 @@
     "development-apk": {
       "android": {
         "buildType": "apk",
-        "releaseChannel": "production"
+        "gradleCommand": ":app:assembleRelease",
+        "withoutCredentials": true
       },
       "distribution": "internal",
       "developmentClient": false,

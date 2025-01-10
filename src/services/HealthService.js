@@ -143,6 +143,7 @@ export class HealthService {
     // Appointments
     static async getAppointments(startDate, endDate, status) {
         try {
+            console.log('Fetching appointments with params:', { startDate, endDate, status });
             const params = {};
             if (startDate && endDate) {
                 params.start_date = format(new Date(startDate), 'yyyy-MM-dd');
@@ -150,8 +151,25 @@ export class HealthService {
             }
             if (status) params.status = status;
 
+            console.log('Making request to /appointments with params:', params);
             const response = await ApiService.get('/appointments', { params });
-            return response.data;
+            console.log('Full appointments response:', JSON.stringify(response.data, null, 2));
+            
+            // Ensure we return a consistent data structure
+            const appointments = Array.isArray(response.data) ? response.data :
+                               Array.isArray(response.data?.data) ? response.data.data : [];
+            
+            console.log('Number of appointments found:', appointments.length);
+            appointments.forEach((apt, idx) => {
+                console.log(`Appointment ${idx + 1}:`, {
+                    id: apt.id,
+                    date: apt.appointment_date,
+                    status: apt.status,
+                    title: apt.title
+                });
+            });
+            
+            return { data: appointments };
         } catch (error) {
             console.error('Error fetching appointments:', error);
             throw error;
@@ -160,8 +178,25 @@ export class HealthService {
 
     static async getUpcomingAppointments() {
         try {
+            console.log('Fetching upcoming appointments...');
             const response = await ApiService.get('/appointments/upcoming');
-            return response.data;
+            console.log('Full upcoming appointments response:', JSON.stringify(response.data, null, 2));
+            
+            // Return the data array directly if it exists, otherwise return an empty array
+            const appointments = Array.isArray(response.data) ? response.data : 
+                               Array.isArray(response.data?.data) ? response.data.data : [];
+            
+            console.log('Number of upcoming appointments:', appointments.length);
+            appointments.forEach((apt, idx) => {
+                console.log(`Upcoming Appointment ${idx + 1}:`, {
+                    id: apt.id,
+                    date: apt.appointment_date,
+                    status: apt.status,
+                    title: apt.title
+                });
+            });
+            
+            return { data: appointments };
         } catch (error) {
             console.error('Error fetching upcoming appointments:', error);
             throw error;

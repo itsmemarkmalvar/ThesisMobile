@@ -39,6 +39,60 @@ import MilestoneService from '../services/MilestoneService';
 const initialLayout = { width: Dimensions.get('window').width };
 const chartWidth = Dimensions.get('window').width - (Platform.OS === 'ios' ? 60 : 50);
 
+const MeasurementInput = React.memo(({ label, value, unit, onChange, placeholder, maxLength }) => {
+  const isValid = () => {
+    const val = parseFloat(value);
+    switch (label.toLowerCase()) {
+      case 'height':
+        return !value || (val >= 45 && val <= 99);
+      case 'weight':
+        return !value || (val >= 2 && val <= 15);
+      case 'head size':
+        return !value || (val >= 30 && val <= 50);
+      default:
+        return true;
+    }
+  };
+
+  const getValidationMessage = () => {
+    if (!value) return '';
+    switch (label.toLowerCase()) {
+      case 'height':
+        return 'Valid range: 45-99 cm';
+      case 'weight':
+        return 'Valid range: 2-15 kg';
+      case 'head size':
+        return 'Valid range: 30-50 cm';
+      default:
+        return '';
+    }
+  };
+
+  return (
+    <View style={styles.inputWrapper}>
+      <TextInput
+        style={[
+          styles.input,
+          !isValid() && styles.inputError
+        ]}
+        placeholder={`${label} (${unit})`}
+        value={value}
+        onChangeText={(text) => {
+          if (/^\d*\.?\d*$/.test(text)) {
+            onChange(text);
+          }
+        }}
+        keyboardType="decimal-pad"
+        returnKeyType="next"
+        maxLength={maxLength}
+      />
+      {!isValid() && (
+        <Text style={styles.validationMessage}>{getValidationMessage()}</Text>
+      )}
+    </View>
+  );
+});
+
 const GrowthTrackingScreen = ({ navigation, route }) => {
   const { babyData, updateBabyData } = useBaby();
   const [loading, setLoading] = useState(true);
@@ -242,7 +296,8 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
               height: parseFloat(record.height) || 0,
               weight: parseFloat(record.weight) || 0,
               head_size: parseFloat(record.head_size) || 0,
-              date_recorded: formattedDate
+              date_recorded: formattedDate,
+              notes: record.notes || '' // Ensure notes field exists
             };
           })
           .sort((a, b) => new Date(b.date_recorded) - new Date(a.date_recorded)); // Sort by newest first
@@ -288,18 +343,20 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
 
   const handleAddMeasurement = async () => {
     try {
-      // Check for empty required fields first
-      if (!newRecord.height.trim()) {
-        Alert.alert('Error', 'Please enter the height');
-        return;
-      }
-      if (!newRecord.weight.trim()) {
-        Alert.alert('Error', 'Please enter the weight');
-        return;
-      }
-      if (!newRecord.head_size.trim()) {
-        Alert.alert('Error', 'Please enter the head size');
-        return;
+      // Validate measurements
+      const height = parseFloat(newRecord.height);
+      const weight = parseFloat(newRecord.weight);
+      const headSize = parseFloat(newRecord.head_size);
+      const selectedDate = new Date(newRecord.date_recorded);
+
+      // Check if any measurements are missing or invalid
+      const isHeightValid = !isNaN(height) && height >= 45 && height <= 99;
+      const isWeightValid = !isNaN(weight) && weight >= 2 && weight <= 15;
+      const isHeadSizeValid = !isNaN(headSize) && headSize >= 30 && headSize <= 50;
+      const isDateValid = !isNaN(selectedDate.getTime());
+
+      if (!isHeightValid || !isWeightValid || !isHeadSizeValid || !isDateValid) {
+        return; // Don't proceed if validation fails
       }
 
       setLoading(true);
@@ -310,42 +367,18 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
         return;
       }
 
-      // Validate measurements
-      const height = parseFloat(newRecord.height);
-      const weight = parseFloat(newRecord.weight);
-      const headSize = parseFloat(newRecord.head_size);
-      const selectedDate = new Date(newRecord.date_recorded);
-
-      if (isNaN(selectedDate.getTime())) {
-        Alert.alert('Error', 'Please select a valid date');
-        return;
-      }
-
       // Ensure we're using the selected date, not just the date portion
       const year = selectedDate.getFullYear();
       const month = selectedDate.getMonth();
       const day = selectedDate.getDate();
       const date = new Date(year, month, day);
 
-      if (isNaN(height) || height <= 0 || height > 200) {
-        Alert.alert('Error', 'Please enter a valid height (0-200 cm)');
-        return;
-      }
-      if (isNaN(weight) || weight <= 0 || weight > 50) {
-        Alert.alert('Error', 'Please enter a valid weight (0-50 kg)');
-        return;
-      }
-      if (isNaN(headSize) || headSize <= 0 || headSize > 100) {
-        Alert.alert('Error', 'Please enter a valid head size (0-100 cm)');
-        return;
-      }
-
       const measurementData = {
         height: height.toFixed(1),
         weight: weight.toFixed(1),
         head_size: headSize.toFixed(1),
         date_recorded: date.toISOString().split('T')[0],
-        notes: newRecord.notes.trim()
+        notes: newRecord.notes ? newRecord.notes.trim() : '' // Ensure notes are properly formatted
       };
 
       console.log('Sending measurement data:', measurementData);
@@ -843,9 +876,12 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
             <Text style={styles.measurementLabel}>Head Size</Text>
           </View>
         </View>
-        {record.notes && (
+        {record.notes && record.notes.trim() && (
           <View style={styles.notesContainer}>
-            <Text style={styles.notesLabel}>Notes</Text>
+            <View style={styles.notesHeader}>
+              <MaterialIcons name="notes" size={20} color="#666" />
+              <Text style={styles.notesLabel}>Notes</Text>
+            </View>
             <Text style={styles.notesText}>{record.notes}</Text>
           </View>
         )}
@@ -921,43 +957,28 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                   >
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Height (cm)"
+                    <MeasurementInput
+                      label="Height"
                       value={newRecord.height}
-                      onChangeText={(text) => {
-                        if (/^\d*\.?\d*$/.test(text)) {
-                          setNewRecord(prev => ({ ...prev, height: text }));
-                        }
-                      }}
-                      keyboardType="decimal-pad"
-                      returnKeyType="next"
+                      unit="cm"
+                      onChange={(text) => setNewRecord(prev => ({ ...prev, height: text }))}
+                      placeholder="Height (cm)"
                       maxLength={5}
                     />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Weight (kg)"
+                    <MeasurementInput
+                      label="Weight"
                       value={newRecord.weight}
-                      onChangeText={(text) => {
-                        if (/^\d*\.?\d*$/.test(text)) {
-                          setNewRecord(prev => ({ ...prev, weight: text }));
-                        }
-                      }}
-                      keyboardType="decimal-pad"
-                      returnKeyType="next"
+                      unit="kg"
+                      onChange={(text) => setNewRecord(prev => ({ ...prev, weight: text }))}
+                      placeholder="Weight (kg)"
                       maxLength={5}
                     />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Head Size (cm)"
+                    <MeasurementInput
+                      label="Head Size"
                       value={newRecord.head_size}
-                      onChangeText={(text) => {
-                        if (/^\d*\.?\d*$/.test(text)) {
-                          setNewRecord(prev => ({ ...prev, head_size: text }));
-                        }
-                      }}
-                      keyboardType="decimal-pad"
-                      returnKeyType="next"
+                      unit="cm"
+                      onChange={(text) => setNewRecord(prev => ({ ...prev, head_size: text }))}
+                      placeholder="Head Size (cm)"
                       maxLength={5}
                     />
                     <TouchableOpacity
@@ -1289,13 +1310,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F9FA',
     borderRadius: 12,
     padding: 15,
-    marginTop: 10,
+    marginTop: 15,
+  },
+  notesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   notesLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#666',
-    marginBottom: 8,
+    marginLeft: 8,
   },
   notesText: {
     fontSize: 14,
@@ -1598,6 +1624,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginTop: 8,
+  },
+  inputWrapper: {
+    marginBottom: 15,
+  },
+  inputError: {
+    borderColor: '#FF6B6B',
+    borderWidth: 1,
+  },
+  validationMessage: {
+    color: '#FF6B6B',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
   },
 });
 

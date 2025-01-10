@@ -19,10 +19,10 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { format } from 'date-fns';
 import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { LinearGradient } from 'expo-linear-gradient';
+import { formatDisplayDate, formatDisplayTime, formatAPIDateTime } from '../utils/dateUtils';
 
 const REMINDER_OPTIONS = [
   { value: 15, label: '15 min' },
@@ -97,18 +97,13 @@ const AddAppointmentScreen = () => {
 
     setLoading(true);
     try {
-      // Convert local date to UTC and format it
-      const utcDate = new Date(appointmentDate.getTime() - appointmentDate.getTimezoneOffset() * 60000);
-      console.log('Appointment date handling:', {
-        original: appointmentDate,
-        utcDate: utcDate,
-        timezoneOffset: appointmentDate.getTimezoneOffset(),
-        formattedForAPI: utcDate.toISOString()
-      });
+      console.log('Submitting appointment with date:', appointmentDate);
+      const formattedDate = formatAPIDateTime(appointmentDate);
+      console.log('Formatted date for API:', formattedDate);
       
       await HealthService.createAppointment({
         ...formData,
-        appointment_date: utcDate.toISOString(),
+        appointment_date: formattedDate,
       });
       navigation.goBack();
     } catch (error) {
@@ -182,7 +177,7 @@ const AddAppointmentScreen = () => {
                   labelStyle={styles.dateButtonLabel}
                   textColor="#1976D2"
                 >
-                  Date: {format(appointmentDate, 'MMM d, yyyy')}
+                  Date: {formatDisplayDate(appointmentDate)}
                 </Button>
 
                 <Button
@@ -193,7 +188,7 @@ const AddAppointmentScreen = () => {
                   labelStyle={styles.dateButtonLabel}
                   textColor="#1976D2"
                 >
-                  Time: {format(appointmentDate, 'h:mm a')}
+                  Time: {formatDisplayTime(appointmentDate)}
                 </Button>
               </View>
 
@@ -205,7 +200,11 @@ const AddAppointmentScreen = () => {
                   onChange={(event, selectedDate) => {
                     setShowDatePicker(false);
                     if (selectedDate) {
-                      setAppointmentDate(selectedDate);
+                      // Preserve the time when changing date
+                      const newDate = new Date(selectedDate);
+                      newDate.setHours(appointmentDate.getHours());
+                      newDate.setMinutes(appointmentDate.getMinutes());
+                      setAppointmentDate(newDate);
                     }
                   }}
                   minimumDate={new Date()}
@@ -220,7 +219,11 @@ const AddAppointmentScreen = () => {
                   onChange={(event, selectedDate) => {
                     setShowTimePicker(false);
                     if (selectedDate) {
-                      setAppointmentDate(selectedDate);
+                      // Preserve the date when changing time
+                      const newDate = new Date(appointmentDate);
+                      newDate.setHours(selectedDate.getHours());
+                      newDate.setMinutes(selectedDate.getMinutes());
+                      setAppointmentDate(newDate);
                     }
                   }}
                 />

@@ -54,12 +54,12 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [],
+    "owner": "binibabymobileapp",
+    "scheme": "binibaby",
     "extra": {
       "eas": {
-        "projectId": "ba1686cb-8740-4b30-9af4-b6bcce5ae74c"
+        "projectId": "70548d8d-b2c6-45a5-83f5-4e58d4d5c80a"
       }
-    },
-    "owner": "itsmemarkmalvar",
-    "scheme": "binibaby"
+    }
   }
 }

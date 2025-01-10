@@ -54,9 +54,12 @@ const ReminderSettings = ({ visible, onSave, onClose }) => {
   const handleTimeChange = (event, selectedTime) => {
     setShowTimePicker(Platform.OS === 'ios');
     if (selectedTime) {
-      const hours = selectedTime.getHours().toString().padStart(2, '0');
-      const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
-      setReminderTime(`${hours}:${minutes}`);
+      const hours = selectedTime.getHours();
+      const minutes = selectedTime.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const formattedHours = hours % 12 || 12;
+      const formattedMinutes = minutes.toString().padStart(2, '0');
+      setReminderTime(`${formattedHours}:${formattedMinutes} ${ampm}`);
     }
   };
 
@@ -120,7 +123,7 @@ const ReminderSettings = ({ visible, onSave, onClose }) => {
                     return date;
                   })()}
                   mode="time"
-                  is24Hour={true}
+                  is24Hour={false}
                   display="default"
                   onChange={handleTimeChange}
                 />

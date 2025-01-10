@@ -14,6 +14,7 @@ import { Card, Icon } from '@rneui/themed';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MedicineService } from '../services/MedicineService';
 import { format } from 'date-fns';
+import { formatMedicineTime } from '../utils/dateUtils';
 
 const MedicineDetailsScreen = ({ route, navigation }) => {
     const { medicine: initialMedicine } = route.params;
@@ -99,39 +100,7 @@ const MedicineDetailsScreen = ({ route, navigation }) => {
     };
 
     const formatTime = (timeString) => {
-        try {
-            console.log('Received time string:', timeString);
-            if (!timeString) return '';
-            
-            // Extract time portion from ISO string
-            const date = new Date(timeString);
-            const hours = date.getHours();
-            const minutes = date.getMinutes();
-            
-            console.log('Parsed hours:', hours);
-            console.log('Parsed minutes:', minutes);
-            
-            if (isNaN(hours) || isNaN(minutes)) {
-                console.error('Invalid time format:', timeString);
-                return timeString;
-            }
-
-            const period = hours >= 12 ? 'PM' : 'AM';
-            const displayHour = hours % 12 || 12;
-            const displayMinute = minutes.toString().padStart(2, '0');
-            
-            console.log('Display hour:', displayHour);
-            console.log('Display minutes:', displayMinute);
-            console.log('Period:', period);
-            
-            const formattedTime = `${displayHour}:${displayMinute} ${period}`;
-            console.log('Final formatted time:', formattedTime);
-            
-            return formattedTime;
-        } catch (error) {
-            console.error('Error formatting time:', error);
-            return timeString;
-        }
+        return formatMedicineTime(timeString) || 'Invalid Time';
     };
 
     const formatFrequency = (schedule) => {

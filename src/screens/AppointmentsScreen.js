@@ -16,14 +16,14 @@ import {
   IconButton,
   Chip,
 } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
-import { format } from 'date-fns';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 import EmptyState from '../components/EmptyState';
 import { LinearGradient } from 'expo-linear-gradient';
+import { formatDisplayDateTime } from '../utils/dateUtils';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All' },
@@ -34,26 +34,10 @@ const STATUS_OPTIONS = [
 ];
 
 const formatAppointmentDate = (dateString) => {
-  try {
-    // Parse the UTC date string
-    const utcDate = new Date(dateString);
-    
-    // Convert to local time
-    const localDate = new Date(utcDate.getTime() + utcDate.getTimezoneOffset() * 60000);
-    
-    console.log('Date conversion:', {
-      input: dateString,
-      utcDate: utcDate,
-      localDate: localDate,
-      timezoneOffset: utcDate.getTimezoneOffset(),
-      formatted: format(localDate, 'MMM d, yyyy h:mm a')
-    });
-    
-    return format(localDate, 'MMM d, yyyy h:mm a');
-  } catch (error) {
-    console.error('Error formatting date:', error);
-    return 'Invalid Date';
-  }
+  console.log('Formatting appointment date:', dateString);
+  const formatted = formatDisplayDateTime(dateString);
+  console.log('Formatted result:', formatted);
+  return formatted || 'Invalid Date';
 };
 
 const AppointmentsScreen = () => {
@@ -70,13 +54,38 @@ const AppointmentsScreen = () => {
   const fetchAppointments = async () => {
     try {
       setError(null);
+      console.log('Fetching appointments with status filter:', selectedStatus || 'all');
       const response = await HealthService.getAppointments(
         null,
         null,
         selectedStatus || undefined
       );
-      console.log('Raw appointments data:', response.data);
-      setAppointments(response.data || []);
+      
+      // Handle the appointments response consistently
+      const appointmentData = Array.isArray(response?.data) ? response.data : [];
+      
+      console.log('Total appointments found:', appointmentData.length);
+      console.log('Appointments by status:');
+      const statusCounts = appointmentData.reduce((acc, apt) => {
+        acc[apt.status] = (acc[apt.status] || 0) + 1;
+        return acc;
+      }, {});
+      console.log(statusCounts);
+      
+      // Log each appointment's details
+      appointmentData.forEach((apt, idx) => {
+        console.log(`Appointment ${idx + 1}:`, {
+          id: apt.id,
+          date: apt.appointment_date,
+          formattedDate: formatAppointmentDate(apt.appointment_date),
+          status: apt.status,
+          title: apt.title,
+          doctor: apt.doctor_name,
+          location: apt.location
+        });
+      });
+      
+      setAppointments(appointmentData);
     } catch (err) {
       setError('Failed to load appointments');
       console.error('Error fetching appointments:', err);
@@ -95,9 +104,15 @@ const AppointmentsScreen = () => {
     setRefreshing(false);
   };
 
-  useEffect(() => {
-    loadData();
-  }, [selectedStatus]);
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('AppointmentsScreen focused - refreshing data');
+      loadData();
+      return () => {
+        // Optional cleanup
+      };
+    }, [selectedStatus])
+  );
 
   const handleAddAppointment = () => {
     navigation.navigate('AddAppointment');
@@ -120,6 +135,41 @@ const AppointmentsScreen = () => {
       default:
         return theme.colors.primary;
     }
+  };
+
+  const renderAppointmentCard = (appointment) => {
+    const formattedDate = formatAppointmentDate(appointment.appointment_date);
+    console.log('Rendering appointment:', {
+      id: appointment.id,
+      rawDate: appointment.appointment_date,
+      formattedDate,
+      status: appointment.status
+    });
+    
+    return (
+      <Card key={appointment.id} style={styles.card}>
+        <Card.Content>
+          <View style={styles.cardHeader}>
+            <Text variant="titleMedium">{appointment.title}</Text>
+            <Chip mode="outlined" style={getStatusStyle(appointment.status)}>
+              {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+            </Chip>
+          </View>
+          <View style={styles.cardDetails}>
+            <Text variant="bodyMedium">Date & Time: {formattedDate}</Text>
+            {appointment.doctor_name && (
+              <Text variant="bodyMedium">Doctor: {appointment.doctor_name}</Text>
+            )}
+            {appointment.location && (
+              <Text variant="bodyMedium">Location: {appointment.location}</Text>
+            )}
+            {appointment.notes && (
+              <Text variant="bodyMedium" style={styles.notes}>Notes: {appointment.notes}</Text>
+            )}
+          </View>
+        </Card.Content>
+      </Card>
+    );
   };
 
   if (loading) {

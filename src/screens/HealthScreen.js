@@ -10,7 +10,7 @@ import {
   StatusBar
 } from 'react-native';
 import { Text, Card, Button, useTheme, Portal, Dialog, Searchbar, IconButton } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { format } from 'date-fns';
@@ -51,6 +51,7 @@ const HealthScreen = () => {
   const fetchData = async (search = '') => {
     try {
       setError(null);
+      console.log('Fetching health data...');
       const [appointmentsResponse, records, visits, symptoms] = await Promise.all([
         HealthService.getUpcomingAppointments(),
         HealthService.getHealthRecords(1, search),
@@ -60,13 +61,16 @@ const HealthScreen = () => {
       
       console.log('Raw appointments response:', appointmentsResponse);
       
-      // Handle the appointments response directly (not nested under data)
-      setUpcomingAppointments(Array.isArray(appointmentsResponse) ? appointmentsResponse : []);
+      // Handle the appointments response consistently
+      const appointmentData = Array.isArray(appointmentsResponse?.data) ? appointmentsResponse.data : [];
+      
+      console.log('Processed appointments:', appointmentData);
+      console.log('Number of upcoming appointments:', appointmentData.length);
+      
+      setUpcomingAppointments(appointmentData);
       setRecentHealthRecords(records?.data || []);
       setRecentDoctorVisits(Array.isArray(visits) ? visits : []);
       setActiveSymptoms(symptoms?.data || []);
-
-      console.log('Processed appointments:', Array.isArray(appointmentsResponse) ? appointmentsResponse : []);
     } catch (err) {
       setError('Failed to load health data');
       console.error('Error fetching health data:', err);
@@ -96,9 +100,16 @@ const HealthScreen = () => {
     loadData();
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // Add useFocusEffect to refresh data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('HealthScreen focused - refreshing data');
+      loadData();
+      return () => {
+        // Optional cleanup
+      };
+    }, [])
+  );
 
   const renderFeatureCard = (title, icon, onPress, count = null) => (
     <TouchableOpacity onPress={onPress} style={styles.featureCard} key={`feature-${title.toLowerCase().replace(/\s+/g, '-')}`}>

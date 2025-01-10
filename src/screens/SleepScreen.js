@@ -15,7 +15,7 @@ import { Card, Button, Icon } from '@rneui/themed';
 import { SleepService } from '../services/SleepService';
 import { useBaby } from '../context/BabyContext';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
-import { format } from 'date-fns';
+import { format, startOfDay, subDays, endOfDay } from 'date-fns';
 import { LineChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,9 +29,31 @@ const SleepScreen = ({ navigation }) => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
-    const [dateRange, setDateRange] = useState({
-        startDate: new Date(new Date().setDate(new Date().getDate() - 7)),
-        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
+    const [dateRange, setDateRange] = useState(() => {
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth();
+        const currentDate = now.getDate();
+        
+        // Create today's date with the current year, ensuring we start at midnight
+        const todayDate = new Date(currentYear, currentMonth, currentDate, 0, 0, 0);
+        
+        // Create start date (7 days ago at 00:00:00)
+        const startDate = new Date(currentYear, currentMonth, currentDate - 7, 0, 0, 0);
+        
+        // Create end date (today at 23:59:59)
+        const endDate = new Date(currentYear, currentMonth, currentDate, 23, 59, 59);
+        
+        console.log('Date Range Initialization:', {
+            now: now.toISOString(),
+            currentYear,
+            currentMonth,
+            currentDate,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString()
+        });
+        
+        return { startDate, endDate };
     });
 
     const loadData = async () => {
@@ -44,31 +66,45 @@ const SleepScreen = ({ navigation }) => {
             setLoading(true);
             setError(null);
 
-            console.log('Fetching sleep data with range:', {
-                start_date: format(dateRange.startDate, 'yyyy-MM-dd'),
-                end_date: format(dateRange.endDate, 'yyyy-MM-dd'),
-                baby_id: babyData.id
+            // Format dates for API request
+            const formattedStartDate = format(dateRange.startDate, 'yyyy-MM-dd');
+            const formattedEndDate = format(dateRange.endDate, 'yyyy-MM-dd');
+
+            console.log('=== Sleep Data Fetch Process ===');
+            console.log('1. Initial Date Range:', {
+                startDate: dateRange.startDate.toISOString(),
+                endDate: dateRange.endDate.toISOString()
+            });
+            console.log('2. Formatted Dates:', {
+                formattedStartDate,
+                formattedEndDate
             });
 
             const [logsResponse, statsResponse] = await Promise.all([
                 SleepService.getSleepLogs({
-                    start_date: format(dateRange.startDate, 'yyyy-MM-dd'),
-                    end_date: format(dateRange.endDate, 'yyyy-MM-dd')
+                    start_date: formattedStartDate,
+                    end_date: formattedEndDate
                 }),
                 SleepService.getSleepStats({
-                    start_date: format(dateRange.startDate, 'yyyy-MM-dd'),
-                    end_date: format(dateRange.endDate, 'yyyy-MM-dd')
+                    start_date: formattedStartDate,
+                    end_date: formattedEndDate
                 })
             ]);
 
-            console.log('Sleep logs response:', logsResponse);
-            console.log('Sleep stats response:', statsResponse);
+            console.log('3. Sleep Logs Response:', {
+                total: logsResponse.data?.length || 0,
+                logs: logsResponse.data
+            });
+            console.log('4. Sleep Stats Response:', statsResponse);
 
             setSleepLogs(logsResponse.data);
             setStats(statsResponse);
         } catch (error) {
-            console.error('Error loading sleep data:', error);
-            console.error('Error details:', error.response?.data);
+            console.error('5. Error in loadData:', {
+                message: error.message,
+                responseData: error.response?.data,
+                status: error.response?.status
+            });
             setError(error.response?.data?.message || 'Failed to load sleep data');
             
             if (error.response?.status === 401) {

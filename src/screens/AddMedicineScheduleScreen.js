@@ -13,8 +13,8 @@ import { Icon } from '@rneui/themed';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MedicineService } from '../services/MedicineService';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
-import { format } from 'date-fns';
 import { Picker } from '@react-native-picker/picker';
+import { formatMedicineTime, formatAPITime } from '../utils/dateUtils';
 
 const FREQUENCIES = [
     { label: 'Daily', value: 'daily' },
@@ -69,9 +69,8 @@ const AddMedicineScheduleScreen = ({ route, navigation }) => {
 
         try {
             setLoading(true);
-            const hours = time.getHours().toString().padStart(2, '0');
-            const minutes = time.getMinutes().toString().padStart(2, '0');
-            const formattedTime = `${hours}:${minutes}`;
+            const formattedTime = formatAPITime(time);
+            console.log('Formatted time for API:', formattedTime);
 
             const validDays = frequency === 'weekly' 
                 ? selectedDays
@@ -149,7 +148,7 @@ const AddMedicineScheduleScreen = ({ route, navigation }) => {
                             onPress={() => setTimePickerVisible(true)}
                         >
                             <Text style={styles.timeButtonText}>
-                                {format(time, 'h:mm a')}
+                                {formatMedicineTime(formatAPITime(time))}
                             </Text>
                             <Icon name="access-time" size={20} color="#8F9BB3" />
                         </TouchableOpacity>

@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MedicineService } from '../services/MedicineService';
 import { useBaby } from '../context/BabyContext';
 import { format } from 'date-fns';
+import { formatMedicineTime } from '../utils/dateUtils';
 
 const MedicineScreen = ({ navigation }) => {
     const { baby, babyData, loading: babyLoading, error: babyError } = useBaby();
@@ -73,22 +74,7 @@ const MedicineScreen = ({ navigation }) => {
     };
 
     const formatTime = (timeString) => {
-        try {
-            // Split the time string into hours and minutes
-            const [hours, minutes] = timeString.split(':');
-            
-            // Create a base date for today
-            const date = new Date();
-            date.setHours(parseInt(hours, 10));
-            date.setMinutes(parseInt(minutes, 10));
-            date.setSeconds(0);
-            date.setMilliseconds(0);
-            
-            return format(date, 'h:mm a');
-        } catch (error) {
-            console.error('Error formatting time:', error);
-            return timeString; // Return original string if formatting fails
-        }
+        return formatMedicineTime(timeString) || timeString;
     };
 
     const renderUpcomingSchedules = () => {

@@ -16,6 +16,7 @@ import { SleepService } from '../services/SleepService';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import { validateSleepDuration, validateSleepTime } from '../utils/dateUtils';
 
 const EditSleepScreen = ({ navigation, route }) => {
     const { sleepLog } = route.params;
@@ -46,6 +47,29 @@ const EditSleepScreen = ({ navigation, route }) => {
             // Validate times
             if (sleepData.end_time <= sleepData.start_time) {
                 setError('End time must be after start time');
+                return;
+            }
+
+            // Validate sleep duration based on type (nap or night sleep)
+            const durationValidation = validateSleepDuration(
+                sleepData.start_time,
+                sleepData.end_time,
+                sleepData.is_nap
+            );
+
+            if (!durationValidation.isValid) {
+                setError(durationValidation.error);
+                return;
+            }
+
+            // Validate that sleep times are not in the future
+            const timeValidation = validateSleepTime(
+                sleepData.start_time,
+                sleepData.end_time
+            );
+
+            if (!timeValidation.isValid) {
+                setError(timeValidation.error);
                 return;
             }
 
