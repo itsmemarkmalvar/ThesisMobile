@@ -24,6 +24,7 @@ import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { formatAppointmentDateTime, convertToUTC } from '../utils/dateUtils';
 
 const REMINDER_OPTIONS = [
   { value: 15, label: '15 min' },
@@ -117,6 +118,7 @@ const EditAppointmentScreen = () => {
 
     setLoading(true);
     try {
+      console.log('Updating appointment with date:', appointmentDate);
       await HealthService.updateAppointment(appointmentId, {
         ...formData,
         appointment_date: appointmentDate,

@@ -17,7 +17,7 @@ import {
   SegmentedButtons,
 } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { format } from 'date-fns';
+import { formatAppointmentDateTime, convertToUTC } from '../utils/dateUtils';
 import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
@@ -47,15 +47,28 @@ const AppointmentDetailsScreen = () => {
     try {
       setError(null);
       const data = await HealthService.getAppointment(appointmentId);
+      console.log('Fetched appointment data:', {
+        id: data.id,
+        doctor_name: data.doctor_name,
+        appointment_date: data.appointment_date,
+        formatted_date: formatAppointmentDateTime(data.appointment_date),
+        status: data.status,
+        clinic_location: data.clinic_location,
+        purpose: data.purpose,
+        notes: data.notes,
+        reminder_enabled: data.reminder_enabled,
+        reminder_minutes_before: data.reminder_minutes_before
+      });
       setAppointment(data);
     } catch (err) {
-      setError('Failed to load appointment details');
       console.error('Error fetching appointment:', err);
+      setError('Failed to load appointment details');
     }
   };
 
   useEffect(() => {
     const loadData = async () => {
+      console.log('Loading appointment details for ID:', appointmentId);
       setLoading(true);
       await fetchAppointment();
       setLoading(false);
@@ -64,11 +77,13 @@ const AppointmentDetailsScreen = () => {
   }, [appointmentId]);
 
   const handleEdit = () => {
+    console.log('Navigating to edit screen for appointment:', appointmentId);
     setMenuVisible(false);
     navigation.navigate('EditAppointment', { appointmentId });
   };
 
   const handleDelete = () => {
+    console.log('Initiating delete for appointment:', appointmentId);
     setMenuVisible(false);
     Alert.alert(
       'Delete Appointment',
@@ -77,18 +92,21 @@ const AppointmentDetailsScreen = () => {
         {
           text: 'Cancel',
           style: 'cancel',
+          onPress: () => console.log('Delete cancelled')
         },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('Proceeding with appointment deletion');
               setLoading(true);
               await HealthService.deleteAppointment(appointmentId);
+              console.log('Appointment deleted successfully');
               navigation.goBack();
             } catch (err) {
-              setError('Failed to delete appointment');
               console.error('Error deleting appointment:', err);
+              setError('Failed to delete appointment');
               setLoading(false);
             }
           },
@@ -99,15 +117,27 @@ const AppointmentDetailsScreen = () => {
 
   const handleUpdateStatus = async (status) => {
     try {
+      console.log('Updating appointment status:', {
+        appointmentId,
+        oldStatus: appointment.status,
+        newStatus: status,
+        appointment_date: appointment.appointment_date
+      });
       setLoading(true);
-      await HealthService.updateAppointment(appointmentId, {
+      
+      // Ensure we maintain the UTC time when updating
+      const updatedAppointment = {
         ...appointment,
         status,
-      });
+        appointment_date: convertToUTC(appointment.appointment_date)
+      };
+      
+      await HealthService.updateAppointment(appointmentId, updatedAppointment);
+      console.log('Status update successful');
       navigation.goBack();
     } catch (err) {
-      setError('Failed to update appointment status');
       console.error('Error updating appointment status:', err);
+      setError('Failed to update appointment status');
       setLoading(false);
     }
   };
@@ -235,7 +265,7 @@ const AppointmentDetailsScreen = () => {
                 <View style={styles.section}>
                   <Text style={styles.sectionLabel}>Date & Time</Text>
                   <Text style={styles.sectionContent}>
-                    {format(new Date(appointment.appointment_date), 'MMM d, yyyy h:mm a')}
+                    {formatAppointmentDateTime(appointment.appointment_date)}
                   </Text>
                 </View>
 

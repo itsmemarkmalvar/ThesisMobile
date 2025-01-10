@@ -227,16 +227,14 @@ export class HealthService {
     }
 
     static async updateAppointment(id, appointmentData) {
-        try {
-            const response = await ApiService.put(`/appointments/${id}`, {
-                ...appointmentData,
-                appointment_date: format(new Date(appointmentData.appointment_date), 'yyyy-MM-dd HH:mm:ss')
-            });
-            return response.data;
-        } catch (error) {
-            console.error('Error updating appointment:', error);
-            throw error;
-        }
+        console.log('Updating appointment:', {
+            id: id,
+            appointment_date: appointmentData.appointment_date
+        });
+        
+        // The appointment_date is already in Manila time stored as UTC
+        const response = await ApiService.put(`/appointments/${id}`, appointmentData);
+        return response.data;
     }
 
     static async deleteAppointment(id) {

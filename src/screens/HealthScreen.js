@@ -13,11 +13,12 @@ import { Text, Card, Button, useTheme, Portal, Dialog, Searchbar, IconButton } f
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { LinearGradient } from 'expo-linear-gradient';
 import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
+import { formatAppointmentDateTime } from '../utils/dateUtils';
 
 const EmptyState = ({ icon, title, message }) => (
   <View style={styles.emptyState}>
@@ -221,10 +222,10 @@ const HealthScreen = () => {
                             <View style={styles.appointmentHeader}>
                               <View style={styles.dateTimeContainer}>
                                 <Text variant="titleMedium" style={styles.dateText}>
-                                  {format(new Date(appointment.appointment_date), 'MMM d, yyyy')}
+                                  {format(new Date(parseISO(appointment.appointment_date).getTime() - (8 * 60 * 60 * 1000)), 'MMM d, yyyy')}
                                 </Text>
                                 <Text variant="bodyMedium" style={styles.timeText}>
-                                  {format(new Date(appointment.appointment_date), 'h:mm a')}
+                                  {format(new Date(parseISO(appointment.appointment_date).getTime() - (8 * 60 * 60 * 1000)), 'h:mm a')}
                                 </Text>
                               </View>
                               <Icon name="calendar-clock" size={24} color={theme.colors.primary} />

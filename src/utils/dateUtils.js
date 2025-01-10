@@ -1,4 +1,7 @@
 import { format, parseISO, formatISO } from 'date-fns';
+import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
+
+const TIMEZONE = 'Asia/Manila';
 
 // Parse date from API (handles ISO strings and YYYY-MM-DD formats)
 export const parseDate = (dateString) => {
@@ -226,5 +229,42 @@ export const validateSleepTime = (startDate, endDate) => {
   } catch (error) {
     console.error('Error validating sleep time:', error);
     return { isValid: false, error: 'Invalid date values' };
+  }
+};
+
+// Format appointment datetime for display with proper timezone handling
+export const formatAppointmentDateTime = (dateString) => {
+  if (!dateString) return '';
+  try {
+    console.log('Formatting appointment datetime input:', dateString);
+    const date = parseISO(dateString);
+    
+    // Since we're storing the time in UTC format but it represents Manila time,
+    // we need to subtract 8 hours to get back to the original Manila time
+    const manilaDate = new Date(date.getTime() - (8 * 60 * 60 * 1000));
+    const formatted = format(manilaDate, 'MMM d, yyyy h:mm a');
+    
+    console.log('Formatted appointment datetime output:', formatted);
+    return formatted;
+  } catch (error) {
+    console.error('Error formatting appointment datetime:', error);
+    return '';
+  }
+};
+
+// Convert local date to UTC for API
+export const convertToUTC = (dateString) => {
+  if (!dateString) return null;
+  try {
+    console.log('Converting to UTC input:', dateString);
+    // The date is already in the correct UTC format when stored
+    // Just ensure it's properly formatted as ISO
+    const date = parseISO(dateString);
+    const formatted = formatISO(date);
+    console.log('Converting to UTC output:', formatted);
+    return formatted;
+  } catch (error) {
+    console.error('Error converting to UTC:', error);
+    return null;
   }
 }; 
