@@ -34,6 +34,13 @@ const DoctorVisitsScreen = () => {
   const navigation = useNavigation();
   const theme = useTheme();
 
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return format(date, 'MMM d, yyyy');
+  };
+
   const fetchVisits = async () => {
     try {
       setError(null);
@@ -84,7 +91,7 @@ const DoctorVisitsScreen = () => {
                   Dr. {visit.doctor_name}
                 </Text>
                 <Text variant="bodySmall" style={styles.dateText}>
-                  {format(new Date(visit.visit_date), 'MMM d, yyyy')}
+                  {formatDate(visit.visit_date)}
                 </Text>
               </View>
             </View>
@@ -118,7 +125,7 @@ const DoctorVisitsScreen = () => {
                   iconColor={theme.colors.primary}
                 />
                 <Text style={[styles.nextVisitText, { color: theme.colors.primary }]}>
-                  Next Visit: {format(new Date(visit.next_visit_date), 'MMM d, yyyy')}
+                  Next Visit: {formatDate(visit.next_visit_date)}
                 </Text>
               </View>
             )}

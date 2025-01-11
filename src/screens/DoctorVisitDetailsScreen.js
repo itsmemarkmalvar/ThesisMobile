@@ -35,6 +35,13 @@ const DoctorVisitDetailsScreen = () => {
   const theme = useTheme();
   const { visitId } = route.params;
 
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return format(date, 'MMM d, yyyy');
+  };
+
   const fetchVisit = async () => {
     try {
       setError(null);
@@ -124,7 +131,7 @@ const DoctorVisitDetailsScreen = () => {
               <View style={styles.row}>
                 <Text variant="labelLarge">Visit Date</Text>
                 <Text variant="bodyLarge">
-                  {format(new Date(visit.visit_date), 'MMM d, yyyy')}
+                  {formatDate(visit.visit_date)}
                 </Text>
               </View>
 
@@ -196,7 +203,7 @@ const DoctorVisitDetailsScreen = () => {
                   <View style={styles.row}>
                     <Text variant="labelLarge">Next Visit</Text>
                     <Text variant="bodyLarge">
-                      {format(new Date(visit.next_visit_date), 'MMM d, yyyy')}
+                      {formatDate(visit.next_visit_date)}
                     </Text>
                   </View>
                 </>

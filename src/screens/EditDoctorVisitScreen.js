@@ -22,6 +22,8 @@ import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTimezone } from '../context/TimezoneContext';
+import { DateTimeService } from '../services/DateTimeService';
 
 const EditDoctorVisitScreen = () => {
   const insets = useSafeAreaInsets();
@@ -46,6 +48,70 @@ const EditDoctorVisitScreen = () => {
   const route = useRoute();
   const theme = useTheme();
   const { visitId } = route.params;
+  const { timezone } = useTimezone();
+
+  // Convert UTC to local time manually
+  const convertToLocal = (utcString) => {
+    try {
+      const utcDate = new Date(utcString);
+      // For Manila (UTC+8), add 8 hours
+      const localDate = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000));
+      
+      return localDate;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  // Convert local time to UTC
+  const convertToUTC = (localDate) => {
+    try {
+      // For Manila (UTC+8), subtract 8 hours
+      const utcDate = new Date(localDate.getTime() - (8 * 60 * 60 * 1000));
+      
+      return utcDate;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  // Format date for display
+  const formatDateTime = (date) => {
+    if (!date) return '';
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  // Format date for API
+  const formatForAPI = (date) => {
+    if (!date) return null;
+    // Create a new date to avoid modifying the original
+    const apiDate = new Date(date);
+    // Add 8 hours to compensate for the timezone difference
+    apiDate.setHours(apiDate.getHours() + 8);
+    return format(apiDate, 'yyyy-MM-dd HH:mm:ss');
+  };
+
+  const handleVisitDateChange = (event, selectedDate) => {
+    setShowVisitDatePicker(false);
+    if (event.type === 'set' && selectedDate) {
+      // Set time to noon (12:00) to avoid timezone issues
+      selectedDate.setHours(12, 0, 0, 0);
+      setVisitDate(selectedDate);
+    }
+  };
+
+  const handleNextVisitDateChange = (event, selectedDate) => {
+    setShowNextVisitDatePicker(false);
+    if (event.type === 'set' && selectedDate) {
+      // Set time to noon (12:00) to avoid timezone issues
+      selectedDate.setHours(12, 0, 0, 0);
+      setNextVisitDate(selectedDate);
+    }
+  };
 
   useEffect(() => {
     const fetchVisit = async () => {
@@ -60,12 +126,16 @@ const EditDoctorVisitScreen = () => {
           notes: data.notes || '',
           follow_up_instructions: data.follow_up_instructions || '',
         });
-        setVisitDate(new Date(data.visit_date));
-        setNextVisitDate(data.next_visit_date ? new Date(data.next_visit_date) : null);
+
+        // Parse dates from API
+        const parsedVisitDate = new Date(data.visit_date);
+        const parsedNextVisitDate = data.next_visit_date ? new Date(data.next_visit_date) : null;
+
+        setVisitDate(parsedVisitDate);
+        setNextVisitDate(parsedNextVisitDate);
         setLoading(false);
       } catch (err) {
         setErrors({ submit: 'Failed to load doctor visit' });
-        console.error('Error fetching doctor visit:', err);
         setLoading(false);
       }
     };
@@ -101,23 +171,23 @@ const EditDoctorVisitScreen = () => {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setSaving(true);
     try {
-      await HealthService.updateDoctorVisit(visitId, {
+      const visitData = {
         ...formData,
-        visit_date: visitDate,
-        next_visit_date: nextVisitDate,
-      });
+        visit_date: formatForAPI(visitDate),
+        next_visit_date: formatForAPI(nextVisitDate),
+      };
+
+      await HealthService.updateDoctorVisit(visitId, visitData);
       navigation.goBack();
     } catch (error) {
-      console.error('Error updating doctor visit:', error);
       setErrors({
-        submit: 'Failed to update doctor visit. Please try again.',
+        submit: 'Failed to update doctor visit. Please try again.'
       });
+    } finally {
       setSaving(false);
     }
   };
@@ -182,7 +252,7 @@ const EditDoctorVisitScreen = () => {
                 style={styles.dateButton}
                 icon="calendar"
               >
-                Visit Date: {format(visitDate, 'MMM d, yyyy')}
+                Visit Date: {formatDateTime(visitDate)}
               </Button>
 
               {showVisitDatePicker && (
@@ -190,12 +260,7 @@ const EditDoctorVisitScreen = () => {
                   value={visitDate}
                   mode="date"
                   display="default"
-                  onChange={(event, selectedDate) => {
-                    setShowVisitDatePicker(false);
-                    if (selectedDate) {
-                      setVisitDate(selectedDate);
-                    }
-                  }}
+                  onChange={handleVisitDateChange}
                 />
               )}
 
@@ -268,7 +333,7 @@ const EditDoctorVisitScreen = () => {
                 icon="calendar"
               >
                 {nextVisitDate
-                  ? `Next Visit: ${format(nextVisitDate, 'MMM d, yyyy')}`
+                  ? `Next Visit: ${formatDateTime(nextVisitDate)}`
                   : 'Set Next Visit Date'}
               </Button>
 
@@ -277,12 +342,7 @@ const EditDoctorVisitScreen = () => {
                   value={nextVisitDate || new Date()}
                   mode="date"
                   display="default"
-                  onChange={(event, selectedDate) => {
-                    setShowNextVisitDatePicker(false);
-                    if (selectedDate) {
-                      setNextVisitDate(selectedDate);
-                    }
-                  }}
+                  onChange={handleNextVisitDateChange}
                   minimumDate={new Date()}
                 />
               )}

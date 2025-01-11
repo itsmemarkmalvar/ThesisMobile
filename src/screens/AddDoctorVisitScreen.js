@@ -43,6 +43,22 @@ const AddDoctorVisitScreen = () => {
   const navigation = useNavigation();
   const theme = useTheme();
 
+  // Format date for display
+  const formatDate = (date) => {
+    if (!date) return '';
+    return format(date, 'MMM d, yyyy');
+  };
+
+  // Format date for API
+  const formatForAPI = (date) => {
+    if (!date) return null;
+    // Create a new date to avoid modifying the original
+    const apiDate = new Date(date);
+    // Add 8 hours to compensate for the timezone difference
+    apiDate.setHours(apiDate.getHours() + 8);
+    return format(apiDate, 'yyyy-MM-dd HH:mm:ss');
+  };
+
   const renderHeader = () => (
     <View style={[styles.header, { paddingTop: insets.top }]}>
       <View style={styles.headerRow}>
@@ -87,23 +103,40 @@ const AddDoctorVisitScreen = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async () => {
-    if (!validateForm()) {
-      return;
+  const handleVisitDateChange = (event, selectedDate) => {
+    setShowVisitDatePicker(false);
+    if (event.type === 'set' && selectedDate) {
+      // Set time to noon (12:00) to avoid timezone issues
+      selectedDate.setHours(12, 0, 0, 0);
+      setVisitDate(selectedDate);
     }
+  };
+
+  const handleNextVisitDateChange = (event, selectedDate) => {
+    setShowNextVisitDatePicker(false);
+    if (event.type === 'set' && selectedDate) {
+      // Set time to noon (12:00) to avoid timezone issues
+      selectedDate.setHours(12, 0, 0, 0);
+      setNextVisitDate(selectedDate);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
 
     setLoading(true);
     try {
-      await HealthService.createDoctorVisit({
+      const visitData = {
         ...formData,
-        visit_date: visitDate,
-        next_visit_date: nextVisitDate,
-      });
+        visit_date: formatForAPI(visitDate),
+        next_visit_date: formatForAPI(nextVisitDate),
+      };
+
+      await HealthService.createDoctorVisit(visitData);
       navigation.goBack();
     } catch (error) {
-      console.error('Error creating doctor visit:', error);
       setErrors({
-        submit: 'Failed to save doctor visit. Please try again.',
+        submit: 'Failed to save doctor visit. Please try again.'
       });
     } finally {
       setLoading(false);
@@ -154,7 +187,7 @@ const AddDoctorVisitScreen = () => {
                 labelStyle={{ color: '#4A90E2' }}
                 icon="calendar"
               >
-                Visit Date: {format(visitDate, 'MMM d, yyyy')}
+                Visit Date: {formatDate(visitDate)}
               </Button>
 
               {showVisitDatePicker && (
@@ -162,12 +195,7 @@ const AddDoctorVisitScreen = () => {
                   value={visitDate}
                   mode="date"
                   display="default"
-                  onChange={(event, selectedDate) => {
-                    setShowVisitDatePicker(false);
-                    if (selectedDate) {
-                      setVisitDate(selectedDate);
-                    }
-                  }}
+                  onChange={handleVisitDateChange}
                 />
               )}
 
@@ -300,7 +328,7 @@ const AddDoctorVisitScreen = () => {
                 labelStyle={{ color: '#4A90E2' }}
                 icon="calendar"
               >
-                Next Visit Date: {nextVisitDate ? format(nextVisitDate, 'MMM d, yyyy') : 'Not Scheduled'}
+                Next Visit Date: {nextVisitDate ? formatDate(nextVisitDate) : 'Not Scheduled'}
               </Button>
 
               {showNextVisitDatePicker && (
@@ -308,12 +336,7 @@ const AddDoctorVisitScreen = () => {
                   value={nextVisitDate || new Date()}
                   mode="date"
                   display="default"
-                  onChange={(event, selectedDate) => {
-                    setShowNextVisitDatePicker(false);
-                    if (selectedDate) {
-                      setNextVisitDate(selectedDate);
-                    }
-                  }}
+                  onChange={handleNextVisitDateChange}
                   minimumDate={new Date()}
                 />
               )}
