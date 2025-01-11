@@ -18,7 +18,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
-import { formatAppointmentDateTime } from '../utils/dateUtils';
+import { useTimezone } from '../context/TimezoneContext';
+import { DateTimeService } from '../services/DateTimeService';
 
 const EmptyState = ({ icon, title, message }) => (
   <View style={styles.emptyState}>
@@ -48,6 +49,64 @@ const HealthScreen = () => {
   
   const navigation = useNavigation();
   const theme = useTheme();
+  const { timezone } = useTimezone();
+
+  // Convert UTC to local time manually to ensure correct offset
+  const convertToLocal = (utcString) => {
+    try {
+      const utcDate = new Date(utcString);
+      // For Manila (UTC+8), add 8 hours
+      const localDate = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000));
+      
+      // Get hours and minutes after +8 offset
+      const hours = localDate.getUTCHours();
+      const minutes = localDate.getUTCMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours % 12 || 12;
+      
+      // Format the display time manually
+      const displayTime = `${String(displayHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${ampm}`;
+      const displayDate = localDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      
+      console.log('Manual timezone conversion:', {
+        utc: utcString,
+        local: {
+          iso: localDate.toISOString(),
+          display: `${displayDate}, ${displayTime}`,
+          computed: {
+            utcHours: localDate.getUTCHours(),
+            displayHours,
+            ampm
+          }
+        },
+        timezone,
+        offset: '+8 hours'
+      });
+      
+      return localDate;
+    } catch (error) {
+      console.error('Error in manual conversion:', error);
+      return null;
+    }
+  };
+
+  const formatDateTime = (dateString) => {
+    const localDate = convertToLocal(dateString);
+    if (!localDate) return '';
+    
+    return {
+      date: localDate.toLocaleDateString('en-US', { 
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      }),
+      time: `${String(localDate.getUTCHours() % 12 || 12).padStart(2, '0')}:${String(localDate.getUTCMinutes()).padStart(2, '0')} ${localDate.getUTCHours() >= 12 ? 'PM' : 'AM'}`
+    };
+  };
 
   const fetchData = async (search = '') => {
     try {
@@ -212,36 +271,42 @@ const HealthScreen = () => {
                 {upcomingAppointments.length > 0 && (
                   <View style={styles.section}>
                     <Text variant="titleLarge" style={styles.sectionTitle}>Upcoming Appointments</Text>
-                    {upcomingAppointments.map(appointment => (
-                      <Card key={appointment.id} style={styles.listCard} mode="elevated">
-                        <LinearGradient
-                          colors={['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.8)']}
-                          style={styles.listCardGradient}
-                        >
-                          <Card.Content style={styles.listCardContent}>
-                            <View style={styles.appointmentHeader}>
-                              <View style={styles.dateTimeContainer}>
-                                <Text variant="titleMedium" style={styles.dateText}>
-                                  {format(new Date(parseISO(appointment.appointment_date).getTime() - (8 * 60 * 60 * 1000)), 'MMM d, yyyy')}
+                    {upcomingAppointments.map(appointment => {
+                      const formattedTime = formatDateTime(appointment.appointment_date);
+                      return (
+                        <Card key={appointment.id} style={styles.listCard} mode="elevated">
+                          <LinearGradient
+                            colors={['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.8)']}
+                            style={styles.listCardGradient}
+                          >
+                            <Card.Content style={styles.listCardContent}>
+                              <View style={styles.appointmentHeader}>
+                                <View style={styles.dateTimeContainer}>
+                                  <Text variant="titleMedium" style={styles.dateText}>
+                                    {formattedTime.date}
+                                  </Text>
+                                  <Text variant="bodyMedium" style={styles.timeText}>
+                                    {formattedTime.time}
+                                  </Text>
+                                  <Text variant="bodySmall" style={styles.timezoneText}>
+                                    ({timezone})
+                                  </Text>
+                                </View>
+                                <Icon name="calendar-clock" size={24} color={theme.colors.primary} />
+                              </View>
+                              <View style={styles.appointmentDetails}>
+                                <Text variant="titleMedium" style={styles.doctorName}>
+                                  {appointment.doctor_name || 'Doctor not specified'}
                                 </Text>
-                                <Text variant="bodyMedium" style={styles.timeText}>
-                                  {format(new Date(parseISO(appointment.appointment_date).getTime() - (8 * 60 * 60 * 1000)), 'h:mm a')}
+                                <Text variant="bodyMedium" style={styles.purpose}>
+                                  {appointment.purpose || 'No purpose specified'}
                                 </Text>
                               </View>
-                              <Icon name="calendar-clock" size={24} color={theme.colors.primary} />
-                            </View>
-                            <View style={styles.appointmentDetails}>
-                              <Text variant="titleMedium" style={styles.doctorName}>
-                                {appointment.doctor_name || 'Doctor not specified'}
-                              </Text>
-                              <Text variant="bodyMedium" style={styles.purpose}>
-                                {appointment.purpose || 'No purpose specified'}
-                              </Text>
-                            </View>
-                          </Card.Content>
-                        </LinearGradient>
-                      </Card>
-                    ))}
+                            </Card.Content>
+                          </LinearGradient>
+                        </Card>
+                      );
+                    })}
                     <Button
                       mode="text"
                       onPress={() => navigation.navigate('Appointments')}
@@ -499,6 +564,11 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
   },
+  timezoneText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2
+  }
 });
 
 export default HealthScreen; 
