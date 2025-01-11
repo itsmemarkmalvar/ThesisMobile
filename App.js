@@ -10,6 +10,10 @@ import AppNavigator from './src/navigation/AppNavigator';
 import SplashScreen from './src/screens/SplashScreen';
 import { syncManager } from './src/utils/SyncManager';
 import * as Linking from 'expo-linking';
+import { DateTimeService } from './src/services/DateTimeService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { TimezoneProvider } from './src/context/TimezoneContext';
+import LoadingSpinner from './src/components/LoadingSpinner';
 
 // Initialize sync manager
 syncManager;
@@ -25,27 +29,36 @@ const theme = {
 };
 
 export default function App() {
-  const [isReady, setIsReady] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [userToken, setUserToken] = useState(null);
+  const [isTimezoneInitialized, setIsTimezoneInitialized] = useState(false);
 
   useEffect(() => {
-    // Prepare app (load fonts, etc)
-    const prepare = async () => {
-      try {
-        // Add any initialization logic
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Minimum splash time
-      } catch (e) {
-        console.warn(e);
-      } finally {
-        setIsReady(true);
-      }
-    };
-
-    prepare();
+    initializeApp();
   }, []);
 
-  // Show splash screen while app is preparing
-  if (!isReady) {
-    return <SplashScreen />;
+  const initializeApp = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Initialize timezone first
+      await DateTimeService.initialize();
+      setIsTimezoneInitialized(true);
+
+      // Check for stored token
+      const token = await AsyncStorage.getItem('userToken');
+      if (token) {
+        setUserToken(token);
+      }
+    } catch (error) {
+      console.error('Error initializing app:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return <LoadingSpinner />;
   }
 
   const linking = {
@@ -99,15 +112,17 @@ export default function App() {
 
   // After splash screen, show the main app
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <PaperProvider theme={theme}>
-          <NavigationContainer linking={linking}>
-            <StatusBar style="dark" />
-            <AppNavigator />
-          </NavigationContainer>
-        </PaperProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <TimezoneProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <PaperProvider theme={theme}>
+            <NavigationContainer linking={linking}>
+              <StatusBar style="dark" />
+              <AppNavigator />
+            </NavigationContainer>
+          </PaperProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </TimezoneProvider>
   );
 }

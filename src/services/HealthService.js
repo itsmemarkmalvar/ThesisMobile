@@ -98,17 +98,46 @@ export class HealthService {
 
     static async createHealthRecord(recordData) {
         try {
-            const response = await ApiService.post('/health-records', {
-                record_date: format(new Date(recordData.record_date), 'yyyy-MM-dd HH:mm:ss'),
-                category: recordData.category,
-                title: recordData.title,
-                description: recordData.description,
-                severity: recordData.severity,
-                treatment: recordData.treatment,
-                notes: recordData.notes,
-                is_ongoing: recordData.is_ongoing,
-                resolved_at: recordData.resolved_at ? format(new Date(recordData.resolved_at), 'yyyy-MM-dd HH:mm:ss') : null
+            // Convert dates to UTC by subtracting 8 hours (Manila timezone offset)
+            const recordDate = new Date(recordData.record_date);
+            const utcRecordDate = new Date(recordDate.getTime() - (8 * 60 * 60 * 1000));
+
+            let utcResolvedDate = null;
+            if (recordData.resolved_at) {
+                const resolvedDate = new Date(recordData.resolved_at);
+                utcResolvedDate = new Date(resolvedDate.getTime() - (8 * 60 * 60 * 1000));
+            }
+
+            console.log('Creating health record:', {
+                manila: {
+                    record_date: format(recordDate, 'yyyy-MM-dd HH:mm:ss'),
+                    resolved_at: recordData.resolved_at ? format(new Date(recordData.resolved_at), 'yyyy-MM-dd HH:mm:ss') : null
+                },
+                utc: {
+                    record_date: format(utcRecordDate, 'yyyy-MM-dd HH:mm:ss'),
+                    resolved_at: utcResolvedDate ? format(utcResolvedDate, 'yyyy-MM-dd HH:mm:ss') : null
+                }
             });
+
+            const response = await ApiService.post('/health-records', {
+                ...recordData,
+                record_date: format(utcRecordDate, 'yyyy-MM-dd HH:mm:ss'),
+                resolved_at: utcResolvedDate ? format(utcResolvedDate, 'yyyy-MM-dd HH:mm:ss') : null
+            });
+
+            // Convert response times back to Manila time
+            if (response.data) {
+                const responseUtcRecordDate = new Date(response.data.record_date);
+                const responseManilaRecordDate = new Date(responseUtcRecordDate.getTime() + (8 * 60 * 60 * 1000));
+                response.data.record_date = format(responseManilaRecordDate, 'yyyy-MM-dd HH:mm:ss');
+
+                if (response.data.resolved_at) {
+                    const responseUtcResolvedDate = new Date(response.data.resolved_at);
+                    const responseManilaResolvedDate = new Date(responseUtcResolvedDate.getTime() + (8 * 60 * 60 * 1000));
+                    response.data.resolved_at = format(responseManilaResolvedDate, 'yyyy-MM-dd HH:mm:ss');
+                }
+            }
+
             return response.data;
         } catch (error) {
             console.error('Error creating health record:', error);
@@ -118,12 +147,47 @@ export class HealthService {
 
     static async updateHealthRecord(id, recordData) {
         try {
+            // Convert dates to UTC by subtracting 8 hours (Manila timezone offset)
+            const recordDate = new Date(recordData.record_date);
+            const utcRecordDate = new Date(recordDate.getTime() - (8 * 60 * 60 * 1000));
+
+            let utcResolvedDate = null;
+            if (recordData.resolved_at) {
+                const resolvedDate = new Date(recordData.resolved_at);
+                utcResolvedDate = new Date(resolvedDate.getTime() - (8 * 60 * 60 * 1000));
+            }
+
+            console.log('Updating health record:', {
+                id,
+                manila: {
+                    record_date: format(recordDate, 'yyyy-MM-dd HH:mm:ss'),
+                    resolved_at: recordData.resolved_at ? format(new Date(recordData.resolved_at), 'yyyy-MM-dd HH:mm:ss') : null
+                },
+                utc: {
+                    record_date: format(utcRecordDate, 'yyyy-MM-dd HH:mm:ss'),
+                    resolved_at: utcResolvedDate ? format(utcResolvedDate, 'yyyy-MM-dd HH:mm:ss') : null
+                }
+            });
+
             const response = await ApiService.put(`/health-records/${id}`, {
                 ...recordData,
-                record_date: format(new Date(recordData.record_date), 'yyyy-MM-dd HH:mm:ss'),
-                resolved_at: recordData.resolved_at ? 
-                    format(new Date(recordData.resolved_at), 'yyyy-MM-dd HH:mm:ss') : null
+                record_date: format(utcRecordDate, 'yyyy-MM-dd HH:mm:ss'),
+                resolved_at: utcResolvedDate ? format(utcResolvedDate, 'yyyy-MM-dd HH:mm:ss') : null
             });
+
+            // Convert response times back to Manila time
+            if (response.data) {
+                const responseUtcRecordDate = new Date(response.data.record_date);
+                const responseManilaRecordDate = new Date(responseUtcRecordDate.getTime() + (8 * 60 * 60 * 1000));
+                response.data.record_date = format(responseManilaRecordDate, 'yyyy-MM-dd HH:mm:ss');
+
+                if (response.data.resolved_at) {
+                    const responseUtcResolvedDate = new Date(response.data.resolved_at);
+                    const responseManilaResolvedDate = new Date(responseUtcResolvedDate.getTime() + (8 * 60 * 60 * 1000));
+                    response.data.resolved_at = format(responseManilaResolvedDate, 'yyyy-MM-dd HH:mm:ss');
+                }
+            }
+
             return response.data;
         } catch (error) {
             console.error('Error updating health record:', error);
@@ -205,8 +269,19 @@ export class HealthService {
 
     static async getAppointment(id) {
         try {
+            console.log('Fetching appointment with ID:', id);
             const response = await ApiService.get(`/appointments/${id}`);
-            return response.data;
+            console.log('Appointment response:', response.data);
+            
+            // Handle both possible response structures
+            const appointment = response.data?.data || response.data;
+            
+            if (!appointment) {
+                throw new Error('No appointment data received');
+            }
+            
+            console.log('Processed appointment data:', appointment);
+            return appointment;
         } catch (error) {
             console.error('Error fetching appointment:', error);
             throw error;
@@ -215,10 +290,13 @@ export class HealthService {
 
     static async createAppointment(appointmentData) {
         try {
-            const response = await ApiService.post('/appointments', {
-                ...appointmentData,
-                appointment_date: format(new Date(appointmentData.appointment_date), 'yyyy-MM-dd HH:mm:ss')
+            console.log('Creating appointment with data:', {
+                appointment_date: appointmentData.appointment_date,
+                timezone: appointmentData.timezone
             });
+            
+            // Send the ISO string directly to the API
+            const response = await ApiService.post('/appointments', appointmentData);
             return response.data;
         } catch (error) {
             console.error('Error creating appointment:', error);

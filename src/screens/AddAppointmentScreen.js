@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -22,7 +22,9 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { LinearGradient } from 'expo-linear-gradient';
-import { formatDisplayDate, formatDisplayTime, formatAPIDateTime } from '../utils/dateUtils';
+import { format } from 'date-fns';
+import { useTimezone } from '../context/TimezoneContext';
+import { DateTimeService } from '../services/DateTimeService';
 
 const REMINDER_OPTIONS = [
   { value: 15, label: '15 min' },
@@ -33,12 +35,28 @@ const REMINDER_OPTIONS = [
 ];
 
 const AddAppointmentScreen = () => {
+  const { timezone } = useTimezone();
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  const [appointmentDate, setAppointmentDate] = useState(new Date());
+  
+  // Initialize with current time
+  const [appointmentDate, setAppointmentDate] = useState(() => {
+    const now = new Date();
+    // Round to nearest future 30-minute interval
+    const minutes = Math.ceil(now.getMinutes() / 30) * 30;
+    now.setMinutes(minutes);
+    now.setSeconds(0);
+    now.setMilliseconds(0);
+    return now;
+  });
+
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  
+  // Remove the timezone effect as it's causing issues
+  // We'll handle timezone conversion only when sending to API
+
   const [formData, setFormData] = useState({
     doctor_name: '',
     clinic_location: '',
@@ -76,11 +94,11 @@ const AddAppointmentScreen = () => {
       newErrors.purpose = 'Purpose is required';
     }
     
-    // Add date validation
+    // Validate against current time in user's timezone
     if (!appointmentDate) {
       newErrors.submit = 'Please select a valid appointment date and time';
     } else {
-      const now = new Date();
+      const now = DateTimeService.getCurrentTime();
       if (appointmentDate < now) {
         newErrors.submit = 'Appointment date cannot be in the past';
       }
@@ -90,36 +108,82 @@ const AddAppointmentScreen = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async () => {
-    if (!validateForm()) {
-      return;
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (selectedDate && event.type !== 'dismissed') {
+      const newDate = new Date(appointmentDate);
+      newDate.setFullYear(selectedDate.getFullYear());
+      newDate.setMonth(selectedDate.getMonth());
+      newDate.setDate(selectedDate.getDate());
+      
+      console.log('Date selected:', {
+        current: appointmentDate.toISOString(),
+        selected: selectedDate.toISOString(),
+        new: newDate.toISOString(),
+        displayDate: format(newDate, 'MMM d, yyyy'),
+        displayTime: format(newDate, 'h:mm a')
+      });
+      
+      setAppointmentDate(newDate);
     }
+  };
+
+  const handleTimeChange = (event, selectedDate) => {
+    setShowTimePicker(false);
+    if (selectedDate && event.type !== 'dismissed') {
+      // Create new date object with current date components
+      const newDate = new Date(
+        appointmentDate.getFullYear(),
+        appointmentDate.getMonth(),
+        appointmentDate.getDate(),
+        selectedDate.getHours(),
+        selectedDate.getMinutes(),
+        0,
+        0
+      );
+      
+      console.log('Time selected:', {
+        selectedTime: format(selectedDate, 'HH:mm'),
+        newLocalTime: format(newDate, 'HH:mm'),
+        displayDateTime: format(newDate, 'MMM d, yyyy h:mm a'),
+        timezone
+      });
+      
+      setAppointmentDate(newDate);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
 
     setLoading(true);
     try {
-      console.log('Submitting appointment with date:', appointmentDate);
-      const formattedDate = formatAPIDateTime(appointmentDate);
-      console.log('Formatted date for API:', formattedDate);
+      // Create UTC date by subtracting 8 hours from Manila time
+      const localDate = new Date(appointmentDate);
+      const utcDate = new Date(localDate);
+      utcDate.setHours(localDate.getHours() - 8);
       
-      await HealthService.createAppointment({
-        ...formData,
-        appointment_date: formattedDate,
+      console.log('Appointment submission:', {
+        localDateTime: format(localDate, 'yyyy-MM-dd HH:mm:ss'),
+        localDisplay: format(localDate, 'MMM d, yyyy h:mm a'),
+        utcDateTime: format(utcDate, 'yyyy-MM-dd HH:mm:ss'),
+        timezone
       });
+
+      // Ensure we're sending the correct UTC ISO string
+      const appointmentData = {
+        ...formData,
+        appointment_date: format(utcDate, "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"),
+        timezone
+      };
+
+      console.log('Submitting appointment with data:', appointmentData);
+      await HealthService.createAppointment(appointmentData);
       navigation.goBack();
     } catch (error) {
       console.error('Error creating appointment:', error);
-      let errorMessage = 'Failed to save appointment. Please try again.';
-      
-      // Handle validation errors
-      if (error.response?.status === 422) {
-        const errors = error.response.data.errors;
-        if (errors.appointment_date) {
-          errorMessage = errors.appointment_date[0];
-        }
-      }
-      
       setErrors({
-        submit: errorMessage
+        submit: 'Failed to save appointment. Please try again.'
       });
     } finally {
       setLoading(false);
@@ -177,7 +241,7 @@ const AddAppointmentScreen = () => {
                   labelStyle={styles.dateButtonLabel}
                   textColor="#1976D2"
                 >
-                  Date: {formatDisplayDate(appointmentDate)}
+                  Date: {format(appointmentDate, 'MMM d, yyyy')}
                 </Button>
 
                 <Button
@@ -188,8 +252,11 @@ const AddAppointmentScreen = () => {
                   labelStyle={styles.dateButtonLabel}
                   textColor="#1976D2"
                 >
-                  Time: {formatDisplayTime(appointmentDate)}
+                  Time: {format(appointmentDate, 'h:mm a')}
                 </Button>
+                <Text style={styles.timezoneInfo}>
+                  Times are shown in {timezone}
+                </Text>
               </View>
 
               {showDatePicker && (
@@ -197,16 +264,7 @@ const AddAppointmentScreen = () => {
                   value={appointmentDate}
                   mode="date"
                   display="default"
-                  onChange={(event, selectedDate) => {
-                    setShowDatePicker(false);
-                    if (selectedDate) {
-                      // Preserve the time when changing date
-                      const newDate = new Date(selectedDate);
-                      newDate.setHours(appointmentDate.getHours());
-                      newDate.setMinutes(appointmentDate.getMinutes());
-                      setAppointmentDate(newDate);
-                    }
-                  }}
+                  onChange={handleDateChange}
                   minimumDate={new Date()}
                 />
               )}
@@ -216,16 +274,7 @@ const AddAppointmentScreen = () => {
                   value={appointmentDate}
                   mode="time"
                   display="default"
-                  onChange={(event, selectedDate) => {
-                    setShowTimePicker(false);
-                    if (selectedDate) {
-                      // Preserve the date when changing time
-                      const newDate = new Date(appointmentDate);
-                      newDate.setHours(selectedDate.getHours());
-                      newDate.setMinutes(selectedDate.getMinutes());
-                      setAppointmentDate(newDate);
-                    }
-                  }}
+                  onChange={handleTimeChange}
                 />
               )}
 
@@ -436,6 +485,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
+  timezoneInfo: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 4
+  }
 });
 
 export default AddAppointmentScreen; 

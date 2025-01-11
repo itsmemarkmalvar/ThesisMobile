@@ -35,6 +35,7 @@ import {
   Animated as ReAnimated
 } from 'react-native-reanimated';
 import MilestoneService from '../services/MilestoneService';
+import { formatDisplayDate, parseDate, formatAPIDate } from '../utils/dateUtils';
 
 const initialLayout = { width: Dimensions.get('window').width };
 const chartWidth = Dimensions.get('window').width - (Platform.OS === 'ios' ? 60 : 50);
@@ -275,21 +276,21 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
         const formattedData = response.data.data
           .filter(record => record && (record.height || record.weight || record.head_size))
           .map(record => {
-            // Ensure date is properly formatted
-            let formattedDate;
+            // Parse the date using our utility function
+            let recordDate;
             if (record.date) {
-              formattedDate = new Date(record.date).toISOString().split('T')[0];
-              console.log('Using date from API:', record.date, '→', formattedDate);
+              recordDate = parseDate(record.date);
             } else if (record.created_at) {
-              formattedDate = new Date(record.created_at).toISOString().split('T')[0];
-              console.log('Using created_at date:', record.created_at, '→', formattedDate);
+              recordDate = parseDate(record.created_at);
             } else if (record.date_recorded) {
-              formattedDate = new Date(record.date_recorded).toISOString().split('T')[0];
-              console.log('Using date_recorded:', record.date_recorded, '→', formattedDate);
+              recordDate = parseDate(record.date_recorded);
             } else {
-              formattedDate = new Date().toISOString().split('T')[0];
-              console.log('No date found, using current date:', formattedDate);
+              recordDate = new Date();
             }
+
+            // Format the date for API consistency
+            const formattedDate = formatAPIDate(recordDate);
+            console.log('Formatted date:', formattedDate);
 
             return {
               ...record,
@@ -297,10 +298,10 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
               weight: parseFloat(record.weight) || 0,
               head_size: parseFloat(record.head_size) || 0,
               date_recorded: formattedDate,
-              notes: record.notes || '' // Ensure notes field exists
+              notes: record.notes || ''
             };
           })
-          .sort((a, b) => new Date(b.date_recorded) - new Date(a.date_recorded)); // Sort by newest first
+          .sort((a, b) => new Date(b.date_recorded) - new Date(a.date_recorded));
 
         console.log('Formatted Growth Data:', JSON.stringify(formattedData, null, 2));
         setGrowthData(formattedData);
@@ -347,16 +348,17 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
       const height = parseFloat(newRecord.height);
       const weight = parseFloat(newRecord.weight);
       const headSize = parseFloat(newRecord.head_size);
-      const selectedDate = new Date(newRecord.date_recorded);
+      const selectedDate = newRecord.date_recorded;
 
       // Check if any measurements are missing or invalid
       const isHeightValid = !isNaN(height) && height >= 45 && height <= 99;
       const isWeightValid = !isNaN(weight) && weight >= 2 && weight <= 15;
       const isHeadSizeValid = !isNaN(headSize) && headSize >= 30 && headSize <= 50;
-      const isDateValid = !isNaN(selectedDate.getTime());
+      const isDateValid = selectedDate instanceof Date && !isNaN(selectedDate.getTime());
 
       if (!isHeightValid || !isWeightValid || !isHeadSizeValid || !isDateValid) {
-        return; // Don't proceed if validation fails
+        Alert.alert('Invalid Input', 'Please check your measurements and try again.');
+        return;
       }
 
       setLoading(true);
@@ -367,18 +369,12 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
         return;
       }
 
-      // Ensure we're using the selected date, not just the date portion
-      const year = selectedDate.getFullYear();
-      const month = selectedDate.getMonth();
-      const day = selectedDate.getDate();
-      const date = new Date(year, month, day);
-
       const measurementData = {
         height: height.toFixed(1),
         weight: weight.toFixed(1),
         head_size: headSize.toFixed(1),
-        date_recorded: date.toISOString().split('T')[0],
-        notes: newRecord.notes ? newRecord.notes.trim() : '' // Ensure notes are properly formatted
+        date_recorded: formatAPIDate(selectedDate),
+        notes: newRecord.notes ? newRecord.notes.trim() : ''
       };
 
       console.log('Sending measurement data:', measurementData);
@@ -415,28 +411,13 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
   const formatDate = (dateString) => {
     console.log('formatDate input:', dateString);
     try {
-      // First try parsing as ISO string
-      let date = new Date(dateString);
-      console.log('Initial date parsing:', date);
-      
-      // If invalid, try parsing as YYYY-MM-DD
-      if (isNaN(date.getTime()) && typeof dateString === 'string') {
-        const [year, month, day] = dateString.split('-').map(Number);
-        console.log('Split date parts:', { year, month, day });
-        date = new Date(year, month - 1, day);
-        console.log('Date after YYYY-MM-DD parsing:', date);
-      }
-      
-      if (isNaN(date.getTime())) {
-        console.log('Invalid date after parsing attempts:', dateString);
+      const parsedDate = parseDate(dateString);
+      if (!parsedDate) {
+        console.log('Invalid date after parsing:', dateString);
         return 'Invalid Date';
       }
       
-      const formattedResult = date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
+      const formattedResult = formatDisplayDate(parsedDate);
       console.log('Final formatted date:', formattedResult);
       return formattedResult;
     } catch (e) {

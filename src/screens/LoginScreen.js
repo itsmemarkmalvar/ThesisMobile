@@ -25,6 +25,7 @@ import { StatusBar } from 'expo-status-bar';
 import { API_URL, APP_CONFIG } from '../config';
 import ApiService from '../services/ApiService';
 import { useBaby } from '../context/BabyContext';
+import TimezoneService from '../services/TimezoneService';
 
 const { height } = Dimensions.get('window');
 
@@ -177,6 +178,8 @@ const LoginScreen = ({ navigation }) => {
 
       if (response.data.token) {
         await AsyncStorage.setItem('userToken', response.data.token);
+        await TimezoneService.syncWithBackend();  // Sync timezone with backend
+        navigation.replace('Main');
         
         // Check if user has baby data
         try {

@@ -23,7 +23,9 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 import EmptyState from '../components/EmptyState';
 import { LinearGradient } from 'expo-linear-gradient';
-import { formatDisplayDateTime } from '../utils/dateUtils';
+import { format, parseISO } from 'date-fns';
+import { useTimezone } from '../context/TimezoneContext';
+import { DateTimeService } from '../services/DateTimeService';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All' },
@@ -33,13 +35,6 @@ const STATUS_OPTIONS = [
   { value: 'rescheduled', label: 'Rescheduled' },
 ];
 
-const formatAppointmentDate = (dateString) => {
-  console.log('Formatting appointment date:', dateString);
-  const formatted = formatDisplayDateTime(dateString);
-  console.log('Formatted result:', formatted);
-  return formatted || 'Invalid Date';
-};
-
 const AppointmentsScreen = () => {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
@@ -47,6 +42,7 @@ const AppointmentsScreen = () => {
   const [error, setError] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [selectedStatus, setSelectedStatus] = useState('');
+  const { timezone } = useTimezone();
   
   const navigation = useNavigation();
   const theme = useTheme();
@@ -65,23 +61,22 @@ const AppointmentsScreen = () => {
       const appointmentData = Array.isArray(response?.data) ? response.data : [];
       
       console.log('Total appointments found:', appointmentData.length);
-      console.log('Appointments by status:');
-      const statusCounts = appointmentData.reduce((acc, apt) => {
+      console.log('Appointments by status:', appointmentData.reduce((acc, apt) => {
         acc[apt.status] = (acc[apt.status] || 0) + 1;
         return acc;
-      }, {});
-      console.log(statusCounts);
+      }, {}));
       
-      // Log each appointment's details
+      // Log each appointment's details with timezone info
       appointmentData.forEach((apt, idx) => {
+        const localDate = DateTimeService.toLocalTime(apt.appointment_date);
         console.log(`Appointment ${idx + 1}:`, {
           id: apt.id,
-          date: apt.appointment_date,
-          formattedDate: formatAppointmentDate(apt.appointment_date),
+          utcDate: apt.appointment_date,
+          localDate: DateTimeService.formatForDisplay(localDate, 'yyyy-MM-dd HH:mm:ss'),
+          timezone,
           status: apt.status,
-          title: apt.title,
           doctor: apt.doctor_name,
-          location: apt.location
+          location: apt.clinic_location
         });
       });
       
@@ -138,35 +133,93 @@ const AppointmentsScreen = () => {
   };
 
   const renderAppointmentCard = (appointment) => {
-    const formattedDate = formatAppointmentDate(appointment.appointment_date);
-    console.log('Rendering appointment:', {
-      id: appointment.id,
-      rawDate: appointment.appointment_date,
-      formattedDate,
-      status: appointment.status
+    // Parse the UTC date string
+    const utcDate = parseISO(appointment.appointment_date);
+    
+    // Convert UTC to local time using DateTimeService (only once)
+    const localDate = DateTimeService.toLocalTime(utcDate);
+    
+    // Format directly for display
+    const formattedLocal = format(localDate, 'MMM d, yyyy h:mm a');
+    
+    console.log('Processing appointment:', {
+        id: appointment.id,
+        utcDate: appointment.appointment_date,
+        parsedUtc: utcDate.toISOString(),
+        localDate: localDate.toISOString(),
+        formattedLocal,
+        timezone,
+        expectedLocalHour: utcDate.getUTCHours() + 8 // Should be 20 (8 PM)
     });
     
     return (
-      <Card key={appointment.id} style={styles.card}>
+      <Card
+        key={appointment.id}
+        style={styles.card}
+        onPress={() => handleViewAppointment(appointment)}
+      >
         <Card.Content>
-          <View style={styles.cardHeader}>
-            <Text variant="titleMedium">{appointment.title}</Text>
-            <Chip mode="outlined" style={getStatusStyle(appointment.status)}>
+          <View style={styles.appointmentHeader}>
+            <Text variant="titleMedium" style={styles.doctorName}>
+              {appointment.doctor_name ? `Dr. ${appointment.doctor_name}` : 'Appointment'}
+            </Text>
+            <Chip
+              style={[
+                styles.statusChip,
+                { backgroundColor: `${getStatusColor(appointment.status)}20` }
+              ]}
+              textStyle={{
+                fontSize: 12,
+                color: getStatusColor(appointment.status),
+                fontWeight: '600',
+              }}
+            >
               {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
             </Chip>
           </View>
-          <View style={styles.cardDetails}>
-            <Text variant="bodyMedium">Date & Time: {formattedDate}</Text>
-            {appointment.doctor_name && (
-              <Text variant="bodyMedium">Doctor: {appointment.doctor_name}</Text>
-            )}
-            {appointment.location && (
-              <Text variant="bodyMedium">Location: {appointment.location}</Text>
-            )}
-            {appointment.notes && (
-              <Text variant="bodyMedium" style={styles.notes}>Notes: {appointment.notes}</Text>
+
+          {appointment.purpose && (
+            <Text variant="bodyMedium" style={styles.purpose}>
+              {appointment.purpose}
+            </Text>
+          )}
+
+          <View style={styles.appointmentDetails}>
+            <View style={styles.detailRow}>
+              <Text variant="bodySmall" style={styles.detailLabel}>
+                Date & Time:
+              </Text>
+              <View style={styles.dateTimeContainer}>
+                <Text variant="bodySmall" style={styles.detailValue}>
+                  {formattedLocal}
+                </Text>
+                <Text variant="bodySmall" style={styles.timezoneText}>
+                  ({timezone})
+                </Text>
+              </View>
+            </View>
+
+            {appointment.clinic_location && (
+              <View style={styles.detailRow}>
+                <Text variant="bodySmall" style={styles.detailLabel}>
+                  Location:
+                </Text>
+                <Text variant="bodySmall" style={styles.detailValue}>
+                  {appointment.clinic_location}
+                </Text>
+              </View>
             )}
           </View>
+
+          {appointment.reminder_enabled && (
+            <Chip
+              icon="bell"
+              style={styles.reminderChip}
+              textStyle={{ fontSize: 12, color: '#1976D2' }}
+            >
+              Reminder {appointment.reminder_minutes_before} min before
+            </Chip>
+          )}
         </Card.Content>
       </Card>
     );
@@ -240,76 +293,7 @@ const AppointmentsScreen = () => {
             />
           ) : (
             <View style={styles.content}>
-              {appointments.map((appointment) => {
-                console.log('Processing appointment:', {
-                  id: appointment.id,
-                  raw_date: appointment.appointment_date
-                });
-                return (
-                  <Card
-                    key={appointment.id}
-                    style={styles.card}
-                    onPress={() => handleViewAppointment(appointment)}
-                  >
-                    <Card.Content>
-                      <View style={styles.appointmentHeader}>
-                        <Text variant="titleMedium" style={styles.doctorName}>
-                          Dr. {appointment.doctor_name}
-                        </Text>
-                        <Chip
-                          style={[
-                            styles.statusChip,
-                            { backgroundColor: `${getStatusColor(appointment.status)}20` }
-                          ]}
-                          textStyle={{
-                            fontSize: 12,
-                            color: getStatusColor(appointment.status),
-                            fontWeight: '600',
-                          }}
-                        >
-                          {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
-                        </Chip>
-                      </View>
-
-                      <Text variant="bodyMedium" style={styles.purpose}>
-                        {appointment.purpose}
-                      </Text>
-
-                      <View style={styles.appointmentDetails}>
-                        <View style={styles.detailRow}>
-                          <Text variant="bodySmall" style={styles.detailLabel}>
-                            Date & Time:
-                          </Text>
-                          <Text variant="bodySmall" style={styles.detailValue}>
-                            {formatAppointmentDate(appointment.appointment_date)}
-                          </Text>
-                        </View>
-
-                        {appointment.clinic_location && (
-                          <View style={styles.detailRow}>
-                            <Text variant="bodySmall" style={styles.detailLabel}>
-                              Location:
-                            </Text>
-                            <Text variant="bodySmall" style={styles.detailValue}>
-                              {appointment.clinic_location}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-
-                      {appointment.reminder_enabled && (
-                        <Chip
-                          icon="bell"
-                          style={styles.reminderChip}
-                          textStyle={{ fontSize: 12, color: '#1976D2' }}
-                        >
-                          Reminder {appointment.reminder_minutes_before} min before
-                        </Chip>
-                      )}
-                    </Card.Content>
-                  </Card>
-                );
-              })}
+              {appointments.map((appointment) => renderAppointmentCard(appointment))}
             </View>
           )}
         </ScrollView>
@@ -443,6 +427,37 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     elevation: 4,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  dateText: {
+    fontWeight: '500',
+    marginRight: 4,
+  },
+  timezoneText: {
+    color: '#666',
+  },
+  locationText: {
+    marginTop: 4,
+  },
+  purposeText: {
+    marginTop: 4,
+  },
+  statusChip: {
+    height: 28,
+  },
+  dateTimeContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  timezoneText: {
+    color: '#666',
+    fontSize: 11,
   },
 });
 

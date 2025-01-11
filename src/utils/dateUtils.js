@@ -1,25 +1,36 @@
-import { format, parseISO, formatISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
-
-const TIMEZONE = 'Asia/Manila';
+import { DateTimeService } from '../services/DateTimeService';
 
 // Parse date from API (handles ISO strings and YYYY-MM-DD formats)
 export const parseDate = (dateString) => {
   if (!dateString) return null;
   try {
+    console.log('parseDate input:', {
+      value: dateString,
+      type: typeof dateString,
+      isDate: dateString instanceof Date
+    });
+    
     // If it's already a Date object, return it
-    if (dateString instanceof Date) return dateString;
+    if (dateString instanceof Date) {
+      console.log('parseDate: Already a Date object');
+      return dateString;
+    }
     
     // Try parsing as ISO string first
     let date = parseISO(dateString);
     
     // If invalid, try parsing as YYYY-MM-DD
     if (isNaN(date.getTime()) && typeof dateString === 'string') {
+      console.log('parseDate: Parsing as YYYY-MM-DD');
       const [year, month, day] = dateString.split('-').map(Number);
       date = new Date(year, month - 1, day);
     }
     
-    return isNaN(date.getTime()) ? null : date;
+    const result = isNaN(date.getTime()) ? null : date;
+    console.log('parseDate result:', result?.toISOString());
+    return result;
   } catch (error) {
     console.error('Error parsing date:', error);
     return null;
@@ -30,9 +41,18 @@ export const parseDate = (dateString) => {
 export const formatDisplayDate = (date) => {
   if (!date) return '';
   try {
+    console.log('formatDisplayDate input:', {
+      value: date,
+      type: typeof date,
+      isDate: date instanceof Date
+    });
+    
     const parsedDate = parseDate(date);
     if (!parsedDate) return '';
-    return format(parsedDate, 'MMM d, yyyy');
+    
+    // Use DateTimeService for timezone conversion
+    const localDate = DateTimeService.toLocalTime(parsedDate);
+    return DateTimeService.formatForDisplay(localDate, 'MMM d, yyyy');
   } catch (error) {
     console.error('Error formatting display date:', error);
     return '';
@@ -43,9 +63,18 @@ export const formatDisplayDate = (date) => {
 export const formatDisplayTime = (date) => {
   if (!date) return '';
   try {
+    console.log('formatDisplayTime input:', {
+      value: date,
+      type: typeof date,
+      isDate: date instanceof Date
+    });
+    
     const parsedDate = parseDate(date);
     if (!parsedDate) return '';
-    return format(parsedDate, 'h:mm a');
+    
+    // Use DateTimeService for timezone conversion
+    const localDate = DateTimeService.toLocalTime(parsedDate);
+    return DateTimeService.formatForDisplay(localDate, 'h:mm a');
   } catch (error) {
     console.error('Error formatting display time:', error);
     return '';
@@ -56,11 +85,18 @@ export const formatDisplayTime = (date) => {
 export const formatDisplayDateTime = (date) => {
   if (!date) return '';
   try {
+    console.log('formatDisplayDateTime input:', {
+      value: date,
+      type: typeof date,
+      isDate: date instanceof Date
+    });
+    
     const parsedDate = parseDate(date);
     if (!parsedDate) return '';
-    // Adjust for local timezone display
-    const localDate = new Date(parsedDate.getTime() + parsedDate.getTimezoneOffset() * 60000);
-    return format(localDate, 'MMM d, yyyy h:mm a');
+    
+    // Use DateTimeService for timezone conversion
+    const localDate = DateTimeService.toLocalTime(parsedDate);
+    return DateTimeService.formatForDisplay(localDate, 'MMM d, yyyy h:mm a');
   } catch (error) {
     console.error('Error formatting display datetime:', error);
     return '';
@@ -73,7 +109,7 @@ export const formatAPIDate = (date) => {
   try {
     const parsedDate = parseDate(date);
     if (!parsedDate) return null;
-    return format(parsedDate, 'yyyy-MM-dd');
+    return DateTimeService.formatForAPI(parsedDate);
   } catch (error) {
     console.error('Error formatting API date:', error);
     return null;
@@ -84,10 +120,15 @@ export const formatAPIDate = (date) => {
 export const formatAPIDateTime = (date) => {
   if (!date) return null;
   try {
+    console.log('formatAPIDateTime input:', {
+      value: date,
+      type: typeof date,
+      isDate: date instanceof Date
+    });
+    
     const parsedDate = parseDate(date);
     if (!parsedDate) return null;
-    // Convert to UTC ISO string with timezone offset
-    return formatISO(parsedDate);
+    return DateTimeService.formatForAPI(parsedDate);
   } catch (error) {
     console.error('Error formatting API datetime:', error);
     return null;
@@ -138,7 +179,7 @@ export const formatMedicineTime = (timeString) => {
       console.log('Could not parse time:', timeString);
       return '';
     }
-    return format(date, 'h:mm a');
+    return DateTimeService.formatForDisplay(date, 'h:mm a');
   } catch (error) {
     console.error('Error formatting medicine time:', error);
     return '';
@@ -167,8 +208,8 @@ const MIN_NIGHT_SLEEP_DURATION_MINUTES = 360; // 6 hours
 export const calculateDurationInMinutes = (startDate, endDate) => {
   if (!startDate || !endDate) return 0;
   try {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = DateTimeService.toLocalTime(new Date(startDate));
+    const end = DateTimeService.toLocalTime(new Date(endDate));
     return Math.round((end - start) / (1000 * 60));
   } catch (error) {
     console.error('Error calculating duration:', error);
@@ -237,15 +278,8 @@ export const formatAppointmentDateTime = (dateString) => {
   if (!dateString) return '';
   try {
     console.log('Formatting appointment datetime input:', dateString);
-    const date = parseISO(dateString);
-    
-    // Since we're storing the time in UTC format but it represents Manila time,
-    // we need to subtract 8 hours to get back to the original Manila time
-    const manilaDate = new Date(date.getTime() - (8 * 60 * 60 * 1000));
-    const formatted = format(manilaDate, 'MMM d, yyyy h:mm a');
-    
-    console.log('Formatted appointment datetime output:', formatted);
-    return formatted;
+    const localDate = DateTimeService.toLocalTime(dateString);
+    return DateTimeService.formatForDisplay(localDate, 'MMM d, yyyy h:mm a');
   } catch (error) {
     console.error('Error formatting appointment datetime:', error);
     return '';
@@ -257,12 +291,7 @@ export const convertToUTC = (dateString) => {
   if (!dateString) return null;
   try {
     console.log('Converting to UTC input:', dateString);
-    // The date is already in the correct UTC format when stored
-    // Just ensure it's properly formatted as ISO
-    const date = parseISO(dateString);
-    const formatted = formatISO(date);
-    console.log('Converting to UTC output:', formatted);
-    return formatted;
+    return DateTimeService.formatForAPI(dateString);
   } catch (error) {
     console.error('Error converting to UTC:', error);
     return null;

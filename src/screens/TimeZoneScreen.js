@@ -6,12 +6,17 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Localization from 'expo-localization';
+import { DateTimeService } from '../services/DateTimeService';
+
+const STORAGE_KEY = 'userTimezone';
+const DEFAULT_TIMEZONE = 'Asia/Manila';
 
 const timeZones = [
   { label: 'Auto (Device Settings)', value: 'auto' },
@@ -25,84 +30,127 @@ const timeZones = [
   { label: '(GMT+10:00) Sydney', value: 'Australia/Sydney' },
 ];
 
-const TimeZoneScreen = ({ navigation }) => {
-  const [selectedTimeZone, setSelectedTimeZone] = useState('auto');
+const TimeZoneScreen = () => {
+  const [selectedTimezone, setSelectedTimezone] = useState('auto');
+  const [deviceTimezone, setDeviceTimezone] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadTimeZone();
+    initializeTimezone();
   }, []);
 
-  const loadTimeZone = async () => {
+  const initializeTimezone = async () => {
     try {
-      const savedTimeZone = await AsyncStorage.getItem('userTimeZone');
-      if (savedTimeZone) {
-        setSelectedTimeZone(savedTimeZone);
+      setLoading(true);
+      // Get device timezone
+      const deviceTz = Localization.timezone;
+      setDeviceTimezone(deviceTz);
+
+      // Get stored timezone preference
+      const storedTimezone = await AsyncStorage.getItem(STORAGE_KEY);
+      
+      if (storedTimezone) {
+        setSelectedTimezone(storedTimezone);
+      } else {
+        // If no stored preference, check if device is in Manila timezone
+        const isManilaTZ = deviceTz === DEFAULT_TIMEZONE;
+        if (isManilaTZ) {
+          setSelectedTimezone(DEFAULT_TIMEZONE);
+        } else {
+          // Prompt user about timezone difference
+          Alert.alert(
+            'Timezone Notice',
+            'This app is designed for Manila timezone (GMT+8). Would you like to use Manila time or your local time?',
+            [
+              {
+                text: 'Use Manila Time',
+                onPress: () => handleTimezoneChange(DEFAULT_TIMEZONE),
+              },
+              {
+                text: 'Use Local Time',
+                onPress: () => handleTimezoneChange('auto'),
+              },
+            ]
+          );
+        }
       }
     } catch (error) {
-      console.error('Error loading timezone:', error);
+      console.error('Error initializing timezone:', error);
+      Alert.alert('Error', 'Failed to initialize timezone settings');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleTimeZoneSelect = async (timeZone) => {
+  const handleTimezoneChange = async (timezone) => {
     try {
-      await AsyncStorage.setItem('userTimeZone', timeZone);
-      setSelectedTimeZone(timeZone);
-      navigation.goBack();
+      setSelectedTimezone(timezone);
+      await AsyncStorage.setItem(STORAGE_KEY, timezone);
+      
+      // Update DateTimeService with new timezone
+      const effectiveTimezone = timezone === 'auto' ? Localization.timezone : timezone;
+      await DateTimeService.updateTimezone(effectiveTimezone);
+
+      // Notify user about the change
+      Alert.alert(
+        'Timezone Updated',
+        `App will now use ${timezone === 'auto' ? 'device timezone' : timezone} for all times.`,
+        [{ text: 'OK' }]
+      );
     } catch (error) {
-      console.error('Error saving timezone:', error);
+      console.error('Error changing timezone:', error);
+      Alert.alert('Error', 'Failed to update timezone settings');
     }
   };
 
-  const getDeviceTimeZone = () => {
-    return Localization.timezone;
+  const getEffectiveTimezone = () => {
+    return selectedTimezone === 'auto' ? deviceTimezone : selectedTimezone;
   };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Loading timezone settings...</Text>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
+        colors={['#f0f8ff', '#e6f3ff', '#d9edff']}
         style={styles.gradient}
       >
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <MaterialIcons name="arrow-back" size={24} color="#333" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Time Zone</Text>
+          <Text style={styles.headerTitle}>Timezone Settings</Text>
+          <Text style={styles.subtitle}>
+            Current timezone: {getEffectiveTimezone()}
+          </Text>
         </View>
 
-        <ScrollView 
-          style={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.section}>
-            <Text style={styles.currentTimeZone}>
-              Current: {selectedTimeZone === 'auto' ? getDeviceTimeZone() : selectedTimeZone}
-            </Text>
+        <ScrollView style={styles.content}>
+          {timeZones.map((tz) => (
+            <TouchableOpacity
+              key={tz.value}
+              style={[
+                styles.timezoneItem,
+                selectedTimezone === tz.value && styles.selectedItem,
+              ]}
+              onPress={() => handleTimezoneChange(tz.value)}
+            >
+              <Text style={styles.timezoneLabel}>{tz.label}</Text>
+              {selectedTimezone === tz.value && (
+                <MaterialIcons name="check" size={24} color="#4CAF50" />
+              )}
+            </TouchableOpacity>
+          ))}
 
-            {timeZones.map((tz, index) => (
-              <TouchableOpacity
-                key={tz.value}
-                style={[
-                  styles.timeZoneItem,
-                  selectedTimeZone === tz.value && styles.selectedTimeZone,
-                  index === timeZones.length - 1 && styles.lastItem
-                ]}
-                onPress={() => handleTimeZoneSelect(tz.value)}
-              >
-                <Text style={[
-                  styles.timeZoneText,
-                  selectedTimeZone === tz.value && styles.selectedText
-                ]}>
-                  {tz.label}
-                </Text>
-                {selectedTimeZone === tz.value && (
-                  <MaterialIcons name="check" size={24} color="#4A90E2" />
-                )}
-              </TouchableOpacity>
-            ))}
+          <View style={styles.infoBox}>
+            <Text style={styles.infoTitle}>About Timezones</Text>
+            <Text style={styles.infoText}>
+              This app is optimized for Manila timezone (GMT+8). If you're in a different timezone,
+              you can choose to use either Manila time or your local time for all app features.
+            </Text>
           </View>
         </ScrollView>
       </LinearGradient>
@@ -113,77 +161,76 @@ const TimeZoneScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFB6C1',
   },
   gradient: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
-    paddingTop: 8,
   },
-  backButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+  header: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
-    marginLeft: 16,
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
   },
   content: {
     flex: 1,
+    padding: 16,
   },
-  section: {
-    margin: 16,
-    padding: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 20,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  currentTimeZone: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 20,
-    fontStyle: 'italic',
-  },
-  timeZoneItem: {
+  timezoneItem: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(240, 240, 240, 0.8)',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  lastItem: {
-    borderBottomWidth: 0,
+  selectedItem: {
+    backgroundColor: '#f0f9ff',
+    borderColor: '#4CAF50',
+    borderWidth: 1,
   },
-  selectedTimeZone: {
-    backgroundColor: 'rgba(74, 144, 226, 0.1)',
-    borderRadius: 10,
-  },
-  timeZoneText: {
+  timezoneLabel: {
     fontSize: 16,
     color: '#333',
   },
-  selectedText: {
-    color: '#4A90E2',
-    fontWeight: '600',
+  infoBox: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 8,
+  },
+  infoTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
   },
 });
 

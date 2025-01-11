@@ -24,7 +24,8 @@ import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { formatAppointmentDateTime, convertToUTC } from '../utils/dateUtils';
+import { useTimezone } from '../context/TimezoneContext';
+import { DateTimeService } from '../services/DateTimeService';
 
 const REMINDER_OPTIONS = [
   { value: 15, label: '15 min' },
@@ -37,7 +38,7 @@ const REMINDER_OPTIONS = [
 const EditAppointmentScreen = () => {
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState({});
-  const [appointmentDate, setAppointmentDate] = useState(new Date());
+  const [appointmentDate, setAppointmentDate] = useState(DateTimeService.getCurrentTime());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [formData, setFormData] = useState({
@@ -55,33 +56,62 @@ const EditAppointmentScreen = () => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { appointmentId } = route.params;
+  const { timezone } = useTimezone();
 
+  // Load appointment data
   useEffect(() => {
-    const fetchAppointment = async () => {
+    const loadAppointment = async () => {
       try {
-        const data = await HealthService.getAppointment(appointmentId);
+        setLoading(true);
+        const appointment = await HealthService.getAppointment(appointmentId);
+        console.log('Loaded appointment:', appointment);
+        
+        if (!appointment || !appointment.appointment_date) {
+          throw new Error('Invalid appointment data received');
+        }
+
+        // Convert UTC date from API to local time
+        const localDate = DateTimeService.toLocalTime(appointment.appointment_date);
+        if (!localDate) {
+          throw new Error('Invalid appointment date');
+        }
+        
+        setAppointmentDate(localDate);
         setFormData({
-          doctor_name: data.doctor_name,
-          clinic_location: data.clinic_location || '',
-          purpose: data.purpose,
-          notes: data.notes || '',
-          status: data.status,
-          reminder_enabled: data.reminder_enabled,
-          reminder_minutes_before: data.reminder_minutes_before,
+          doctor_name: appointment.doctor_name || '',
+          clinic_location: appointment.clinic_location || '',
+          purpose: appointment.purpose || '',
+          notes: appointment.notes || '',
+          status: appointment.status || 'scheduled',
+          reminder_enabled: appointment.reminder_enabled ?? true,
+          reminder_minutes_before: appointment.reminder_minutes_before || 60,
         });
-        setAppointmentDate(new Date(data.appointment_date));
       } catch (error) {
-        console.error('Error fetching appointment:', error);
+        console.error('Error loading appointment:', error);
         setErrors({
-          submit: 'Failed to load appointment details. Please try again.',
+          submit: 'Failed to load appointment details. Please try again.'
         });
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAppointment();
+    if (appointmentId) {
+      loadAppointment();
+    }
   }, [appointmentId]);
+
+  // Update appointment date when timezone changes
+  useEffect(() => {
+    if (appointmentDate) {
+      const updatedDate = DateTimeService.toLocalTime(
+        DateTimeService.toUTC(appointmentDate)
+      );
+      if (updatedDate) {
+        setAppointmentDate(updatedDate);
+      }
+    }
+  }, [timezone]);
 
   const handleInputChange = (name, value) => {
     setFormData(prev => ({
@@ -106,39 +136,56 @@ const EditAppointmentScreen = () => {
     if (!formData.purpose.trim()) {
       newErrors.purpose = 'Purpose is required';
     }
+    
+    // Validate against current time in user's timezone
+    if (!appointmentDate) {
+      newErrors.submit = 'Please select a valid appointment date and time';
+    } else {
+      const now = DateTimeService.getCurrentTime();
+      if (appointmentDate < now) {
+        newErrors.submit = 'Appointment date cannot be in the past';
+      }
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
     try {
-      console.log('Updating appointment with date:', appointmentDate);
+      // Convert local time to UTC for API
+      const utcDate = DateTimeService.formatForAPI(appointmentDate);
+      if (!utcDate) {
+        throw new Error('Invalid appointment date');
+      }
+
+      console.log('Appointment update:', {
+        local: DateTimeService.formatForDisplay(appointmentDate, 'yyyy-MM-dd HH:mm:ss'),
+        utc: utcDate,
+        timezone
+      });
+
       await HealthService.updateAppointment(appointmentId, {
         ...formData,
-        appointment_date: appointmentDate,
+        appointment_date: utcDate,
+        timezone: timezone // Include user's timezone with the appointment
       });
       navigation.goBack();
     } catch (error) {
       console.error('Error updating appointment:', error);
       setErrors({
-        submit: 'Failed to update appointment. Please try again.',
+        submit: 'Failed to update appointment. Please try again.'
       });
+    } finally {
       setLoading(false);
     }
   };
 
   if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <LoadingSpinner />
-      </SafeAreaView>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
@@ -184,7 +231,7 @@ const EditAppointmentScreen = () => {
                   labelStyle={styles.dateButtonLabel}
                   textColor="#1976D2"
                 >
-                  Date: {format(appointmentDate, 'MMM d, yyyy')}
+                  Date: {DateTimeService.formatForDisplay(appointmentDate, 'MMM d, yyyy')}
                 </Button>
 
                 <Button
@@ -195,8 +242,11 @@ const EditAppointmentScreen = () => {
                   labelStyle={styles.dateButtonLabel}
                   textColor="#1976D2"
                 >
-                  Time: {format(appointmentDate, 'h:mm a')}
+                  Time: {DateTimeService.formatForDisplay(appointmentDate, 'h:mm a')}
                 </Button>
+                <Text style={styles.timezoneInfo}>
+                  Times are shown in {timezone}
+                </Text>
               </View>
 
               {showDatePicker && (
@@ -207,7 +257,16 @@ const EditAppointmentScreen = () => {
                   onChange={(event, selectedDate) => {
                     setShowDatePicker(false);
                     if (selectedDate) {
-                      setAppointmentDate(selectedDate);
+                      // Preserve the time when changing date
+                      const newDate = new Date(selectedDate);
+                      newDate.setHours(appointmentDate.getHours());
+                      newDate.setMinutes(appointmentDate.getMinutes());
+                      console.log('Date selected:', {
+                        selected: selectedDate.toISOString(),
+                        newDate: newDate.toISOString(),
+                        formatted: format(newDate, 'MMM d, yyyy')
+                      });
+                      setAppointmentDate(newDate);
                     }
                   }}
                   minimumDate={new Date()}
@@ -222,7 +281,16 @@ const EditAppointmentScreen = () => {
                   onChange={(event, selectedDate) => {
                     setShowTimePicker(false);
                     if (selectedDate) {
-                      setAppointmentDate(selectedDate);
+                      // Preserve the date when changing time
+                      const newDate = new Date(appointmentDate);
+                      newDate.setHours(selectedDate.getHours());
+                      newDate.setMinutes(selectedDate.getMinutes());
+                      console.log('Time selected:', {
+                        selected: selectedDate.toISOString(),
+                        newDate: newDate.toISOString(),
+                        formatted: format(newDate, 'h:mm a')
+                      });
+                      setAppointmentDate(newDate);
                     }
                   }}
                 />
@@ -335,18 +403,20 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: 'transparent',
+    paddingTop: Platform.OS === 'ios' ? 8 : 0,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
+    height: 56,
   },
   backButton: {
     marginLeft: -8,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '600',
     color: '#333',
     marginLeft: 8,
@@ -412,6 +482,12 @@ const styles = StyleSheet.create({
     borderColor: '#1976D2',
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
+  timezoneInfo: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 4
+  }
 });
 
 export default EditAppointmentScreen; 

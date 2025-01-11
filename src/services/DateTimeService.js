@@ -1,94 +1,193 @@
-import { parseISO, format, isValid } from 'date-fns';
+import { parseISO, format, isValid, addMinutes } from 'date-fns';
 import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Localization from 'expo-localization';
 
-const MANILA_TIMEZONE = 'Asia/Manila';
+const TIMEZONE_STORAGE_KEY = 'userTimezone';
+const DEFAULT_TIMEZONE = 'Asia/Manila';
 
 export const DateTimeService = {
-    // Convert UTC date to Manila time
-    toManilaTime: (utcDate) => {
+    // Private variable to store current timezone
+    _currentTimezone: DEFAULT_TIMEZONE,
+    _initialized: false,
+
+    // Initialize timezone settings
+    initialize: async () => {
+        try {
+            if (DateTimeService._initialized) {
+                return DateTimeService._currentTimezone;
+            }
+
+            const storedTimezone = await AsyncStorage.getItem(TIMEZONE_STORAGE_KEY);
+            if (storedTimezone === 'auto') {
+                DateTimeService._currentTimezone = Localization.timezone;
+            } else if (storedTimezone) {
+                DateTimeService._currentTimezone = storedTimezone;
+            }
+
+            DateTimeService._initialized = true;
+            console.log('DateTimeService initialized with timezone:', DateTimeService._currentTimezone);
+            return DateTimeService._currentTimezone;
+        } catch (error) {
+            console.error('Error initializing DateTimeService:', error);
+            return DEFAULT_TIMEZONE;
+        }
+    },
+
+    // Reset to default settings
+    reset: async () => {
+        try {
+            DateTimeService._currentTimezone = DEFAULT_TIMEZONE;
+            DateTimeService._initialized = false;
+            await AsyncStorage.removeItem(TIMEZONE_STORAGE_KEY);
+            return true;
+        } catch (error) {
+            console.error('Error resetting DateTimeService:', error);
+            return false;
+        }
+    },
+
+    // Update timezone setting
+    updateTimezone: async (timezone) => {
+        try {
+            if (!DateTimeService._initialized) {
+                await DateTimeService.initialize();
+            }
+
+            const newTimezone = timezone === 'auto' ? Localization.timezone : timezone;
+            
+            // Validate timezone
+            try {
+                // Test if timezone is valid by attempting to use it
+                utcToZonedTime(new Date(), newTimezone);
+            } catch (e) {
+                throw new Error(`Invalid timezone: ${newTimezone}`);
+            }
+
+            DateTimeService._currentTimezone = newTimezone;
+            await AsyncStorage.setItem(TIMEZONE_STORAGE_KEY, timezone);
+            console.log('Timezone updated to:', newTimezone);
+            return true;
+        } catch (error) {
+            console.error('Error updating timezone:', error);
+            return false;
+        }
+    },
+
+    // Get current timezone
+    getCurrentTimezone: () => {
+        if (!DateTimeService._initialized) {
+            console.warn('DateTimeService not initialized, using default timezone');
+        }
+        return DateTimeService._currentTimezone;
+    },
+
+    // Check if current timezone is Manila
+    isManilaTZ: () => {
+        return DateTimeService._currentTimezone === DEFAULT_TIMEZONE;
+    },
+
+    // Convert UTC date to current timezone
+    toLocalTime: (utcDate) => {
         try {
             if (!utcDate) return null;
 
-            // Parse the date string if it's not already a Date object
+            // Ensure we have a Date object
             const date = typeof utcDate === 'string' ? parseISO(utcDate) : utcDate;
 
-            // Validate the date
             if (!isValid(date)) {
-                console.warn('Invalid date provided to toManilaTime:', utcDate);
+                console.warn('Invalid date provided to toLocalTime:', utcDate);
                 return null;
             }
 
-            // Convert to Manila time
-            const manilaDate = utcToZonedTime(date, MANILA_TIMEZONE);
-            return manilaDate;
+            // For debugging
+            console.log('toLocalTime conversion:', {
+                input: date.toISOString(),
+                timezone: DateTimeService._currentTimezone,
+                currentOffset: DateTimeService.getTimezoneOffset()
+            });
+
+            // Convert using date-fns-tz
+            const zonedDate = utcToZonedTime(date, DateTimeService._currentTimezone);
+            
+            // For Manila (UTC+8), when UTC is 12:00, local should be 20:00
+            const localDate = new Date(
+                zonedDate.getFullYear(),
+                zonedDate.getMonth(),
+                zonedDate.getDate(),
+                zonedDate.getHours(),
+                zonedDate.getMinutes(),
+                0,
+                0
+            );
+
+            console.log('toLocalTime result:', {
+                zonedDate: zonedDate.toISOString(),
+                localDate: localDate.toISOString()
+            });
+
+            return localDate;
         } catch (error) {
-            console.error('Error converting to Manila time:', error);
+            console.error('Error converting to local time:', error);
             return null;
         }
     },
 
-    // Convert Manila time to UTC
-    toUTC: (manilaDate) => {
+    // Convert local time to UTC
+    toUTC: (localDate) => {
         try {
-            if (!manilaDate) return null;
+            if (!localDate) return null;
 
-            // Parse the date string if it's not already a Date object
-            const date = typeof manilaDate === 'string' ? parseISO(manilaDate) : manilaDate;
+            const date = typeof localDate === 'string' ? parseISO(localDate) : localDate;
 
-            // Validate the date
             if (!isValid(date)) {
-                console.warn('Invalid date provided to toUTC:', manilaDate);
+                console.warn('Invalid date provided to toUTC:', localDate);
                 return null;
             }
 
-            // Convert to UTC
-            const utcDate = zonedTimeToUtc(date, MANILA_TIMEZONE);
-            return utcDate;
+            return zonedTimeToUtc(date, DateTimeService._currentTimezone);
         } catch (error) {
             console.error('Error converting to UTC:', error);
             return null;
         }
     },
 
-    // Format date for display (in Manila time)
+    // Format date for display in local timezone
     formatForDisplay: (date, formatStr = 'MMM d, yyyy') => {
         try {
             if (!date) return '';
 
-            // Parse the date string if it's not already a Date object
             const parsedDate = typeof date === 'string' ? parseISO(date) : date;
 
-            // Validate the date
             if (!isValid(parsedDate)) {
                 console.warn('Invalid date provided to formatForDisplay:', date);
                 return '';
             }
 
-            // Convert to Manila time and format
-            const manilaDate = utcToZonedTime(parsedDate, MANILA_TIMEZONE);
-            return format(manilaDate, formatStr);
+            // Get the local date
+            const localDate = DateTimeService.toLocalTime(parsedDate);
+            
+            // Format the local date
+            return format(localDate, formatStr);
         } catch (error) {
             console.error('Error formatting date for display:', error);
             return '';
         }
     },
 
-    // Format date for API (in UTC)
+    // Format date for API (always in UTC)
     formatForAPI: (date) => {
         try {
             if (!date) return null;
 
-            // Parse the date string if it's not already a Date object
             const parsedDate = typeof date === 'string' ? parseISO(date) : date;
 
-            // Validate the date
             if (!isValid(parsedDate)) {
                 console.warn('Invalid date provided to formatForAPI:', date);
                 return null;
             }
 
-            // Convert to UTC and format
-            const utcDate = zonedTimeToUtc(parsedDate, MANILA_TIMEZONE);
+            const utcDate = zonedTimeToUtc(parsedDate, DateTimeService._currentTimezone);
             return utcDate.toISOString();
         } catch (error) {
             console.error('Error formatting date for API:', error);
@@ -101,46 +200,94 @@ export const DateTimeService = {
         try {
             if (!date1 || !date2) return false;
 
-            // Parse dates if they're strings
             const parsed1 = typeof date1 === 'string' ? parseISO(date1) : date1;
             const parsed2 = typeof date2 === 'string' ? parseISO(date2) : date2;
 
-            // Validate dates
             if (!isValid(parsed1) || !isValid(parsed2)) {
                 console.warn('Invalid date in comparison:', { date1, date2 });
                 return false;
             }
 
-            // Convert both to Manila time and compare YYYY-MM-DD only
-            const manila1 = utcToZonedTime(parsed1, MANILA_TIMEZONE);
-            const manila2 = utcToZonedTime(parsed2, MANILA_TIMEZONE);
+            const local1 = utcToZonedTime(parsed1, DateTimeService._currentTimezone);
+            const local2 = utcToZonedTime(parsed2, DateTimeService._currentTimezone);
 
-            return format(manila1, 'yyyy-MM-dd') === format(manila2, 'yyyy-MM-dd');
+            return format(local1, 'yyyy-MM-dd') === format(local2, 'yyyy-MM-dd');
         } catch (error) {
             console.error('Error comparing dates:', error);
             return false;
         }
     },
 
-    // Get calendar date string (YYYY-MM-DD)
-    getCalendarDate: (date) => {
+    // Get current time in local timezone
+    getCurrentTime: () => {
+        return utcToZonedTime(new Date(), DateTimeService._currentTimezone);
+    },
+
+    // Get current date without time in local timezone
+    getCurrentDate: () => {
+        const now = utcToZonedTime(new Date(), DateTimeService._currentTimezone);
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    },
+
+    // Validate date/time
+    validateDateTime: (date) => {
+        if (!date) return { isValid: false, error: 'Date is required' };
+        
+        const parsedDate = typeof date === 'string' ? parseISO(date) : date;
+        
+        if (!isValid(parsedDate)) {
+            return { isValid: false, error: 'Invalid date format' };
+        }
+
+        return { isValid: true, error: null };
+    },
+
+    // Get timezone offset in minutes
+    getTimezoneOffset: () => {
+        const now = new Date();
+        const localTime = utcToZonedTime(now, DateTimeService._currentTimezone);
+        return (now.getTime() - localTime.getTime()) / (60 * 1000);
+    },
+
+    // Add minutes to a date, respecting timezone
+    addMinutes: (date, minutes) => {
+        try {
+            if (!date) return null;
+            const parsedDate = typeof date === 'string' ? parseISO(date) : date;
+            if (!isValid(parsedDate)) return null;
+            
+            const localDate = utcToZonedTime(parsedDate, DateTimeService._currentTimezone);
+            return addMinutes(localDate, minutes);
+        } catch (error) {
+            console.error('Error adding minutes to date:', error);
+            return null;
+        }
+    },
+
+    // Format relative time (e.g., "2 hours ago", "in 3 days")
+    formatRelativeTime: (date) => {
         try {
             if (!date) return '';
-
-            // Parse the date string if it's not already a Date object
             const parsedDate = typeof date === 'string' ? parseISO(date) : date;
+            if (!isValid(parsedDate)) return '';
 
-            // Validate the date
-            if (!isValid(parsedDate)) {
-                console.warn('Invalid date provided to getCalendarDate:', date);
-                return '';
+            const now = DateTimeService.getCurrentTime();
+            const localDate = utcToZonedTime(parsedDate, DateTimeService._currentTimezone);
+            const diffMinutes = Math.round((localDate - now) / (1000 * 60));
+
+            if (Math.abs(diffMinutes) < 60) {
+                return diffMinutes > 0 ? `in ${diffMinutes} minutes` : `${Math.abs(diffMinutes)} minutes ago`;
             }
 
-            // Convert to Manila time and format as YYYY-MM-DD
-            const manilaDate = utcToZonedTime(parsedDate, MANILA_TIMEZONE);
-            return format(manilaDate, 'yyyy-MM-dd');
+            const diffHours = Math.round(diffMinutes / 60);
+            if (Math.abs(diffHours) < 24) {
+                return diffHours > 0 ? `in ${diffHours} hours` : `${Math.abs(diffHours)} hours ago`;
+            }
+
+            const diffDays = Math.round(diffHours / 24);
+            return diffDays > 0 ? `in ${diffDays} days` : `${Math.abs(diffDays)} days ago`;
         } catch (error) {
-            console.error('Error getting calendar date:', error);
+            console.error('Error formatting relative time:', error);
             return '';
         }
     }

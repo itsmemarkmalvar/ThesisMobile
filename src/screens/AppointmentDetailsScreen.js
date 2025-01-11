@@ -17,12 +17,14 @@ import {
   SegmentedButtons,
 } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { formatAppointmentDateTime, convertToUTC } from '../utils/dateUtils';
+import { format } from 'date-fns';
 import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTimezone } from '../context/TimezoneContext';
+import { DateTimeService } from '../services/DateTimeService';
 
 const STATUS_OPTIONS = [
   { value: 'scheduled', label: 'Scheduled' },
@@ -32,6 +34,7 @@ const STATUS_OPTIONS = [
 ];
 
 const AppointmentDetailsScreen = () => {
+  const { timezone } = useTimezone();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [appointment, setAppointment] = useState(null);
@@ -51,7 +54,7 @@ const AppointmentDetailsScreen = () => {
         id: data.id,
         doctor_name: data.doctor_name,
         appointment_date: data.appointment_date,
-        formatted_date: formatAppointmentDateTime(data.appointment_date),
+        formatted_date: formatDateTime(data.appointment_date),
         status: data.status,
         clinic_location: data.clinic_location,
         purpose: data.purpose,
@@ -125,11 +128,9 @@ const AppointmentDetailsScreen = () => {
       });
       setLoading(true);
       
-      // Ensure we maintain the UTC time when updating
       const updatedAppointment = {
         ...appointment,
-        status,
-        appointment_date: convertToUTC(appointment.appointment_date)
+        status
       };
       
       await HealthService.updateAppointment(appointmentId, updatedAppointment);
@@ -155,6 +156,10 @@ const AppointmentDetailsScreen = () => {
       default:
         return theme.colors.primary;
     }
+  };
+
+  const formatDateTime = (dateString) => {
+    return DateTimeService.formatForDisplay(dateString, 'MMM d, yyyy h:mm a');
   };
 
   if (loading) {
@@ -264,9 +269,14 @@ const AppointmentDetailsScreen = () => {
 
                 <View style={styles.section}>
                   <Text style={styles.sectionLabel}>Date & Time</Text>
-                  <Text style={styles.sectionContent}>
-                    {formatAppointmentDateTime(appointment.appointment_date)}
-                  </Text>
+                  <View style={styles.dateTimeContainer}>
+                    <Text style={styles.sectionContent}>
+                      {formatDateTime(appointment.appointment_date)}
+                    </Text>
+                    <Text style={styles.timezoneText}>
+                      ({timezone})
+                    </Text>
+                  </View>
                 </View>
 
                 <View style={styles.section}>
@@ -418,7 +428,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.08)',
   },
   section: {
-    marginBottom: 4,
+    marginBottom: 16,
   },
   sectionLabel: {
     color: '#666',
@@ -428,6 +438,7 @@ const styles = StyleSheet.create({
   sectionContent: {
     color: '#333',
     lineHeight: 24,
+    flex: 1,
   },
   reminderSection: {
     marginTop: 8,
@@ -460,6 +471,17 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginTop: 8,
+  },
+  dateTimeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  timezoneText: {
+    color: '#666',
+    fontSize: 14,
+    flexShrink: 1,
   },
 });
 
