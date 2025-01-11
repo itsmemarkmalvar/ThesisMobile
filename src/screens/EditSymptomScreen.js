@@ -123,6 +123,29 @@ const EditSymptomScreen = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleStartDateChange = (event, selectedDate) => {
+    setShowStartDatePicker(false);
+    if (event.type === 'set' && selectedDate) {
+      // Set time to 8 AM Manila time (which will be 00:00 UTC)
+      selectedDate.setHours(8, 0, 0, 0);
+      setStartDate(selectedDate);
+    }
+  };
+
+  const formatDateForAPI = (date) => {
+    if (!date) return null;
+    try {
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return null;
+      // Ensure time is set to 8 AM Manila time
+      d.setHours(8, 0, 0, 0);
+      return format(d, 'yyyy-MM-dd HH:mm:ss');
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return null;
+    }
+  };
+
   const handleSubmit = async () => {
     if (!validateForm()) {
       return;
@@ -130,24 +153,24 @@ const EditSymptomScreen = () => {
 
     setLoading(true);
     try {
+      const formattedStartDate = formatDateForAPI(startDate);
+
+      if (!formattedStartDate) {
+        throw new Error('Invalid start date');
+      }
+
       await HealthService.updateSymptom(symptomId, {
         ...formData,
-        onset_date: startDate.toISOString().split('T')[0],
+        onset_date: formattedStartDate,
       });
       navigation.goBack();
     } catch (error) {
       console.error('Error updating symptom:', error);
       setErrors({
-        submit: 'Failed to update symptom. Please try again.',
+        submit: error.message || 'Failed to update symptom. Please try again.',
       });
+    } finally {
       setLoading(false);
-    }
-  };
-
-  const handleStartDateChange = (event, selectedDate) => {
-    setShowStartDatePicker(false);
-    if (selectedDate && !isNaN(selectedDate.getTime())) {
-      setStartDate(selectedDate);
     }
   };
 

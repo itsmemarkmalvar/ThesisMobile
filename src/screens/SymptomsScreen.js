@@ -162,7 +162,11 @@ const SymptomsScreen = () => {
         return 'Invalid duration';
       }
 
-      const diffTime = Math.abs(end - start);
+      // Adjust both dates to Manila timezone for accurate day calculation
+      const manilaStart = new Date(start.getTime() + (8 * 60 * 60 * 1000));
+      const manilaEnd = new Date(end.getTime() + (8 * 60 * 60 * 1000));
+
+      const diffTime = Math.abs(manilaEnd - manilaStart);
       const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       
       return endDate ? `${days} days` : `${days} days (Ongoing)`;
@@ -179,7 +183,9 @@ const SymptomsScreen = () => {
       if (isNaN(date.getTime())) {
         return 'Invalid date';
       }
-      return format(date, 'MMM d, yyyy');
+      // Adjust for Manila timezone (+8)
+      const manilaDate = new Date(date.getTime() + (8 * 60 * 60 * 1000));
+      return format(manilaDate, 'MMM d, yyyy');
     } catch (error) {
       console.error('Error formatting date:', error);
       return 'Invalid date';

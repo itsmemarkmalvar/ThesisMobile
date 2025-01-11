@@ -80,8 +80,10 @@ const AddSymptomScreen = () => {
     if (!date) return null;
     try {
       const d = new Date(date);
-      if (isNaN(d.getTime())) return null; // Invalid date check
-      return format(d, 'yyyy-MM-dd');
+      if (isNaN(d.getTime())) return null;
+      // Ensure time is set to 8 AM Manila time
+      d.setHours(8, 0, 0, 0);
+      return format(d, 'yyyy-MM-dd HH:mm:ss');
     } catch (error) {
       console.error('Date formatting error:', error);
       return null;
@@ -118,7 +120,9 @@ const AddSymptomScreen = () => {
 
   const handleStartDateChange = (event, selectedDate) => {
     setShowStartDatePicker(false);
-    if (selectedDate && !isNaN(selectedDate.getTime())) {
+    if (event.type === 'set' && selectedDate) {
+      // Set time to 8 AM Manila time (which will be 00:00 UTC)
+      selectedDate.setHours(8, 0, 0, 0);
       setStartDate(selectedDate);
     }
   };
