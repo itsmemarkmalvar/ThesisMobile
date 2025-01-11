@@ -36,6 +36,7 @@ import {
 } from 'react-native-reanimated';
 import MilestoneService from '../services/MilestoneService';
 import { formatDisplayDate, parseDate, formatAPIDate } from '../utils/dateUtils';
+import { format } from 'date-fns';
 
 const initialLayout = { width: Dimensions.get('window').width };
 const chartWidth = Dimensions.get('window').width - (Platform.OS === 'ios' ? 60 : 50);
@@ -350,6 +351,10 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
       const headSize = parseFloat(newRecord.head_size);
       const selectedDate = newRecord.date_recorded;
 
+      console.log('Selected Date (raw):', selectedDate);
+      console.log('Selected Date (ISO):', selectedDate.toISOString());
+      console.log('Selected Date (Local):', selectedDate.toString());
+
       // Check if any measurements are missing or invalid
       const isHeightValid = !isNaN(height) && height >= 45 && height <= 99;
       const isWeightValid = !isNaN(weight) && weight >= 2 && weight <= 15;
@@ -357,7 +362,42 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
       const isDateValid = selectedDate instanceof Date && !isNaN(selectedDate.getTime());
 
       if (!isHeightValid || !isWeightValid || !isHeadSizeValid || !isDateValid) {
+        console.log('Validation failed:', {
+          height: isHeightValid,
+          weight: isWeightValid,
+          headSize: isHeadSizeValid,
+          date: isDateValid
+        });
         Alert.alert('Invalid Input', 'Please check your measurements and try again.');
+        return;
+      }
+
+      // Check if height is less than previous record
+      if (growthData && growthData.length > 0) {
+        const lastRecord = growthData[0]; // Since data is sorted by date in descending order
+        const lastHeight = parseFloat(lastRecord.height);
+        console.log('Last recorded height:', lastHeight);
+        console.log('New height:', height);
+
+        if (height < lastHeight) {
+          console.log('Height validation failed: New height is less than previous record');
+          Alert.alert(
+            'Invalid Height',
+            'The new height measurement cannot be less than the previous record. Please check your measurement.'
+          );
+          return;
+        }
+      }
+
+      // Allow records up to one day ahead
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(23, 59, 59, 999);
+      console.log('Tomorrow\'s limit:', tomorrow.toISOString());
+      
+      if (selectedDate > tomorrow) {
+        console.log('Date validation failed: Selected date is more than one day ahead');
+        Alert.alert('Invalid Date', 'The date cannot be more than one day ahead.');
         return;
       }
 
@@ -369,15 +409,20 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
         return;
       }
 
+      // Set time to 8 AM Manila time
+      const adjustedDate = new Date(selectedDate);
+      adjustedDate.setHours(8, 0, 0, 0);
+      console.log('Adjusted Date (8 AM Manila):', adjustedDate.toISOString());
+
       const measurementData = {
         height: height.toFixed(1),
         weight: weight.toFixed(1),
         head_size: headSize.toFixed(1),
-        date_recorded: formatAPIDate(selectedDate),
+        date_recorded: formatAPIDate(adjustedDate),
         notes: newRecord.notes ? newRecord.notes.trim() : ''
       };
 
-      console.log('Sending measurement data:', measurementData);
+      console.log('Sending measurement data to API:', JSON.stringify(measurementData, null, 2));
 
       const response = await axios.post(`${API_URL}/growth/record`, measurementData, {
         headers: {
@@ -386,6 +431,8 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
           'Accept': 'application/json',
         },
       });
+
+      console.log('API Response:', JSON.stringify(response.data, null, 2));
 
       if (response.data.success) {
         await fetchGrowthData(); // Refresh data after successful addition
@@ -401,7 +448,11 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
         });
       }
     } catch (error) {
-      console.error('Error adding measurement:', error.response?.data || error.message);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       Alert.alert('Error', 'Failed to add measurement. Please try again.');
     } finally {
       setLoading(false);
@@ -460,9 +511,11 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
 
       const chartData = {
         labels: validData.map(record => {
+          // Adjust for Manila timezone (+8)
           const date = new Date(record.date_recorded);
-          const month = date.getMonth() + 1;
-          const day = date.getDate();
+          const manilaDate = new Date(date.getTime() + (8 * 60 * 60 * 1000));
+          const month = manilaDate.getMonth() + 1;
+          const day = manilaDate.getDate();
           return `${month}/${day}`;
         }),
         datasets: [{
@@ -1012,7 +1065,7 @@ const GrowthTrackingScreen = ({ navigation, route }) => {
                           setNewRecord(prev => ({ ...prev, date_recorded: selectedDate }));
                         }
                       }}
-                      maximumDate={new Date()}
+                      maximumDate={new Date(new Date().setDate(new Date().getDate() + 1))}
                     />
                   )}
                 </View>
