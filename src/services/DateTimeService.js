@@ -103,14 +103,13 @@ export const DateTimeService = {
             // For debugging
             console.log('toLocalTime conversion:', {
                 input: date.toISOString(),
-                timezone: DateTimeService._currentTimezone,
-                currentOffset: DateTimeService.getTimezoneOffset()
+                timezone: DateTimeService._currentTimezone
             });
 
             // Convert using date-fns-tz
             const zonedDate = utcToZonedTime(date, DateTimeService._currentTimezone);
             
-            // For Manila (UTC+8), when UTC is 12:00, local should be 20:00
+            // Create a clean date object without timezone information
             const localDate = new Date(
                 zonedDate.getFullYear(),
                 zonedDate.getMonth(),
@@ -122,8 +121,10 @@ export const DateTimeService = {
             );
 
             console.log('toLocalTime result:', {
-                zonedDate: zonedDate.toISOString(),
-                localDate: localDate.toISOString()
+                input: date.toISOString(),
+                zoned: zonedDate,
+                local: localDate,
+                timezone: DateTimeService._currentTimezone
             });
 
             return localDate;
@@ -145,7 +146,16 @@ export const DateTimeService = {
                 return null;
             }
 
-            return zonedTimeToUtc(date, DateTimeService._currentTimezone);
+            // Convert to UTC using date-fns-tz
+            const utcDate = zonedTimeToUtc(date, DateTimeService._currentTimezone);
+
+            console.log('toUTC conversion:', {
+                input: date,
+                utc: utcDate,
+                timezone: DateTimeService._currentTimezone
+            });
+
+            return utcDate;
         } catch (error) {
             console.error('Error converting to UTC:', error);
             return null;
@@ -244,9 +254,26 @@ export const DateTimeService = {
 
     // Get timezone offset in minutes
     getTimezoneOffset: () => {
-        const now = new Date();
-        const localTime = utcToZonedTime(now, DateTimeService._currentTimezone);
-        return (now.getTime() - localTime.getTime()) / (60 * 1000);
+        try {
+            const now = new Date();
+            const utcDate = zonedTimeToUtc(now, 'UTC');
+            const localDate = utcToZonedTime(utcDate, DateTimeService._currentTimezone);
+            
+            // Calculate offset (positive for ahead of UTC, negative for behind)
+            const offsetMinutes = (localDate.getTime() - utcDate.getTime()) / (60 * 1000);
+            
+            console.log('Timezone offset calculation:', {
+                timezone: DateTimeService._currentTimezone,
+                offsetMinutes,
+                utc: utcDate.toISOString(),
+                local: localDate.toISOString()
+            });
+            
+            return offsetMinutes;
+        } catch (error) {
+            console.error('Error calculating timezone offset:', error);
+            return 0;
+        }
     },
 
     // Add minutes to a date, respecting timezone

@@ -19,7 +19,6 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { format } from 'date-fns';
 import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
@@ -38,7 +37,8 @@ const REMINDER_OPTIONS = [
 const EditAppointmentScreen = () => {
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState({});
-  const [appointmentDate, setAppointmentDate] = useState(DateTimeService.getCurrentTime());
+  const [appointmentData, setAppointmentData] = useState(null);
+  const [localCache, setLocalCache] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [formData, setFormData] = useState({
@@ -58,33 +58,122 @@ const EditAppointmentScreen = () => {
   const { appointmentId } = route.params;
   const { timezone } = useTimezone();
 
+  // Convert UTC to local time manually to ensure correct offset
+  const convertToLocal = (utcString) => {
+    try {
+      const utcDate = new Date(utcString);
+      // For Manila (UTC+8), add 8 hours
+      const localDate = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000));
+      
+      // Get hours and minutes after +8 offset
+      const hours = localDate.getUTCHours();
+      const minutes = localDate.getUTCMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours % 12 || 12;
+      
+      // Format the display time manually
+      const displayTime = `${String(displayHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${ampm}`;
+      const displayDate = localDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      
+      console.log('Manual timezone conversion:', {
+        utc: utcString,
+        local: {
+          iso: localDate.toISOString(),
+          display: `${displayDate}, ${displayTime}`,
+          computed: {
+            utcHours: localDate.getUTCHours(),
+            displayHours,
+            ampm
+          }
+        },
+        timezone,
+        offset: '+8 hours'
+      });
+      
+      return localDate;
+    } catch (error) {
+      console.error('Error in manual conversion:', error);
+      return null;
+    }
+  };
+
+  // Convert local time back to UTC
+  const convertToUTC = (localDate) => {
+    try {
+      // For Manila (UTC+8), subtract 8 hours
+      const utcDate = new Date(localDate.getTime() - (8 * 60 * 60 * 1000));
+      
+      // Get hours and minutes for display
+      const hours = localDate.getUTCHours();
+      const minutes = localDate.getUTCMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours % 12 || 12;
+      
+      // Format the display time manually
+      const displayTime = `${String(displayHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${ampm}`;
+      const displayDate = localDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      
+      console.log('Manual UTC conversion:', {
+        local: {
+          iso: localDate.toISOString(),
+          display: `${displayDate}, ${displayTime}`,
+          computed: {
+            utcHours: localDate.getUTCHours(),
+            displayHours,
+            ampm
+          }
+        },
+        utc: utcDate.toISOString(),
+        timezone,
+        offset: '-8 hours'
+      });
+      
+      return utcDate;
+    } catch (error) {
+      console.error('Error in UTC conversion:', error);
+      return null;
+    }
+  };
+
   // Load appointment data
   useEffect(() => {
     const loadAppointment = async () => {
       try {
         setLoading(true);
-        const appointment = await HealthService.getAppointment(appointmentId);
-        console.log('Loaded appointment:', appointment);
+        const data = await HealthService.getAppointment(appointmentId);
+        console.log('Loaded appointment:', data);
         
-        if (!appointment || !appointment.appointment_date) {
+        if (!data || !data.appointment_date) {
           throw new Error('Invalid appointment data received');
         }
 
-        // Convert UTC date from API to local time
-        const localDate = DateTimeService.toLocalTime(appointment.appointment_date);
+        // Store the complete appointment data
+        setAppointmentData(data);
+        
+        // Convert UTC to local time
+        const localDate = convertToLocal(data.appointment_date);
         if (!localDate) {
           throw new Error('Invalid appointment date');
         }
         
-        setAppointmentDate(localDate);
+        setLocalCache(localDate);
+        
         setFormData({
-          doctor_name: appointment.doctor_name || '',
-          clinic_location: appointment.clinic_location || '',
-          purpose: appointment.purpose || '',
-          notes: appointment.notes || '',
-          status: appointment.status || 'scheduled',
-          reminder_enabled: appointment.reminder_enabled ?? true,
-          reminder_minutes_before: appointment.reminder_minutes_before || 60,
+          doctor_name: data.doctor_name || '',
+          clinic_location: data.clinic_location || '',
+          purpose: data.purpose || '',
+          notes: data.notes || '',
+          status: data.status || 'scheduled',
+          reminder_enabled: data.reminder_enabled ?? true,
+          reminder_minutes_before: data.reminder_minutes_before || 60,
         });
       } catch (error) {
         console.error('Error loading appointment:', error);
@@ -101,17 +190,113 @@ const EditAppointmentScreen = () => {
     }
   }, [appointmentId]);
 
-  // Update appointment date when timezone changes
+  // Update local cache when timezone changes
   useEffect(() => {
-    if (appointmentDate) {
-      const updatedDate = DateTimeService.toLocalTime(
-        DateTimeService.toUTC(appointmentDate)
-      );
-      if (updatedDate) {
-        setAppointmentDate(updatedDate);
+    if (appointmentData?.appointment_date) {
+      const localDate = convertToLocal(appointmentData.appointment_date);
+      if (localDate) {
+        setLocalCache(localDate);
       }
     }
   }, [timezone]);
+
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (selectedDate && event.type !== 'dismissed' && localCache) {
+      // Create new date preserving current time
+      const newDate = new Date(localCache);
+      newDate.setFullYear(selectedDate.getFullYear());
+      newDate.setMonth(selectedDate.getMonth());
+      newDate.setDate(selectedDate.getDate());
+      
+      // Convert to UTC for storage
+      const utcDate = convertToUTC(newDate);
+      if (utcDate) {
+        const utcString = utcDate.toISOString();
+        console.log('Date changed:', {
+          previous: appointmentData?.appointment_date,
+          newLocal: {
+            iso: newDate.toISOString(),
+            display: newDate.toLocaleString('en-US', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true
+            })
+          },
+          newUtc: utcString,
+          timezone
+        });
+        
+        setAppointmentData(prev => ({
+          ...prev,
+          appointment_date: utcString
+        }));
+        setLocalCache(newDate);
+      }
+    }
+  };
+
+  const handleTimeChange = (event, selectedDate) => {
+    setShowTimePicker(false);
+    if (selectedDate && event.type !== 'dismissed' && localCache) {
+      // Create new date preserving current date
+      const newDate = new Date(localCache);
+      
+      // Get the selected hours and minutes in local time
+      const selectedHours = selectedDate.getHours();
+      const selectedMinutes = selectedDate.getMinutes();
+      
+      // Set the time components
+      newDate.setUTCHours(selectedHours);
+      newDate.setUTCMinutes(selectedMinutes);
+      newDate.setUTCSeconds(0);
+      newDate.setUTCMilliseconds(0);
+      
+      // Convert to UTC by subtracting 8 hours
+      const utcDate = new Date(newDate.getTime() - (8 * 60 * 60 * 1000));
+      
+      if (utcDate) {
+        const utcString = utcDate.toISOString();
+        
+        // For logging, get the actual local time display
+        const localHours = newDate.getUTCHours();
+        const localMinutes = newDate.getUTCMinutes();
+        const ampm = localHours >= 12 ? 'PM' : 'AM';
+        const displayHours = localHours % 12 || 12;
+        const displayTime = `${String(displayHours).padStart(2, '0')}:${String(localMinutes).padStart(2, '0')} ${ampm}`;
+        
+        console.log('Time changed:', {
+          previous: appointmentData?.appointment_date,
+          newLocal: {
+            iso: newDate.toISOString(),
+            display: `${newDate.toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit'
+            })}, ${displayTime}`,
+            debug: {
+              selectedHours,
+              selectedMinutes,
+              localHours,
+              displayHours,
+              ampm
+            }
+          },
+          newUtc: utcString,
+          timezone
+        });
+        
+        setAppointmentData(prev => ({
+          ...prev,
+          appointment_date: utcString
+        }));
+        setLocalCache(newDate);
+      }
+    }
+  };
 
   const handleInputChange = (name, value) => {
     setFormData(prev => ({
@@ -137,12 +322,12 @@ const EditAppointmentScreen = () => {
       newErrors.purpose = 'Purpose is required';
     }
     
-    // Validate against current time in user's timezone
-    if (!appointmentDate) {
+    // Validate against current time
+    if (!localCache) {
       newErrors.submit = 'Please select a valid appointment date and time';
     } else {
       const now = DateTimeService.getCurrentTime();
-      if (appointmentDate < now) {
+      if (localCache < now) {
         newErrors.submit = 'Appointment date cannot be in the past';
       }
     }
@@ -156,22 +341,20 @@ const EditAppointmentScreen = () => {
 
     setLoading(true);
     try {
-      // Convert local time to UTC for API
-      const utcDate = DateTimeService.formatForAPI(appointmentDate);
-      if (!utcDate) {
+      if (!appointmentData?.appointment_date) {
         throw new Error('Invalid appointment date');
       }
 
-      console.log('Appointment update:', {
-        local: DateTimeService.formatForDisplay(appointmentDate, 'yyyy-MM-dd HH:mm:ss'),
-        utc: utcDate,
+      console.log('Submitting appointment:', {
+        utc: appointmentData.appointment_date,
+        local: localCache.toISOString(),
         timezone
       });
 
       await HealthService.updateAppointment(appointmentId, {
         ...formData,
-        appointment_date: utcDate,
-        timezone: timezone // Include user's timezone with the appointment
+        appointment_date: appointmentData.appointment_date,
+        timezone
       });
       navigation.goBack();
     } catch (error) {
@@ -231,7 +414,11 @@ const EditAppointmentScreen = () => {
                   labelStyle={styles.dateButtonLabel}
                   textColor="#1976D2"
                 >
-                  Date: {DateTimeService.formatForDisplay(appointmentDate, 'MMM d, yyyy')}
+                  Date: {localCache ? localCache.toLocaleDateString('en-US', { 
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                  }) : 'Select date'}
                 </Button>
 
                 <Button
@@ -242,57 +429,29 @@ const EditAppointmentScreen = () => {
                   labelStyle={styles.dateButtonLabel}
                   textColor="#1976D2"
                 >
-                  Time: {DateTimeService.formatForDisplay(appointmentDate, 'h:mm a')}
+                  Time: {localCache ? `${String(localCache.getUTCHours() % 12 || 12).padStart(2, '0')}:${String(localCache.getUTCMinutes()).padStart(2, '0')} ${localCache.getUTCHours() >= 12 ? 'PM' : 'AM'}` : 'Select time'}
                 </Button>
                 <Text style={styles.timezoneInfo}>
                   Times are shown in {timezone}
                 </Text>
               </View>
 
-              {showDatePicker && (
+              {showDatePicker && localCache && (
                 <DateTimePicker
-                  value={appointmentDate}
+                  value={localCache}
                   mode="date"
                   display="default"
-                  onChange={(event, selectedDate) => {
-                    setShowDatePicker(false);
-                    if (selectedDate) {
-                      // Preserve the time when changing date
-                      const newDate = new Date(selectedDate);
-                      newDate.setHours(appointmentDate.getHours());
-                      newDate.setMinutes(appointmentDate.getMinutes());
-                      console.log('Date selected:', {
-                        selected: selectedDate.toISOString(),
-                        newDate: newDate.toISOString(),
-                        formatted: format(newDate, 'MMM d, yyyy')
-                      });
-                      setAppointmentDate(newDate);
-                    }
-                  }}
+                  onChange={handleDateChange}
                   minimumDate={new Date()}
                 />
               )}
 
-              {showTimePicker && (
+              {showTimePicker && localCache && (
                 <DateTimePicker
-                  value={appointmentDate}
+                  value={localCache}
                   mode="time"
                   display="default"
-                  onChange={(event, selectedDate) => {
-                    setShowTimePicker(false);
-                    if (selectedDate) {
-                      // Preserve the date when changing time
-                      const newDate = new Date(appointmentDate);
-                      newDate.setHours(selectedDate.getHours());
-                      newDate.setMinutes(selectedDate.getMinutes());
-                      console.log('Time selected:', {
-                        selected: selectedDate.toISOString(),
-                        newDate: newDate.toISOString(),
-                        formatted: format(newDate, 'h:mm a')
-                      });
-                      setAppointmentDate(newDate);
-                    }
-                  }}
+                  onChange={handleTimeChange}
                 />
               )}
 
