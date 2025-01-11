@@ -139,6 +139,15 @@ const HealthRecordDetailsScreen = () => {
     }
   };
 
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    // Create date object and adjust for Manila timezone (+8)
+    const date = new Date(dateString);
+    const manilaDate = new Date(date.getTime() + (8 * 60 * 60 * 1000));
+    return format(manilaDate, 'MMM d, yyyy');
+  };
+
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -195,7 +204,7 @@ const HealthRecordDetailsScreen = () => {
               <View style={styles.section}>
                 <Text variant="labelLarge">Date</Text>
                 <Text variant="bodyLarge" style={styles.sectionContent}>
-                  {format(new Date(record.record_date), 'MMM d, yyyy')}
+                  {formatDate(record.record_date)}
                 </Text>
               </View>
 
@@ -254,7 +263,7 @@ const HealthRecordDetailsScreen = () => {
                   </Chip>
                   {!record.is_ongoing && record.resolved_at && (
                     <Text variant="bodyMedium" style={styles.resolvedDate}>
-                      Resolved on {format(new Date(record.resolved_at), 'MMM d, yyyy')}
+                      Resolved on {formatDate(record.resolved_at)}
                     </Text>
                   )}
                 </View>

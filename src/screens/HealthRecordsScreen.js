@@ -47,6 +47,14 @@ const HealthRecordsScreen = () => {
   const navigation = useNavigation();
   const theme = useTheme();
 
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    // Create date object and adjust for Manila timezone (+8)
+    const date = new Date(dateString);
+    const manilaDate = new Date(date.getTime() + (8 * 60 * 60 * 1000));
+    return format(manilaDate, 'MMM d, yyyy');
+  };
+
   const fetchRecords = async () => {
     try {
       setError(null);
@@ -189,7 +197,7 @@ const HealthRecordsScreen = () => {
                           {record.title}
                         </Text>
                         <Text variant="bodySmall" style={styles.date}>
-                          {format(new Date(record.record_date), 'MMM d, yyyy')}
+                          {formatDate(record.record_date)}
                         </Text>
                       </View>
                       <Chip

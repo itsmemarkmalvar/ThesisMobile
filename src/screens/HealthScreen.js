@@ -108,32 +108,78 @@ const HealthScreen = () => {
     };
   };
 
-  const fetchData = async (search = '') => {
+  const fetchData = async (searchQuery = '') => {
     try {
       setError(null);
-      console.log('Fetching health data...');
-      const [appointmentsResponse, records, visits, symptoms] = await Promise.all([
+      console.log('=== Health Screen Data Fetch ===');
+      
+      // Fetch health records
+      const healthRecordsResponse = await HealthService.getHealthRecords(searchQuery);
+      console.log('Raw API Response:', healthRecordsResponse);
+      
+      const recentRecords = healthRecordsResponse.data || [];
+      console.log('\nProcessing Health Records:');
+      recentRecords.forEach((record, index) => {
+        console.log(`\nRecord ${index + 1} Details:`);
+        console.log('ID:', record.id);
+        console.log('Title:', record.title);
+        console.log('Description:', record.description);
+        console.log('Category:', record.category);
+        console.log('Severity:', record.severity);
+        console.log('Treatment:', record.treatment);
+        console.log('Notes:', record.notes);
+        console.log('Is Ongoing:', record.is_ongoing);
+        
+        // Date Processing
+        console.log('\nDate Information:');
+        console.log('Record Date (Original):', record.record_date);
+        const formattedDateTime = formatDateTime(record.record_date);
+        console.log('Record Date (Formatted):', {
+          date: formattedDateTime.date,
+          time: formattedDateTime.time
+        });
+
+        if (record.resolved_at) {
+          console.log('Resolved Date (Original):', record.resolved_at);
+          const formattedResolved = formatDateTime(record.resolved_at);
+          console.log('Resolved Date (Formatted):', {
+            date: formattedResolved.date,
+            time: formattedResolved.time
+          });
+        }
+        
+        if (record.attachments) {
+          console.log('\nAttachments:', record.attachments.length);
+        }
+        console.log('------------------------');
+      });
+
+      // Fetch other data
+      const [appointmentsResponse, doctorVisitsResponse, symptomsResponse] = await Promise.all([
         HealthService.getUpcomingAppointments(),
-        HealthService.getHealthRecords(1, search),
         HealthService.getDoctorVisits(),
-        HealthService.getSymptoms(null, null, null, 'active')
+        HealthService.getSymptoms()
       ]);
-      
-      console.log('Raw appointments response:', appointmentsResponse);
-      
-      // Handle the appointments response consistently
-      const appointmentData = Array.isArray(appointmentsResponse?.data) ? appointmentsResponse.data : [];
-      
-      console.log('Processed appointments:', appointmentData);
-      console.log('Number of upcoming appointments:', appointmentData.length);
-      
-      setUpcomingAppointments(appointmentData);
-      setRecentHealthRecords(records?.data || []);
-      setRecentDoctorVisits(Array.isArray(visits) ? visits : []);
-      setActiveSymptoms(symptoms?.data || []);
+
+      console.log('\nSummary Counts:');
+      console.log('Health Records:', recentRecords.length);
+      console.log('Appointments:', appointmentsResponse?.data?.length || 0);
+      console.log('Doctor Visits:', doctorVisitsResponse?.length || 0);
+      console.log('Active Symptoms:', symptomsResponse?.data?.length || 0);
+      console.log('========================');
+
+      setRecentHealthRecords(recentRecords);
+      setUpcomingAppointments(appointmentsResponse?.data || []);
+      setRecentDoctorVisits(doctorVisitsResponse || []);
+      setActiveSymptoms(symptomsResponse?.data || []);
     } catch (err) {
-      setError('Failed to load health data');
       console.error('Error fetching health data:', err);
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status
+      });
+      setError('Failed to load health data');
       setRetryVisible(true);
     }
   };

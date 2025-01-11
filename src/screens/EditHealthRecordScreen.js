@@ -106,6 +106,7 @@ const EditHealthRecordScreen = () => {
       ...prev,
       [name]: value,
     }));
+
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
@@ -113,33 +114,58 @@ const EditHealthRecordScreen = () => {
         [name]: null,
       }));
     }
+
+    // Handle is_ongoing toggle
+    if (name === 'is_ongoing' && value === true) {
+      setResolvedDate(null);
+      setFormData(prev => ({
+        ...prev,
+        resolved_at: null,
+      }));
+      // Clear any resolved_at related errors
+      setErrors(prev => ({
+        ...prev,
+        resolved_at: null,
+      }));
+    }
   };
 
   const validateForm = () => {
-    const newErrors = {};
+    const errors = {};
 
-    if (!formData.title.trim()) {
-      newErrors.title = 'Title is required';
+    if (!formData.title?.trim()) {
+      errors.title = 'Title is required';
     }
-    if (!formData.description.trim()) {
-      newErrors.description = 'Description is required';
-    }
+
     if (!formData.category) {
-      newErrors.category = 'Category is required';
+      errors.category = 'Category is required';
     }
-    if (formData.severity && !['mild', 'moderate', 'severe'].includes(formData.severity)) {
-      newErrors.severity = 'Invalid severity level';
+
+    if (!formData.severity) {
+      errors.severity = 'Severity is required';
     }
-    if (!formData.is_ongoing && formData.resolved_at) {
-      const resolvedDate = new Date(formData.resolved_at);
-      const recordDateTime = new Date(recordDate);
-      if (resolvedDate < recordDateTime) {
-        newErrors.resolved_at = 'Resolved date must be after or equal to record date';
+
+    if (!recordDate) {
+      errors.record_date = 'Record date is required';
+    }
+
+    // Check if resolved date is the same as record date
+    if (!formData.is_ongoing && resolvedDate) {
+      const recordDateOnly = new Date(recordDate);
+      recordDateOnly.setHours(0, 0, 0, 0);
+      
+      const resolvedDateOnly = new Date(resolvedDate);
+      resolvedDateOnly.setHours(0, 0, 0, 0);
+
+      if (recordDateOnly.getTime() === resolvedDateOnly.getTime()) {
+        errors.resolved_at = 'Resolved date cannot be the same as record date';
+      } else if (resolvedDateOnly < recordDateOnly) {
+        errors.resolved_at = 'Resolved date must be after record date';
       }
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const pickImage = async () => {
@@ -184,12 +210,40 @@ const EditHealthRecordScreen = () => {
 
     setLoading(true);
     try {
-      await HealthService.updateHealthRecord(recordId, {
+      // Create a new date object at 8 AM Manila time to ensure it stays on the same day in UTC
+      const recordDateTime = new Date(recordDate);
+      recordDateTime.setHours(8, 0, 0, 0);
+
+      let resolvedDateTime = null;
+      if (!formData.is_ongoing && resolvedDate) {
+        resolvedDateTime = new Date(resolvedDate);
+        resolvedDateTime.setHours(8, 0, 0, 0);
+      }
+
+      const formDataToSend = {
         ...formData,
-        record_date: format(recordDate, 'yyyy-MM-dd HH:mm:ss'),
+        record_date: format(recordDateTime, 'yyyy-MM-dd HH:mm:ss'),
         resolved_at: formData.is_ongoing ? null : 
-          (resolvedDate ? format(resolvedDate, 'yyyy-MM-dd HH:mm:ss') : null)
-      });
+          (resolvedDateTime ? format(resolvedDateTime, 'yyyy-MM-dd HH:mm:ss') : null)
+      };
+
+      await HealthService.updateHealthRecord(recordId, formDataToSend);
+
+      // Handle attachments if any were added
+      if (attachments.length > 0) {
+        const formData = new FormData();
+        attachments.forEach((attachment, index) => {
+          const fileExtension = attachment.uri.split('.').pop();
+          formData.append('attachments[]', {
+            uri: attachment.uri,
+            name: `attachment_${index + 1}.${fileExtension}`,
+            type: `image/${fileExtension}`,
+          });
+        });
+
+        await HealthService.uploadHealthRecordAttachments(recordId, formData);
+      }
+
       navigation.goBack();
     } catch (error) {
       console.error('Error updating health record:', error);
@@ -202,6 +256,12 @@ const EditHealthRecordScreen = () => {
       }
       setLoading(false);
     }
+  };
+
+  // Format date for display
+  const formatDate = (date) => {
+    if (!date) return '';
+    return format(date, 'MMM d, yyyy');
   };
 
   if (loading) {
@@ -336,7 +396,9 @@ const EditHealthRecordScreen = () => {
                 display="default"
                 onChange={(event, selectedDate) => {
                   setShowDatePicker(false);
-                  if (selectedDate) {
+                  if (event.type === 'set' && selectedDate) {
+                    // Set time to 8 AM Manila time (which will be 00:00 UTC)
+                    selectedDate.setHours(8, 0, 0, 0);
                     setRecordDate(selectedDate);
                   }
                 }}
@@ -371,9 +433,11 @@ const EditHealthRecordScreen = () => {
                     minimumDate={recordDate}
                     onChange={(event, selectedDate) => {
                       setShowResolvedDatePicker(false);
-                      if (selectedDate) {
+                      if (event.type === 'set' && selectedDate) {
+                        // Set time to 8 AM Manila time (which will be 00:00 UTC)
+                        selectedDate.setHours(8, 0, 0, 0);
                         setResolvedDate(selectedDate);
-                        handleInputChange('resolved_at', format(selectedDate, 'yyyy-MM-dd HH:mm:ss'));
+                        handleInputChange('resolved_at', format(selectedDate, 'yyyy-MM-dd'));
                       }
                     }}
                   />
@@ -382,11 +446,18 @@ const EditHealthRecordScreen = () => {
             )}
 
             <View style={styles.buttonContainer}>
+              {errors.submit && (
+                <Text style={styles.errorText}>{errors.submit}</Text>
+              )}
+              {errors.resolved_at && (
+                <Text style={[styles.errorText, { marginBottom: 10 }]}>{errors.resolved_at}</Text>
+              )}
               <Button
                 mode="contained"
                 onPress={handleSubmit}
-                style={[styles.button, styles.submitButton]}
-                icon="check"
+                loading={loading}
+                disabled={loading}
+                style={styles.button}
               >
                 Update Record
               </Button>
@@ -491,6 +562,10 @@ const styles = StyleSheet.create({
   cancelButton: {
     borderColor: '#4A90E2',
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
+  },
+  errorText: {
+    color: 'red',
+    marginBottom: 10,
   },
 });
 
