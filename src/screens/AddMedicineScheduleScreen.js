@@ -15,6 +15,7 @@ import { MedicineService } from '../services/MedicineService';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { Picker } from '@react-native-picker/picker';
 import { formatMedicineTime, formatAPITime } from '../utils/dateUtils';
+import { DateTimeService } from '../services/DateTimeService';
 
 const FREQUENCIES = [
     { label: 'Daily', value: 'daily' },
@@ -47,7 +48,27 @@ const AddMedicineScheduleScreen = ({ route, navigation }) => {
     const handleTimeConfirm = (selectedTime) => {
         setTimePickerVisible(false);
         if (selectedTime) {
-            setTime(selectedTime);
+            console.log('Time selection details:', {
+                rawSelected: selectedTime,
+                selectedISO: selectedTime.toISOString(),
+                selectedLocal: selectedTime.toLocaleTimeString(),
+                selectedHours: selectedTime.getHours(),
+                selectedMinutes: selectedTime.getMinutes()
+            });
+
+            // Convert to UTC by subtracting 8 hours for Manila timezone
+            const utcTime = new Date(selectedTime);
+            utcTime.setHours(utcTime.getHours() - 8);
+            
+            console.log('Time conversion:', {
+                selectedManilaTime: selectedTime.toISOString(),
+                convertedToUTC: utcTime.toISOString(),
+                manilaDisplay: DateTimeService.formatForDisplay(utcTime, 'h:mm a'),
+                utcHours: utcTime.getUTCHours(),
+                manilaHours: selectedTime.getHours()
+            });
+
+            setTime(utcTime);
         }
     };
 
@@ -70,7 +91,14 @@ const AddMedicineScheduleScreen = ({ route, navigation }) => {
         try {
             setLoading(true);
             const formattedTime = formatAPITime(time);
-            console.log('Formatted time for API:', formattedTime);
+            console.log('Schedule time details:', {
+                storedUTC: time.toISOString(),
+                displayInManila: DateTimeService.formatForDisplay(time, 'h:mm a'),
+                formattedForAPI: formattedTime,
+                utcHour: time.getUTCHours(),
+                utcMinutes: time.getUTCMinutes(),
+                timezone: DateTimeService.getCurrentTimezone()
+            });
 
             const validDays = frequency === 'weekly' 
                 ? selectedDays
@@ -148,7 +176,7 @@ const AddMedicineScheduleScreen = ({ route, navigation }) => {
                             onPress={() => setTimePickerVisible(true)}
                         >
                             <Text style={styles.timeButtonText}>
-                                {formatMedicineTime(formatAPITime(time))}
+                                {DateTimeService.formatForDisplay(time, 'h:mm a')}
                             </Text>
                             <Icon name="access-time" size={20} color="#8F9BB3" />
                         </TouchableOpacity>
