@@ -16,6 +16,7 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { Picker } from '@react-native-picker/picker';
 import { formatMedicineTime, formatAPITime } from '../utils/dateUtils';
 import { DateTimeService } from '../services/DateTimeService';
+import { format } from 'date-fns';
 
 const FREQUENCIES = [
     { label: 'Daily', value: 'daily' },
@@ -48,27 +49,12 @@ const AddMedicineScheduleScreen = ({ route, navigation }) => {
     const handleTimeConfirm = (selectedTime) => {
         setTimePickerVisible(false);
         if (selectedTime) {
-            console.log('Time selection details:', {
-                rawSelected: selectedTime,
-                selectedISO: selectedTime.toISOString(),
-                selectedLocal: selectedTime.toLocaleTimeString(),
-                selectedHours: selectedTime.getHours(),
-                selectedMinutes: selectedTime.getMinutes()
+            console.log('Selected Manila time:', {
+                hours: selectedTime.getHours(),
+                minutes: selectedTime.getMinutes(),
+                display: format(selectedTime, 'h:mm a')
             });
-
-            // Convert to UTC by subtracting 8 hours for Manila timezone
-            const utcTime = new Date(selectedTime);
-            utcTime.setHours(utcTime.getHours() - 8);
-            
-            console.log('Time conversion:', {
-                selectedManilaTime: selectedTime.toISOString(),
-                convertedToUTC: utcTime.toISOString(),
-                manilaDisplay: DateTimeService.formatForDisplay(utcTime, 'h:mm a'),
-                utcHours: utcTime.getUTCHours(),
-                manilaHours: selectedTime.getHours()
-            });
-
-            setTime(utcTime);
+            setTime(selectedTime);
         }
     };
 
@@ -90,15 +76,19 @@ const AddMedicineScheduleScreen = ({ route, navigation }) => {
 
         try {
             setLoading(true);
-            const formattedTime = formatAPITime(time);
-            console.log('Schedule time details:', {
-                storedUTC: time.toISOString(),
-                displayInManila: DateTimeService.formatForDisplay(time, 'h:mm a'),
-                formattedForAPI: formattedTime,
-                utcHour: time.getUTCHours(),
-                utcMinutes: time.getUTCMinutes(),
-                timezone: DateTimeService.getCurrentTimezone()
+
+            // Convert Manila time to UTC (subtract 8 hours)
+            const utcTime = new Date(time);
+            utcTime.setHours(time.getHours() - 8);
+
+            console.log('Time conversion:', {
+                manilaTime: format(time, 'HH:mm'),
+                manilaDisplay: format(time, 'h:mm a'),
+                utcTime: format(utcTime, 'HH:mm'),
+                utcDisplay: format(utcTime, 'h:mm a')
             });
+
+            const formattedTime = formatAPITime(utcTime);
 
             const validDays = frequency === 'weekly' 
                 ? selectedDays
@@ -114,20 +104,12 @@ const AddMedicineScheduleScreen = ({ route, navigation }) => {
                 notes: notes.trim()
             };
 
-            console.log('Creating schedule with data:', scheduleData);
+            console.log('Saving schedule data:', scheduleData);
             await MedicineService.createSchedule(medicineId, scheduleData);
             navigation.goBack();
         } catch (error) {
-            console.error('Error creating schedule:', error);
-            if (error.response?.data?.errors) {
-                console.error('Validation errors:', error.response.data.errors);
-                const errorMessages = Object.values(error.response.data.errors)
-                    .flat()
-                    .join('\n');
-                Alert.alert('Validation Error', errorMessages);
-            } else {
-                Alert.alert('Error', 'Failed to save schedule');
-            }
+            console.error('Error saving schedule:', error);
+            Alert.alert('Error', 'Failed to save schedule. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -176,7 +158,7 @@ const AddMedicineScheduleScreen = ({ route, navigation }) => {
                             onPress={() => setTimePickerVisible(true)}
                         >
                             <Text style={styles.timeButtonText}>
-                                {DateTimeService.formatForDisplay(time, 'h:mm a')}
+                                {format(time, 'h:mm a')}
                             </Text>
                             <Icon name="access-time" size={20} color="#8F9BB3" />
                         </TouchableOpacity>

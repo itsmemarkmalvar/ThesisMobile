@@ -18,7 +18,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -46,17 +46,16 @@ const AddDoctorVisitScreen = () => {
   // Format date for display
   const formatDate = (date) => {
     if (!date) return '';
-    return format(date, 'MMM d, yyyy');
+    // Ensure we're only working with the date part
+    const dateOnly = format(date, 'yyyy-MM-dd');
+    return format(parseISO(dateOnly), 'MMM d, yyyy');
   };
 
-  // Format date for API
+  // Format date for API - only send the date portion
   const formatForAPI = (date) => {
     if (!date) return null;
-    // Create a new date to avoid modifying the original
-    const apiDate = new Date(date);
-    // Add 8 hours to compensate for the timezone difference
-    apiDate.setHours(apiDate.getHours() + 8);
-    return format(apiDate, 'yyyy-MM-dd HH:mm:ss');
+    // Only return the date portion in YYYY-MM-DD format
+    return format(date, 'yyyy-MM-dd');
   };
 
   const renderHeader = () => (
@@ -106,18 +105,18 @@ const AddDoctorVisitScreen = () => {
   const handleVisitDateChange = (event, selectedDate) => {
     setShowVisitDatePicker(false);
     if (event.type === 'set' && selectedDate) {
-      // Set time to noon (12:00) to avoid timezone issues
-      selectedDate.setHours(12, 0, 0, 0);
-      setVisitDate(selectedDate);
+      // Create date object with only the date portion
+      const dateOnly = new Date(format(selectedDate, 'yyyy-MM-dd'));
+      setVisitDate(dateOnly);
     }
   };
 
   const handleNextVisitDateChange = (event, selectedDate) => {
     setShowNextVisitDatePicker(false);
     if (event.type === 'set' && selectedDate) {
-      // Set time to noon (12:00) to avoid timezone issues
-      selectedDate.setHours(12, 0, 0, 0);
-      setNextVisitDate(selectedDate);
+      // Create date object with only the date portion
+      const dateOnly = new Date(format(selectedDate, 'yyyy-MM-dd'));
+      setNextVisitDate(dateOnly);
     }
   };
 

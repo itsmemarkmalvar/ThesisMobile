@@ -20,10 +20,11 @@ import {
   Modal,
 } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
-import { format, subDays } from 'date-fns';
+import { format } from 'date-fns';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LineChart } from 'react-native-chart-kit';
 import { HealthService } from '../services/HealthService';
+import { DateTimeService } from '../services/DateTimeService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 import EmptyState from '../components/EmptyState';
@@ -162,11 +163,10 @@ const SymptomsScreen = () => {
         return 'Invalid duration';
       }
 
-      // Adjust both dates to Manila timezone for accurate day calculation
-      const manilaStart = new Date(start.getTime() + (8 * 60 * 60 * 1000));
-      const manilaEnd = new Date(end.getTime() + (8 * 60 * 60 * 1000));
+      const startLocal = DateTimeService.toLocalTime(start);
+      const endLocal = DateTimeService.toLocalTime(end);
 
-      const diffTime = Math.abs(manilaEnd - manilaStart);
+      const diffTime = Math.abs(endLocal - startLocal);
       const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       
       return endDate ? `${days} days` : `${days} days (Ongoing)`;
@@ -179,13 +179,7 @@ const SymptomsScreen = () => {
   const formatDate = (dateString) => {
     if (!dateString) return 'Not specified';
     try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        return 'Invalid date';
-      }
-      // Adjust for Manila timezone (+8)
-      const manilaDate = new Date(date.getTime() + (8 * 60 * 60 * 1000));
-      return format(manilaDate, 'MMM d, yyyy');
+      return DateTimeService.formatForDisplay(dateString);
     } catch (error) {
       console.error('Error formatting date:', error);
       return 'Invalid date';

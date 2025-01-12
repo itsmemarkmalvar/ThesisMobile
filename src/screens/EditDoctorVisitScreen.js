@@ -17,13 +17,12 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { HealthService } from '../services/HealthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTimezone } from '../context/TimezoneContext';
-import { DateTimeService } from '../services/DateTimeService';
 
 const EditDoctorVisitScreen = () => {
   const insets = useSafeAreaInsets();
@@ -48,68 +47,37 @@ const EditDoctorVisitScreen = () => {
   const route = useRoute();
   const theme = useTheme();
   const { visitId } = route.params;
-  const { timezone } = useTimezone();
-
-  // Convert UTC to local time manually
-  const convertToLocal = (utcString) => {
-    try {
-      const utcDate = new Date(utcString);
-      // For Manila (UTC+8), add 8 hours
-      const localDate = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000));
-      
-      return localDate;
-    } catch (error) {
-      return null;
-    }
-  };
-
-  // Convert local time to UTC
-  const convertToUTC = (localDate) => {
-    try {
-      // For Manila (UTC+8), subtract 8 hours
-      const utcDate = new Date(localDate.getTime() - (8 * 60 * 60 * 1000));
-      
-      return utcDate;
-    } catch (error) {
-      return null;
-    }
-  };
 
   // Format date for display
   const formatDateTime = (date) => {
     if (!date) return '';
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    // Ensure we're only working with the date part
+    const dateOnly = format(date, 'yyyy-MM-dd');
+    return format(parseISO(dateOnly), 'MMM d, yyyy');
   };
 
-  // Format date for API
+  // Format date for API - only send the date portion
   const formatForAPI = (date) => {
     if (!date) return null;
-    // Create a new date to avoid modifying the original
-    const apiDate = new Date(date);
-    // Add 8 hours to compensate for the timezone difference
-    apiDate.setHours(apiDate.getHours() + 8);
-    return format(apiDate, 'yyyy-MM-dd HH:mm:ss');
+    // Only return the date portion in YYYY-MM-DD format
+    return format(date, 'yyyy-MM-dd');
   };
 
   const handleVisitDateChange = (event, selectedDate) => {
     setShowVisitDatePicker(false);
     if (event.type === 'set' && selectedDate) {
-      // Set time to noon (12:00) to avoid timezone issues
-      selectedDate.setHours(12, 0, 0, 0);
-      setVisitDate(selectedDate);
+      // Create date object with only the date portion
+      const dateOnly = new Date(format(selectedDate, 'yyyy-MM-dd'));
+      setVisitDate(dateOnly);
     }
   };
 
   const handleNextVisitDateChange = (event, selectedDate) => {
     setShowNextVisitDatePicker(false);
     if (event.type === 'set' && selectedDate) {
-      // Set time to noon (12:00) to avoid timezone issues
-      selectedDate.setHours(12, 0, 0, 0);
-      setNextVisitDate(selectedDate);
+      // Create date object with only the date portion
+      const dateOnly = new Date(format(selectedDate, 'yyyy-MM-dd'));
+      setNextVisitDate(dateOnly);
     }
   };
 
@@ -127,9 +95,15 @@ const EditDoctorVisitScreen = () => {
           follow_up_instructions: data.follow_up_instructions || '',
         });
 
-        // Parse dates from API
-        const parsedVisitDate = new Date(data.visit_date);
-        const parsedNextVisitDate = data.next_visit_date ? new Date(data.next_visit_date) : null;
+        // Parse dates from API - ensure we only use the date portion
+        const visitDateOnly = format(new Date(data.visit_date), 'yyyy-MM-dd');
+        const parsedVisitDate = parseISO(visitDateOnly);
+        
+        let parsedNextVisitDate = null;
+        if (data.next_visit_date) {
+          const nextVisitDateOnly = format(new Date(data.next_visit_date), 'yyyy-MM-dd');
+          parsedNextVisitDate = parseISO(nextVisitDateOnly);
+        }
 
         setVisitDate(parsedVisitDate);
         setNextVisitDate(parsedNextVisitDate);
