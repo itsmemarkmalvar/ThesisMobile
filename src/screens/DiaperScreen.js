@@ -39,18 +39,13 @@ const DiaperScreen = ({ navigation }) => {
   const formatTime = (time) => {
     try {
       const date = new Date(time);
-      if (isNaN(date.getTime())) {
-        throw new Error('Invalid date');
-      }
-      
-      console.log('Formatting time for display:', {
-        input: time,
-        formatted: format(date, 'h:mm a')
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
       });
-      
-      return format(date, 'h:mm a');
     } catch (error) {
-      console.error('Time formatting error:', error);
+      console.log('Time formatting error:', error);
       return '';
     }
   };
@@ -91,11 +86,6 @@ const DiaperScreen = ({ navigation }) => {
       startDate.setHours(0, 0, 0, 0);
       const endDate = new Date(selectedDate);
       endDate.setHours(23, 59, 59, 999);
-      
-      console.log('Loading diaper logs for:', {
-        start: format(startDate, "yyyy-MM-dd HH:mm:ss"),
-        end: format(endDate, "yyyy-MM-dd HH:mm:ss")
-      });
       
       const logs = await diaperService.fetchDiaperLogs(
         startDate.toISOString(),
@@ -139,14 +129,9 @@ const DiaperScreen = ({ navigation }) => {
 
   const handleAddDiaper = async (diaperData) => {
     try {
-      const now = new Date();
-      console.log('Adding diaper log at:', {
-        time: format(now, "yyyy-MM-dd HH:mm:ss")
-      });
-
       const newLog = await diaperService.saveDiaperLog({
         type: diaperData.type,
-        time: now,
+        time: new Date().toISOString(),
         notes: diaperData.notes || ''
       });
       

@@ -1,20 +1,6 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config';
-import { format } from 'date-fns';
-
-// Helper functions for time conversion
-const convertToUTC = (manilaTime) => {
-    if (!manilaTime) return null;
-    // Subtract 8 hours to convert Manila time to UTC
-    return new Date(manilaTime.getTime() - (8 * 60 * 60 * 1000));
-};
-
-const convertToManilaTime = (utcTime) => {
-    if (!utcTime) return null;
-    // Add 8 hours to convert UTC to Manila time
-    return new Date(utcTime.getTime() + (8 * 60 * 60 * 1000));
-};
 
 export const diaperService = {
   async fetchDiaperLogs(startDate, endDate, type) {
@@ -23,12 +9,8 @@ export const diaperService = {
       const params = {};
       
       if (startDate && endDate) {
-        // Convert filter dates to UTC for API
-        const utcStart = convertToUTC(new Date(startDate));
-        const utcEnd = convertToUTC(new Date(endDate));
-        
-        params.start_date = utcStart.toISOString();
-        params.end_date = utcEnd.toISOString();
+        params.start_date = startDate;
+        params.end_date = endDate;
       }
       
       if (type) {
@@ -43,14 +25,6 @@ export const diaperService = {
         params
       });
 
-      // Convert response times to Manila time
-      if (response.data?.data) {
-        response.data.data = response.data.data.map(log => ({
-          ...log,
-          time: convertToManilaTime(new Date(log.time))
-        }));
-      }
-
       return response.data;
     } catch (error) {
       console.error('Error fetching diaper logs:', error);
@@ -61,31 +35,12 @@ export const diaperService = {
   async saveDiaperLog(diaperData) {
     try {
       const token = await AsyncStorage.getItem('userToken');
-      
-      // Convert Manila time to UTC for storage
-      const utcTime = convertToUTC(new Date(diaperData.time));
-      
-      const formattedData = {
-        ...diaperData,
-        time: utcTime.toISOString()
-      };
-
-      console.log('Saving diaper log:', {
-        manila: format(new Date(diaperData.time), "yyyy-MM-dd HH:mm:ss"),
-        utc: format(utcTime, "yyyy-MM-dd HH:mm:ss")
-      });
-
-      const response = await axios.post(`${API_URL}/diaper-logs`, formattedData, {
+      const response = await axios.post(`${API_URL}/diaper-logs`, diaperData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
         }
       });
-
-      // Convert response time back to Manila time
-      if (response.data) {
-        response.data.time = convertToManilaTime(new Date(response.data.time));
-      }
 
       return response.data;
     } catch (error) {
@@ -97,32 +52,12 @@ export const diaperService = {
   async updateDiaperLog(id, diaperData) {
     try {
       const token = await AsyncStorage.getItem('userToken');
-      
-      // Convert Manila time to UTC for storage
-      const utcTime = convertToUTC(new Date(diaperData.time));
-      
-      const formattedData = {
-        ...diaperData,
-        time: utcTime.toISOString()
-      };
-
-      console.log('Updating diaper log:', {
-        id,
-        manila: format(new Date(diaperData.time), "yyyy-MM-dd HH:mm:ss"),
-        utc: format(utcTime, "yyyy-MM-dd HH:mm:ss")
-      });
-
-      const response = await axios.put(`${API_URL}/diaper-logs/${id}`, formattedData, {
+      const response = await axios.put(`${API_URL}/diaper-logs/${id}`, diaperData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
         }
       });
-
-      // Convert response time back to Manila time
-      if (response.data) {
-        response.data.time = convertToManilaTime(new Date(response.data.time));
-      }
 
       return response.data;
     } catch (error) {
