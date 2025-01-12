@@ -33,6 +33,7 @@ import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import RNHTMLtoPDF from 'react-native-html-to-pdf';
 import { DateTimeService } from '../services/DateTimeService';
+import { format } from 'date-fns';
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -164,17 +165,43 @@ const ImmunizationScreen = ({ navigation }) => {
       const data = await immunizationApi.getVaccines(token);
       console.log('Received vaccination data:', data);
 
-      // Ensure each age group has a valid ID
+      // Create a map of vaccine history for quick lookup
+      const vaccineHistory = {};
+      const vaccineHistoryResponse = await immunizationApi.getVaccinationHistory(token);
+      vaccineHistoryResponse.forEach(record => {
+        vaccineHistory[record.vaccine_id] = record;
+      });
+
+      // Ensure each age group has a valid ID and proper date handling
       const validatedData = data.map((ageGroup, index) => ({
         ...ageGroup,
-        id: ageGroup.id || index + 1, // Use existing ID or generate one based on index
-        vaccines: ageGroup.vaccines.map(vaccine => ({
-          ...vaccine,
-          id: vaccine.id || `vaccine-${index}-${Math.random().toString(36).substr(2, 9)}` // Ensure each vaccine has an ID
-        }))
+        id: ageGroup.id || index + 1,
+        vaccines: ageGroup.vaccines.map(vaccine => {
+          const historyRecord = vaccineHistory[vaccine.id];
+          console.log('Processing vaccine:', {
+            id: vaccine.id,
+            historyRecord: historyRecord
+          });
+          
+          return {
+            ...vaccine,
+            id: vaccine.id,
+            // Map status and dates from history record if exists
+            completed: historyRecord?.status === 'completed',
+            given_at: historyRecord?.given_at,
+            scheduled_date: historyRecord?.scheduled_date,
+            administered_by: historyRecord?.administered_by,
+            administered_at: historyRecord?.administered_at,
+            notes: historyRecord?.notes
+          };
+        })
       }));
 
+      console.log('Validated vaccination data:', validatedData);
       setVaccines(validatedData);
+      
+      // Also update vaccination history
+      setVaccinationHistory(vaccineHistoryResponse);
     } catch (error) {
       console.error('Error loading vaccinations:', error);
       Alert.alert('Error', 'Failed to load vaccinations');
@@ -187,24 +214,34 @@ const ImmunizationScreen = ({ navigation }) => {
     const markedDates = {};
     vaccines.forEach(ageGroup => {
       ageGroup.vaccines.forEach(vaccine => {
-        if (vaccine.date) {
-          const dateStr = DateTimeService.getCalendarDate(vaccine.date);
-          if (dateStr) {
-            if (markedDates[dateStr]) {
-              markedDates[dateStr].dots.push({
+        // For completed vaccines, use given_at date
+        if (vaccine.completed && vaccine.given_at) {
+          const localDate = DateTimeService.toLocalTime(new Date(vaccine.given_at));
+          if (localDate) {
+            const dateStr = format(localDate, 'yyyy-MM-dd');
+            markedDates[dateStr] = {
+              dots: [{
                 key: vaccine.id,
-                color: vaccine.completed ? '#4CAF50' : '#FF9800',
-              });
-            } else {
-              markedDates[dateStr] = {
-                dots: [{
-                  key: vaccine.id,
-                  color: vaccine.completed ? '#4CAF50' : '#FF9800',
-                }],
-                selected: true,
-                selectedColor: 'rgba(74, 144, 226, 0.1)'
-              };
-            }
+                color: '#4CAF50', // Green for completed
+              }],
+              selected: true,
+              selectedColor: 'rgba(74, 144, 226, 0.1)'
+            };
+          }
+        }
+        // For scheduled vaccines, use scheduled_date
+        else if (!vaccine.completed && vaccine.scheduled_date) {
+          const localDate = DateTimeService.toLocalTime(new Date(vaccine.scheduled_date));
+          if (localDate) {
+            const dateStr = format(localDate, 'yyyy-MM-dd');
+            markedDates[dateStr] = {
+              dots: [{
+                key: vaccine.id,
+                color: '#FF9800', // Orange for scheduled
+              }],
+              selected: true,
+              selectedColor: 'rgba(74, 144, 226, 0.1)'
+            };
           }
         }
       });
@@ -213,15 +250,55 @@ const ImmunizationScreen = ({ navigation }) => {
   };
 
   const getVaccinesForDate = (date) => {
+    console.log('Getting vaccines for date:', {
+      input: date,
+      parsed: new Date(date)
+    });
+
     const vaccinesOnDate = [];
+    // Convert selected date to local time
+    const localTargetDate = DateTimeService.toLocalTime(new Date(date));
+    if (!localTargetDate) {
+      console.error('Invalid target date:', date);
+      return vaccinesOnDate;
+    }
+
+    const targetDateStr = format(localTargetDate, 'yyyy-MM-dd');
+    console.log('Target date conversion:', {
+      original: date,
+      localDate: localTargetDate,
+      formatted: targetDateStr
+    });
+    
     vaccines.forEach(ageGroup => {
       ageGroup.vaccines.forEach(vaccine => {
-        if (vaccine.date && DateTimeService.areDatesEqual(vaccine.date, date)) {
-          vaccinesOnDate.push({
-            ...vaccine,
-            ageGroup: ageGroup.ageGroup,
-            displayDate: DateTimeService.formatForDisplay(vaccine.date)
+        let matchDate = null;
+        
+        // Check completed vaccines first
+        if (vaccine.completed && vaccine.given_at) {
+          matchDate = DateTimeService.toLocalTime(new Date(vaccine.given_at));
+        }
+        // Then check scheduled vaccines
+        else if (!vaccine.completed && vaccine.scheduled_date) {
+          matchDate = DateTimeService.toLocalTime(new Date(vaccine.scheduled_date));
+        }
+
+        if (matchDate) {
+          const vaccineDateStr = format(matchDate, 'yyyy-MM-dd');
+          console.log('Comparing dates:', {
+            vaccineId: vaccine.id,
+            targetDate: targetDateStr,
+            vaccineDate: vaccineDateStr,
+            matches: vaccineDateStr === targetDateStr
           });
+
+          if (vaccineDateStr === targetDateStr) {
+            vaccinesOnDate.push({
+              ...vaccine,
+              ageGroup: ageGroup.ageGroup,
+              displayDate: DateTimeService.formatForDisplay(matchDate)
+            });
+          }
         }
       });
     });
@@ -285,7 +362,7 @@ const ImmunizationScreen = ({ navigation }) => {
     }
   };
 
-  const handleVaccineCompletion = async (details) => {
+  const handleVaccineCompletion = async (completionDetails) => {
     try {
         const token = await AsyncStorage.getItem('userToken');
         if (!token) throw new Error('No token found');
@@ -293,39 +370,28 @@ const ImmunizationScreen = ({ navigation }) => {
         // Convert completion date to UTC for API
         const completionDate = DateTimeService.formatForAPI(new Date());
         
+        if (!completionDate) {
+            throw new Error('Invalid completion date');
+        }
+
         await immunizationApi.markVaccineCompleted(token, {
             vaccine_id: selectedVaccineForCompletion.id,
             given_at: completionDate,
-            administered_by: details.administered_by,
-            administered_at: details.administered_at,
-            notes: details.notes
+            administered_by: completionDetails.administered_by,
+            administered_at: completionDetails.administered_at,
+            notes: completionDetails.notes
         });
-
-        // Update local state with Manila time
-        setVaccines(prevVaccines => 
-            prevVaccines.map(ageGroup => ({
-                ...ageGroup,
-                vaccines: ageGroup.vaccines.map(v => 
-                    v.id === selectedVaccineForCompletion.id
-                        ? { ...v, completed: true, date: completionDate }
-                        : v
-                )
-            }))
-        );
-
-        // Cancel any existing reminders for this vaccine
-        cancelVaccineReminder(selectedVaccineForCompletion.id);
-
-        // Refresh vaccination history
-        loadVaccinationHistory();
 
         // Close form and show success message
         setShowCompletionForm(false);
         Alert.alert('Success', 'Vaccine marked as completed successfully.');
 
+        // Refresh the screen
+        await loadVaccinations();
+
     } catch (error) {
         console.error('Error completing vaccination:', error);
-        Alert.alert('Error', 'Failed to complete vaccination');
+        Alert.alert('Error', 'Failed to mark vaccine as completed. Please try again.');
     }
   };
 
@@ -405,6 +471,17 @@ const ImmunizationScreen = ({ navigation }) => {
         const token = await AsyncStorage.getItem('userToken');
         if (!token) throw new Error('No token found');
 
+        // Validate and convert schedule date
+        if (!scheduleDetails.date) {
+            throw new Error('No date selected');
+        }
+
+        console.log('Scheduling vaccine - Input date:', {
+            raw: scheduleDetails.date,
+            isDate: scheduleDetails.date instanceof Date,
+            isoString: scheduleDetails.date.toISOString()
+        });
+
         // Convert schedule date to UTC for API
         const scheduledDate = DateTimeService.formatForAPI(scheduleDetails.date);
         
@@ -412,48 +489,27 @@ const ImmunizationScreen = ({ navigation }) => {
             throw new Error('Invalid schedule date');
         }
 
+        console.log('Scheduling vaccine - Processed date:', {
+            scheduledDate,
+            localTime: DateTimeService.formatForDisplay(scheduleDetails.date)
+        });
+
         await immunizationApi.scheduleVaccine(token, {
             vaccine_id: selectedVaccineForScheduling.id,
             scheduled_date: scheduledDate,
             notes: scheduleDetails.notes
         });
 
-        // Update local state
-        setVaccines(prevVaccines => 
-            prevVaccines.map(ageGroup => ({
-                ...ageGroup,
-                vaccines: ageGroup.vaccines.map(v => 
-                    v.id === selectedVaccineForScheduling.id
-                        ? { ...v, date: scheduledDate }
-                        : v
-                )
-            }))
-        );
-
-        // Get stored reminder settings
-        const storedSettings = await AsyncStorage.getItem('vaccineReminderSettings');
-        const settings = storedSettings ? JSON.parse(storedSettings) : {
-            enabled: true,
-            reminderDays: 7,
-            reminderTime: '09:00'
-        };
-
-        // Set up reminder if enabled
-        if (settings.enabled) {
-            await scheduleVaccineReminder(
-                selectedVaccineForScheduling,
-                DateTimeService.toManilaTime(scheduleDetails.date),
-                settings
-            );
-        }
-
         // Close form and show success message
         setShowScheduleForm(false);
         Alert.alert('Success', 'Vaccine scheduled successfully.');
 
+        // Refresh the screen
+        await loadVaccinations();
+
     } catch (error) {
         console.error('Error scheduling vaccination:', error);
-        Alert.alert('Error', 'Failed to schedule vaccination');
+        Alert.alert('Error', 'Failed to schedule vaccination. Please try again.');
     }
   };
 
@@ -512,7 +568,7 @@ const ImmunizationScreen = ({ navigation }) => {
           <body>
             <div class="header">
               <div class="title">Vaccination Schedule</div>
-              <div class="subtitle">Generated on ${new Date().toLocaleDateString()}</div>
+              <div class="subtitle">Generated on ${DateTimeService.formatForDisplay(new Date())}</div>
             </div>
 
             <div class="section">
@@ -521,17 +577,21 @@ const ImmunizationScreen = ({ navigation }) => {
                 <div class="vaccine-item">
                   <div class="vaccine-name">${ageGroup.ageGroup}</div>
                   <div class="vaccine-details">
-                    ${ageGroup.vaccines.map(vaccine => `
-                      <div>
-                        ${vaccine.name} - 
-                        ${vaccine.completed 
-                          ? `✅ Completed on: ${new Date(vaccine.date).toLocaleDateString()}`
-                          : vaccine.date 
-                            ? `⏳ Scheduled for: ${new Date(vaccine.date).toLocaleDateString()}`
-                            : '◯ Not scheduled'
-                        }
-                      </div>
-                    `).join('')}
+                    ${ageGroup.vaccines.map(vaccine => {
+                      // Convert dates using DateTimeService
+                      const displayDate = vaccine.date ? DateTimeService.formatForDisplay(vaccine.date) : '';
+                      return `
+                        <div>
+                          ${vaccine.name} - 
+                          ${vaccine.completed 
+                            ? `✅ Completed on: ${displayDate}`
+                            : vaccine.date 
+                              ? `⏳ Scheduled for: ${displayDate}`
+                              : '◯ Not scheduled'
+                          }
+                        </div>
+                      `;
+                    }).join('')}
                   </div>
                 </div>
               `).join('')}
@@ -622,15 +682,14 @@ const ImmunizationScreen = ({ navigation }) => {
 
   const renderVaccineItem = (vaccine, ageGroup) => (
     <TouchableOpacity
-      key={`vaccine-${ageGroup.id}-${vaccine.id}`}
       style={styles.vaccineItem}
       onPress={() => {
         if (vaccine.completed) {
           Alert.alert('Already Completed', 'This vaccine has already been administered.');
-        } else if (vaccine.date) {
+        } else if (vaccine.scheduled_date) {
           Alert.alert(
             'Scheduled',
-            `This vaccine is scheduled for ${new Date(vaccine.date).toLocaleDateString()}`,
+            `This vaccine is scheduled for ${DateTimeService.formatForDisplay(vaccine.scheduled_date)}`,
             [
               { text: 'OK' },
               {
@@ -677,27 +736,27 @@ const ImmunizationScreen = ({ navigation }) => {
     >
       <View style={styles.vaccineContent}>
         <MaterialIcons
-          name={vaccine.completed ? "check-circle" : (vaccine.date ? "event" : "radio-button-unchecked")}
+          name={vaccine.completed ? "check-circle" : (vaccine.scheduled_date ? "event" : "radio-button-unchecked")}
           size={24}
-          color={vaccine.completed ? "#4CAF50" : (vaccine.date ? "#FF9800" : "#BDBDBD")}
+          color={vaccine.completed ? "#4CAF50" : (vaccine.scheduled_date ? "#FF9800" : "#BDBDBD")}
           style={styles.vaccineIcon}
         />
         <View style={styles.vaccineDetails}>
           <Text style={[
             styles.vaccineName,
             vaccine.completed && styles.vaccineCompleted,
-            vaccine.date && !vaccine.completed && styles.vaccineScheduled
+            vaccine.scheduled_date && !vaccine.completed && styles.vaccineScheduled
           ]}>
             {vaccine.name}
           </Text>
-          {vaccine.completed && vaccine.date && (
+          {vaccine.completed && vaccine.given_at && (
             <Text style={styles.vaccineDate}>
-              Completed on: {new Date(vaccine.date).toLocaleDateString()}
+              Completed on: {DateTimeService.formatForDisplay(new Date(vaccine.given_at))}
             </Text>
           )}
-          {!vaccine.completed && vaccine.date && (
+          {!vaccine.completed && vaccine.scheduled_date && (
             <Text style={[styles.vaccineDate, styles.scheduledDate]}>
-              Scheduled for: {new Date(vaccine.date).toLocaleDateString()}
+              Scheduled for: {DateTimeService.formatForDisplay(new Date(vaccine.scheduled_date))}
             </Text>
           )}
         </View>

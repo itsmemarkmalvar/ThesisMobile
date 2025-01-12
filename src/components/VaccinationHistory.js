@@ -10,6 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { DateTimeService } from '../services/DateTimeService';
 
 const formatDate = (dateString) => {
   console.log('\n=== Date Formatting Debug ===');
@@ -21,7 +22,7 @@ const formatDate = (dateString) => {
   }
   
   try {
-    // Parse ISO 8601 date string
+    // Parse and convert to Manila time using DateTimeService
     console.log('Attempting to parse date:', dateString);
     const date = new Date(dateString);
     console.log('Parsed date object:', date);
@@ -32,15 +33,8 @@ const formatDate = (dateString) => {
       return 'Not specified';
     }
     
-    // Format the date
-    const options = {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    };
-    
-    // Use toLocaleDateString with explicit locale and options
-    const formattedDate = date.toLocaleDateString('en-US', options);
+    // Format using DateTimeService for consistent timezone handling
+    const formattedDate = DateTimeService.formatForDisplay(date);
     console.log('Formatted date:', formattedDate);
     return formattedDate;
   } catch (error) {
