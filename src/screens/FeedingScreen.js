@@ -93,7 +93,9 @@ const FeedingScreen = ({ navigation }) => {
     };
 
     const formatTime = (dateString) => {
-      return format(new Date(dateString), 'h:mm a');
+      const utcDate = new Date(dateString);
+      const manilaTime = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000));
+      return format(manilaTime, 'h:mm a');
     };
 
     const getDetails = (log) => {

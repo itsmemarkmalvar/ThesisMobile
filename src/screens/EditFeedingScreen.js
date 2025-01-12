@@ -18,11 +18,16 @@ import FeedingService from '../services/FeedingService';
 import { format, parseISO } from 'date-fns';
 import NotificationService from '../services/NotificationService';
 import { validateFeedingData } from '../utils/FeedingValidation';
+import { DateTimeService } from '../services/DateTimeService';
 
 const EditFeedingScreen = ({ navigation, route }) => {
   const { feedingLog } = route.params;
   const [type, setType] = useState(feedingLog.type);
-  const [startTime, setStartTime] = useState(parseISO(feedingLog.start_time));
+  const [startTime, setStartTime] = useState(() => {
+    // Convert UTC to Manila time by adding 8 hours
+    const utcTime = parseISO(feedingLog.start_time);
+    return new Date(utcTime.getTime() + (8 * 60 * 60 * 1000));
+  });
   const [duration, setDuration] = useState(feedingLog.duration?.toString() || '');
   const [amount, setAmount] = useState(feedingLog.amount?.toString() || '');
   const [breastSide, setBreastSide] = useState(feedingLog.breast_side || 'left');
@@ -33,14 +38,57 @@ const EditFeedingScreen = ({ navigation, route }) => {
   const [validationErrors, setValidationErrors] = useState({});
   const [enableReminder, setEnableReminder] = useState(true);
 
+  useEffect(() => {
+    // Initialize DateTimeService if not already initialized
+    const initializeDateTime = async () => {
+      if (!DateTimeService._initialized) {
+        await DateTimeService.initialize();
+      }
+    };
+    initializeDateTime();
+  }, []);
+
+  const handleTimeChange = (event, selectedTime) => {
+    if (event.type === 'set' && selectedTime) {
+      console.log('Time selection details:', {
+        raw: selectedTime,
+        iso: selectedTime.toISOString(),
+        local: selectedTime.toLocaleTimeString(),
+        hours: selectedTime.getHours(),
+        minutes: selectedTime.getMinutes(),
+        timezone: DateTimeService._currentTimezone || 'Asia/Manila'
+      });
+
+      // Store the selected time directly without conversion
+      setStartTime(selectedTime);
+      
+      // Log the time that will be displayed
+      console.log('Time display details:', {
+        storedTime: selectedTime.toISOString(),
+        displayFormat: format(selectedTime, 'h:mm a'),
+        timezone: DateTimeService._currentTimezone || 'Asia/Manila'
+      });
+    }
+    setShowTimePicker(false);
+  };
+
   const handleUpdate = async () => {
     try {
       setLoading(true);
       setValidationErrors({});
 
+      // Convert Manila time to UTC by subtracting 8 hours
+      const utcTime = new Date(startTime.getTime() - (8 * 60 * 60 * 1000));
+      
+      console.log('Updating feeding log:', {
+        selectedManilaTime: startTime.toISOString(), // Original Manila time
+        convertedUTCTime: utcTime.toISOString(),     // Converted UTC time
+        timezone: DateTimeService._currentTimezone
+      });
+
       const feedingData = {
         type,
-        start_time: startTime,
+        start_time: utcTime,  // Save in UTC
         duration: duration || null,
         amount: amount || null,
         breast_side: type === 'breast' ? breastSide : null,
@@ -56,7 +104,7 @@ const EditFeedingScreen = ({ navigation, route }) => {
         return;
       }
 
-      const formattedData = FeedingService.formatFeedingData(type, startTime, {
+      const formattedData = FeedingService.formatFeedingData(type, utcTime, {
         duration: duration ? parseInt(duration) : null,
         amount: amount ? parseFloat(amount) : null,
         breastSide,
@@ -159,6 +207,7 @@ const EditFeedingScreen = ({ navigation, route }) => {
           {format(startTime, 'h:mm a')}
         </Text>
       </TouchableOpacity>
+      <Text style={styles.timezoneInfo}>Times are shown in {DateTimeService._currentTimezone || 'Asia/Manila'}</Text>
     </View>
   );
 
@@ -345,12 +394,7 @@ const EditFeedingScreen = ({ navigation, route }) => {
             mode="time"
             is24Hour={false}
             display="default"
-            onChange={(event, selectedTime) => {
-              setShowTimePicker(false);
-              if (selectedTime) {
-                setStartTime(selectedTime);
-              }
-            }}
+            onChange={handleTimeChange}
           />
         )}
       </LinearGradient>
@@ -573,6 +617,11 @@ const styles = StyleSheet.create({
     color: '#FF3D71',
     fontSize: 14,
     marginTop: 4
+  },
+  timezoneInfo: {
+    fontSize: 14,
+    color: '#8F9BB3',
+    fontStyle: 'italic'
   }
 });
 
