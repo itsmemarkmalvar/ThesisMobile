@@ -30,7 +30,7 @@ const timeZones = [
   { label: '(GMT+10:00) Sydney', value: 'Australia/Sydney' },
 ];
 
-const TimeZoneScreen = () => {
+const TimeZoneScreen = ({ navigation }) => {
   const [selectedTimezone, setSelectedTimezone] = useState('auto');
   const [deviceTimezone, setDeviceTimezone] = useState('');
   const [loading, setLoading] = useState(true);
@@ -118,14 +118,18 @@ const TimeZoneScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={['#f0f8ff', '#e6f3ff', '#d9edff']}
+        colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
         style={styles.gradient}
       >
         <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <MaterialIcons name="arrow-back" size={24} color="#2E3A59" />
+          </TouchableOpacity>
           <Text style={styles.headerTitle}>Timezone Settings</Text>
-          <Text style={styles.subtitle}>
-            Current timezone: {getEffectiveTimezone()}
-          </Text>
+          <View style={styles.headerRight} />
         </View>
 
         <ScrollView style={styles.content}>
@@ -161,6 +165,7 @@ const TimeZoneScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFB6C1'
   },
   gradient: {
     flex: 1,
@@ -171,15 +176,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
+    paddingTop: 8,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.1)',
   },
+  backButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3
+  },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#2E3A59',
+    flex: 1,
+    marginLeft: 16,
+    textAlign: 'center'
   },
   subtitle: {
     fontSize: 16,
@@ -231,6 +252,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
+  },
+  headerRight: {
+    width: 40
   },
 });
 

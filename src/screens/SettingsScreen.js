@@ -336,7 +336,7 @@ const SettingsScreen = ({ navigation }) => {
             <SettingItem
               icon="info-outline"
               title="About"
-              subtitle="Version 1.0.0"
+              subtitle="Version 1.1.8"
               onPress={() => navigation.navigate('About')}
             />
             <SettingItem

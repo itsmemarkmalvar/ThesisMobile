@@ -159,7 +159,10 @@ export const SleepService = {
         const manilaTZ = 'Asia/Manila';
         try {
             const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            console.log('Current timezone:', timeZone);
+            console.log('Timezone Check:', {
+                current: timeZone,
+                isManila: timeZone === manilaTZ
+            });
             return timeZone === manilaTZ;
         } catch (error) {
             console.warn('Error checking timezone:', error);
@@ -175,20 +178,25 @@ export const SleepService = {
                 return null;
             }
 
+            // Log the incoming date
+            console.log('Converting to Manila time:', {
+                input: format(utcDate, "yyyy-MM-dd HH:mm:ss"),
+                currentTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+            });
+
             // If already in Manila timezone, return the date as is
             if (SleepService.isManilaTZ()) {
-                console.log('Already in Manila timezone, using date as is:', {
-                    date: format(utcDate, "yyyy-MM-dd HH:mm:ss")
-                });
+                console.log('Device is in Manila timezone, keeping original time');
                 return utcDate;
             }
 
-            // Add 8 hours to convert UTC to Manila time
+            // Only add 8 hours if not in Manila timezone
             const manilaTime = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000));
             
-            console.log('Converting UTC to Manila:', {
-                utc: format(utcDate, "yyyy-MM-dd HH:mm:ss"),
-                manila: format(manilaTime, "yyyy-MM-dd HH:mm:ss")
+            console.log('Time conversion result:', {
+                original: format(utcDate, "yyyy-MM-dd HH:mm:ss"),
+                converted: format(manilaTime, "yyyy-MM-dd HH:mm:ss"),
+                addedHours: 8
             });
             
             return manilaTime;
@@ -206,12 +214,21 @@ export const SleepService = {
                 return null;
             }
 
-            // Always subtract 8 hours to convert Manila time to UTC
-            const utcDate = new Date(manilaDate.getTime() - (8 * 60 * 60 * 1000));
+            // Log the incoming date
+            console.log('Converting to UTC:', {
+                input: format(manilaDate, "yyyy-MM-dd HH:mm:ss"),
+                currentTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+            });
+
+            // Only subtract 8 hours if not in Manila timezone
+            const utcDate = SleepService.isManilaTZ() 
+                ? manilaDate  // If in Manila timezone, keep as is
+                : new Date(manilaDate.getTime() - (8 * 60 * 60 * 1000));  // If not, convert
             
-            console.log('Converting Manila to UTC:', {
-                manila: format(manilaDate, "yyyy-MM-dd HH:mm:ss"),
-                utc: format(utcDate, "yyyy-MM-dd HH:mm:ss")
+            console.log('Time conversion result:', {
+                original: format(manilaDate, "yyyy-MM-dd HH:mm:ss"),
+                converted: format(utcDate, "yyyy-MM-dd HH:mm:ss"),
+                subtractedHours: SleepService.isManilaTZ() ? 0 : 8
             });
             
             return utcDate;

@@ -179,7 +179,7 @@ const LoginScreen = ({ navigation }) => {
       if (response.data.token) {
         await AsyncStorage.setItem('userToken', response.data.token);
         await TimezoneService.syncWithBackend();  // Sync timezone with backend
-        navigation.replace('Main');
+        navigation.replace('MainApp');
         
         // Check if user has baby data
         try {

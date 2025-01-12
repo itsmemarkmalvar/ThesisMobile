@@ -326,6 +326,27 @@ const ProfileScreen = ({ navigation, route }) => {
     </TouchableOpacity>
   );
 
+  const getModalTitle = (field) => {
+    switch (field) {
+      case 'phone_number':
+        return 'Phone Number';
+      case 'street_address':
+        return 'Street Address';
+      case 'postal_code':
+        return 'Postal Code';
+      case 'name':
+        return 'Name';
+      case 'nationality':
+        return 'Nationality';
+      case 'city':
+        return 'City';
+      case 'province':
+        return 'Province';
+      default:
+        return field ? field.charAt(0).toUpperCase() + field.slice(1) : '';
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -375,7 +396,7 @@ const ProfileScreen = ({ navigation, route }) => {
         <CustomModal
           visible={modalVisible && editField !== 'birthday' && editField !== 'gender'}
           onClose={() => setModalVisible(false)}
-          title={`Edit ${editField?.replace('_', ' ').charAt(0).toUpperCase() + editField?.slice(1)}`}
+          title={getModalTitle(editField)}
         >
           <TextInput
             style={styles.modalInput}

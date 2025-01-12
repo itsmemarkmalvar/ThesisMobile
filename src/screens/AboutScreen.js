@@ -40,7 +40,7 @@ const AboutScreen = ({ navigation }) => {
                 <MaterialIcons name="child-care" size={60} color="#4A90E2" />
               </View>
               <Text style={styles.appName}>Baby Care</Text>
-              <Text style={styles.version}>Version 1.0.0</Text>
+              <Text style={styles.version}>Version 1.1.8</Text>
             </View>
 
             <View style={styles.descriptionSection}>

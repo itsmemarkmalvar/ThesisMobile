@@ -1,4 +1,4 @@
-import { ApiService } from './ApiService';
+import ApiService from './ApiService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TIMEZONE_STORAGE_KEY = '@timezone_preference';
