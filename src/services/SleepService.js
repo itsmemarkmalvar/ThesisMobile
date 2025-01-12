@@ -175,6 +175,14 @@ export const SleepService = {
                 return null;
             }
 
+            // If already in Manila timezone, return the date as is
+            if (SleepService.isManilaTZ()) {
+                console.log('Already in Manila timezone, using date as is:', {
+                    date: format(utcDate, "yyyy-MM-dd HH:mm:ss")
+                });
+                return utcDate;
+            }
+
             // Add 8 hours to convert UTC to Manila time
             const manilaTime = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000));
             
@@ -198,7 +206,7 @@ export const SleepService = {
                 return null;
             }
 
-            // Subtract 8 hours to convert Manila time to UTC
+            // Always subtract 8 hours to convert Manila time to UTC
             const utcDate = new Date(manilaDate.getTime() - (8 * 60 * 60 * 1000));
             
             console.log('Converting Manila to UTC:', {

@@ -71,50 +71,64 @@ const EditSleepScreen = ({ navigation, route }) => {
         });
     }, [navigation]);
 
-    const handleUpdate = async () => {
+    const getMaximumAllowedDate = () => {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(23, 59, 59, 999);
+        return tomorrow;
+    };
+
+    const validateDates = (start, end) => {
+        if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
+            return 'Invalid date values';
+        }
+        if (end <= start) {
+            return 'End time must be after start time';
+        }
+
+        const maxDate = getMaximumAllowedDate();
+        if (start > maxDate || end > maxDate) {
+            return 'Sleep times cannot be set beyond tomorrow';
+        }
+
+        // Check if times are in the future
+        const now = new Date();
+        if (end > now) {
+            return 'Cannot log sleep that ends in the future';
+        }
+
+        return null;
+    };
+
+    const handleSave = async () => {
         try {
             setLoading(true);
             setError('');
 
-            // Validate times
-            if (sleepData.end_time <= sleepData.start_time) {
-                setError('End time must be after start time');
+            // Validate dates
+            const dateError = validateDates(sleepData.start_time, sleepData.end_time);
+            if (dateError) {
+                setError(dateError);
+                setLoading(false);
                 return;
             }
 
-            // Validate sleep duration based on type (nap or night sleep)
-            const durationValidation = validateSleepDuration(
-                sleepData.start_time,
-                sleepData.end_time,
-                sleepData.is_nap
-            );
-
-            if (!durationValidation.isValid) {
-                setError(durationValidation.error);
+            // Get current time for future validation
+            const now = new Date();
+            if (sleepData.end_time > now) {
+                setError('Cannot log sleep that ends in the future');
+                setLoading(false);
                 return;
             }
 
-            // Validate that sleep times are not in the future
-            const timeValidation = validateSleepTime(
-                sleepData.start_time,
-                sleepData.end_time
-            );
-
-            if (!timeValidation.isValid) {
-                setError(timeValidation.error);
-                return;
-            }
-
-            console.log('Updating sleep log with Manila times:', {
-                id: sleepLog.id,
-                manila: {
-                    start: format(sleepData.start_time, "yyyy-MM-dd HH:mm:ss"),
-                    end: format(sleepData.end_time, "yyyy-MM-dd HH:mm:ss")
-                }
+            console.log('⏰ Updating sleep log:', {
+                start_time: SleepService.formatTimeForDisplay(sleepData.start_time),
+                end_time: SleepService.formatTimeForDisplay(sleepData.end_time),
+                duration: `${Math.round((sleepData.end_time - sleepData.start_time) / (1000 * 60))} minutes`,
+                currentTime: SleepService.formatTimeForDisplay(now)
             });
 
-            // Let SleepService.updateSleepLog handle the conversion to UTC
-            await SleepService.updateSleepLog(sleepLog.id, sleepData);
+            await SleepService.updateSleepLog(route.params.id, sleepData);
             navigation.goBack();
         } catch (error) {
             console.error('Error updating sleep log:', error);
@@ -154,13 +168,82 @@ const EditSleepScreen = ({ navigation, route }) => {
     };
 
     const handleStartTimeConfirm = (date) => {
-        setSleepData(prev => ({ ...prev, start_time: date }));
-        setShowStartPicker(false);
+        try {
+            if (!date || isNaN(date.getTime())) {
+                throw new Error('Invalid start time selected');
+            }
+
+            const now = new Date();
+            if (date > now) {
+                setError('Cannot select a future start time');
+                return;
+            }
+
+            const maxDate = getMaximumAllowedDate();
+            if (date > maxDate) {
+                setError('Cannot select a date beyond tomorrow');
+                return;
+            }
+
+            console.log('Start time selected:', {
+                selected: SleepService.formatTimeForDisplay(date),
+                maxAllowed: SleepService.formatTimeForDisplay(maxDate),
+                currentTime: SleepService.formatTimeForDisplay(now)
+            });
+            
+            setSleepData(prev => {
+                // Ensure end time is after start time but not beyond max date or current time
+                let newEndTime = prev.end_time;
+                if (prev.end_time < date) {
+                    newEndTime = new Date(date.getTime() + 60 * 60 * 1000);
+                    if (newEndTime > maxDate) {
+                        newEndTime = maxDate;
+                    }
+                    if (newEndTime > now) {
+                        newEndTime = now;
+                    }
+                }
+                return { ...prev, start_time: date, end_time: newEndTime };
+            });
+        } catch (error) {
+            console.error('Error setting start time:', error);
+            setError('Invalid start time selected');
+        } finally {
+            setShowStartPicker(false);
+        }
     };
 
     const handleEndTimeConfirm = (date) => {
-        setSleepData(prev => ({ ...prev, end_time: date }));
-        setShowEndPicker(false);
+        try {
+            if (!date || isNaN(date.getTime())) {
+                throw new Error('Invalid end time selected');
+            }
+
+            const now = new Date();
+            if (date > now) {
+                setError('Cannot select a future end time');
+                return;
+            }
+
+            const maxDate = getMaximumAllowedDate();
+            if (date > maxDate) {
+                setError('Cannot select a date beyond tomorrow');
+                return;
+            }
+
+            console.log('End time selected:', {
+                selected: SleepService.formatTimeForDisplay(date),
+                maxAllowed: SleepService.formatTimeForDisplay(maxDate),
+                currentTime: SleepService.formatTimeForDisplay(now)
+            });
+            
+            setSleepData(prev => ({ ...prev, end_time: date }));
+        } catch (error) {
+            console.error('Error setting end time:', error);
+            setError('Invalid end time selected');
+        } finally {
+            setShowEndPicker(false);
+        }
     };
 
     return (
@@ -276,7 +359,7 @@ const EditSleepScreen = ({ navigation, route }) => {
 
                             <Button
                                 title="Update Sleep Log"
-                                onPress={handleUpdate}
+                                onPress={handleSave}
                                 loading={loading}
                                 containerStyle={styles.button}
                                 buttonStyle={styles.buttonStyle}
