@@ -22,33 +22,44 @@ const EditSleepScreen = ({ navigation, route }) => {
     const { sleepLog } = route.params;
     const [loading, setLoading] = useState(false);
     const [sleepData, setSleepData] = useState(() => {
-        // The incoming sleepLog times are in UTC, convert them to Manila time
-        const utcStart = new Date(sleepLog.start_time);
-        const utcEnd = new Date(sleepLog.end_time);
-        
-        // Convert UTC to Manila time by adding 8 hours
-        const manilaStart = new Date(utcStart.getTime() + (8 * 60 * 60 * 1000));
-        const manilaEnd = new Date(utcEnd.getTime() + (8 * 60 * 60 * 1000));
+        try {
+            // Log the raw incoming data from database
+            console.log('Raw sleep log from database:', {
+                id: sleepLog.id,
+                raw_start: sleepLog.start_time,
+                raw_end: sleepLog.end_time,
+                is_nap: sleepLog.is_nap,
+                quality: sleepLog.quality,
+                location: sleepLog.location
+            });
 
-        console.log('Initializing sleep data:', {
-            utc: {
-                start: utcStart.toISOString(),
-                end: utcEnd.toISOString()
-            },
-            manila: {
-                start: format(manilaStart, "yyyy-MM-dd HH:mm:ss"),
-                end: format(manilaEnd, "yyyy-MM-dd HH:mm:ss")
+            // Times from database are already in Manila time, just create Date objects
+            const startTime = new Date(sleepLog.start_time);
+            const endTime = new Date(sleepLog.end_time);
+
+            if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+                throw new Error('Invalid time values');
             }
-        });
 
-        return {
-            start_time: manilaStart,
-            end_time: manilaEnd,
-            is_nap: sleepLog.is_nap,
-            quality: sleepLog.quality || 'good',
-            location: sleepLog.location || 'crib',
-            notes: sleepLog.notes || ''
-        };
+            console.log('Manila times from database:', {
+                start: format(startTime, "yyyy-MM-dd HH:mm:ss"),
+                end: format(endTime, "yyyy-MM-dd HH:mm:ss")
+            });
+
+            return {
+                start_time: startTime,
+                end_time: endTime,
+                is_nap: sleepLog.is_nap,
+                quality: sleepLog.quality || 'good',
+                location: sleepLog.location || 'crib',
+                notes: sleepLog.notes || ''
+            };
+        } catch (error) {
+            console.error('Error initializing sleep data:', error);
+            Alert.alert('Error', 'Failed to load sleep data');
+            navigation.goBack();
+            return null;
+        }
     });
     const [showStartPicker, setShowStartPicker] = useState(false);
     const [showEndPicker, setShowEndPicker] = useState(false);
@@ -94,21 +105,20 @@ const EditSleepScreen = ({ navigation, route }) => {
                 return;
             }
 
-            console.log('Updating sleep log:', {
+            console.log('Updating sleep log with Manila times:', {
                 id: sleepLog.id,
                 manila: {
                     start: format(sleepData.start_time, "yyyy-MM-dd HH:mm:ss"),
                     end: format(sleepData.end_time, "yyyy-MM-dd HH:mm:ss")
-                },
-                duration: `${Math.round((sleepData.end_time - sleepData.start_time) / (1000 * 60))} minutes`
+                }
             });
 
-            // The updateSleepLog service method will handle the conversion to UTC
+            // Let SleepService.updateSleepLog handle the conversion to UTC
             await SleepService.updateSleepLog(sleepLog.id, sleepData);
             navigation.goBack();
         } catch (error) {
-            setError('Failed to update sleep log. Please try again.');
-            console.error('Error updating sleep log:', error.message);
+            console.error('Error updating sleep log:', error);
+            setError(error.message || 'Failed to update sleep log. Please try again.');
         } finally {
             setLoading(false);
         }

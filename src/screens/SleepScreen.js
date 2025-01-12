@@ -161,31 +161,33 @@ const SleepScreen = ({ navigation }) => {
                     duration: log.duration_minutes
                 });
 
-                // Use SleepService to handle time conversion
-                const manilaStartTime = SleepService.convertToManilaTime(log.start_time);
-                const manilaEndTime = SleepService.convertToManilaTime(log.end_time);
+                // The times are already in Manila time from getSleepLogs service
+                const startTime = new Date(log.start_time);
+                const endTime = new Date(log.end_time);
 
-                if (!manilaStartTime || !manilaEndTime) {
+                if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
                     console.error('Invalid time values for log:', {
                         id: log.id,
                         start: log.start_time,
-                        end: log.end_time,
-                        convertedStart: manilaStartTime,
-                        convertedEnd: manilaEndTime
+                        end: log.end_time
                     });
                     return null;
                 }
 
-                // Format times for display
-                const startTimeDisplay = SleepService.formatTimeForDisplay(manilaStartTime);
-                const endTimeDisplay = format(manilaEndTime, 'h:mm a');
+                // Format times for display using consistent formatting
+                const startTimeDisplay = format(startTime, 'MMM d, h:mm a');
+                const endTimeDisplay = format(endTime, 'h:mm a');
 
                 console.log('Formatted sleep log:', {
                     id: log.id,
                     type: log.is_nap ? 'Nap' : 'Night Sleep',
                     startTime: startTimeDisplay,
                     endTime: endTimeDisplay,
-                    duration: SleepService.formatDuration(log.duration_minutes)
+                    duration: SleepService.formatDuration(log.duration_minutes),
+                    times: {
+                        start: format(startTime, "yyyy-MM-dd HH:mm:ss"),
+                        end: format(endTime, "yyyy-MM-dd HH:mm:ss")
+                    }
                 });
 
                 return (

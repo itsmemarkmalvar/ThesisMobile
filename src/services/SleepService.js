@@ -17,8 +17,12 @@ export const SleepService = {
             endDate.setHours(23, 59, 59, 999);  // 11:59:59.999 PM Manila time
 
             // Convert to UTC for API request
-            const utcStartDate = new Date(startDate.getTime() - (8 * 60 * 60 * 1000)); // Subtract 8 hours for UTC
-            const utcEndDate = new Date(endDate.getTime() - (8 * 60 * 60 * 1000));    // Subtract 8 hours for UTC
+            const utcStartDate = SleepService.convertToUTC(startDate);
+            const utcEndDate = SleepService.convertToUTC(endDate);
+
+            if (!utcStartDate || !utcEndDate) {
+                throw new Error('Invalid date range');
+            }
 
             console.log('Date ranges:', {
                 manila: {
@@ -26,8 +30,8 @@ export const SleepService = {
                     end: format(endDate, "yyyy-MM-dd HH:mm:ss")
                 },
                 utc: {
-                    start: utcStartDate.toISOString(),
-                    end: utcEndDate.toISOString()
+                    start: format(utcStartDate, "yyyy-MM-dd HH:mm:ss"),
+                    end: format(utcEndDate, "yyyy-MM-dd HH:mm:ss")
                 }
             });
 
@@ -50,17 +54,19 @@ export const SleepService = {
                     .map(log => {
                         try {
                             // Convert UTC strings to Date objects and adjust for Manila time
-                            const utcStart = new Date(log.start_time);
-                            const utcEnd = new Date(log.end_time);
+                            const manilaStart = SleepService.convertToManilaTime(new Date(log.start_time));
+                            const manilaEnd = SleepService.convertToManilaTime(new Date(log.end_time));
                             
-                            const manilaStart = new Date(utcStart.getTime() + (8 * 60 * 60 * 1000));
-                            const manilaEnd = new Date(utcEnd.getTime() + (8 * 60 * 60 * 1000));
+                            if (!manilaStart || !manilaEnd) {
+                                console.error('Invalid time conversion for log:', log.id);
+                                return null;
+                            }
 
                             console.log('Processing sleep log:', {
                                 id: log.id,
                                 utc: {
-                                    start: utcStart.toISOString(),
-                                    end: utcEnd.toISOString()
+                                    start: format(new Date(log.start_time), "yyyy-MM-dd HH:mm:ss"),
+                                    end: format(new Date(log.end_time), "yyyy-MM-dd HH:mm:ss")
                                 },
                                 manila: {
                                     start: format(manilaStart, "yyyy-MM-dd HH:mm:ss"),
@@ -164,59 +170,22 @@ export const SleepService = {
     // Convert UTC to Manila time
     convertToManilaTime: (utcDate) => {
         try {
-            if (!utcDate) return null;
-            
-            // Log the incoming date for debugging
-            console.log('Converting to Manila time:', {
-                input: utcDate,
-                type: typeof utcDate,
-                isManila: SleepService.isManilaTZ()
-            });
-
-            // Parse the UTC date string if it's not already a Date object
-            let date;
-            if (typeof utcDate === 'string') {
-                // Remove microseconds and ensure proper format
-                const cleanDate = utcDate
-                    .replace(/\.\d+Z$/, 'Z')  // Remove microseconds but keep the Z
-                    .replace(/\.000000Z$/, 'Z'); // Also handle .000000Z format
-                date = new Date(cleanDate);
-            } else if (utcDate instanceof Date) {
-                date = utcDate;
-            } else {
-                console.warn('Unexpected date format:', utcDate);
-                return null;
-            }
-            
-            if (isNaN(date.getTime())) {
-                console.warn('Invalid date after parsing:', {
-                    original: utcDate,
-                    parsed: date
-                });
+            if (!utcDate || !(utcDate instanceof Date) || isNaN(utcDate)) {
+                console.warn('Invalid date provided to convertToManilaTime:', utcDate);
                 return null;
             }
 
-            // If already in Manila timezone, return as is
-            if (SleepService.isManilaTZ()) {
-                console.log('Already in Manila timezone, returning original date');
-                return date;
-            }
-
-            // Convert to Manila time using the date's timestamp
-            const manilaDate = new Date(date.getTime() + (8 * 60 * 60 * 1000));
-
-            console.log('Conversion result:', {
-                input: utcDate,
-                output: manilaDate,
-                formatted: format(manilaDate, "yyyy-MM-dd'T'HH:mm:ss")
+            // Add 8 hours to convert UTC to Manila time
+            const manilaTime = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000));
+            
+            console.log('Converting UTC to Manila:', {
+                utc: format(utcDate, "yyyy-MM-dd HH:mm:ss"),
+                manila: format(manilaTime, "yyyy-MM-dd HH:mm:ss")
             });
-
-            return manilaDate;
+            
+            return manilaTime;
         } catch (error) {
-            console.error('Error in convertToManilaTime:', {
-                error: error.message,
-                input: utcDate
-            });
+            console.error('Error in convertToManilaTime:', error);
             return null;
         }
     },
@@ -229,23 +198,22 @@ export const SleepService = {
                 return null;
             }
 
-            // If already in Manila timezone, convert to UTC
-            if (SleepService.isManilaTZ()) {
-                console.log('Converting from Manila timezone to UTC');
-                const utcDate = new Date(manilaDate.getTime() - (8 * 60 * 60 * 1000));
-                return utcDate.toISOString();
-            }
-
-            // If not in Manila timezone, assume the date is already UTC
-            console.log('Not in Manila timezone, treating as UTC');
-            return manilaDate.toISOString();
+            // Subtract 8 hours to convert Manila time to UTC
+            const utcDate = new Date(manilaDate.getTime() - (8 * 60 * 60 * 1000));
+            
+            console.log('Converting Manila to UTC:', {
+                manila: format(manilaDate, "yyyy-MM-dd HH:mm:ss"),
+                utc: format(utcDate, "yyyy-MM-dd HH:mm:ss")
+            });
+            
+            return utcDate;
         } catch (error) {
             console.error('Error in convertToUTC:', error);
             return null;
         }
     },
 
-    // Format time for display
+    // Format time for display in Manila timezone
     formatTimeForDisplay: (date) => {
         try {
             if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
@@ -268,16 +236,12 @@ export const SleepService = {
             }
 
             // Convert Manila time to UTC
-            const manilaStart = new Date(sleepData.start_time);
-            const manilaEnd = new Date(sleepData.end_time);
+            const utcStart = SleepService.convertToUTC(sleepData.start_time);
+            const utcEnd = SleepService.convertToUTC(sleepData.end_time);
 
-            if (isNaN(manilaStart.getTime()) || isNaN(manilaEnd.getTime())) {
+            if (!utcStart || !utcEnd) {
                 throw new Error('Invalid start time or end time');
             }
-
-            // Convert to UTC by subtracting 8 hours
-            const utcStart = new Date(manilaStart.getTime() - (8 * 60 * 60 * 1000));
-            const utcEnd = new Date(manilaEnd.getTime() - (8 * 60 * 60 * 1000));
 
             const formattedData = {
                 ...sleepData,
@@ -288,25 +252,27 @@ export const SleepService = {
 
             console.log('Creating sleep log:', {
                 manila: {
-                    start: format(manilaStart, "yyyy-MM-dd HH:mm:ss"),
-                    end: format(manilaEnd, "yyyy-MM-dd HH:mm:ss")
+                    start: format(sleepData.start_time, "yyyy-MM-dd HH:mm:ss"),
+                    end: format(sleepData.end_time, "yyyy-MM-dd HH:mm:ss")
                 },
                 utc: {
-                    start: utcStart.toISOString(),
-                    end: utcEnd.toISOString()
+                    start: format(utcStart, "yyyy-MM-dd HH:mm:ss"),
+                    end: format(utcEnd, "yyyy-MM-dd HH:mm:ss")
                 },
-                duration: `${Math.round((manilaEnd - manilaStart) / (1000 * 60))} minutes`
+                duration: `${Math.round((sleepData.end_time - sleepData.start_time) / (1000 * 60))} minutes`
             });
 
             const response = await api.post('/sleep', formattedData);
             
             // Convert response times back to Manila time
             if (response.data) {
-                const responseUtcStart = new Date(response.data.start_time);
-                const responseUtcEnd = new Date(response.data.end_time);
+                const manilaStart = SleepService.convertToManilaTime(new Date(response.data.start_time));
+                const manilaEnd = SleepService.convertToManilaTime(new Date(response.data.end_time));
                 
-                response.data.start_time = new Date(responseUtcStart.getTime() + (8 * 60 * 60 * 1000));
-                response.data.end_time = new Date(responseUtcEnd.getTime() + (8 * 60 * 60 * 1000));
+                if (manilaStart && manilaEnd) {
+                    response.data.start_time = manilaStart;
+                    response.data.end_time = manilaEnd;
+                }
             }
             
             return response.data;
@@ -324,17 +290,13 @@ export const SleepService = {
                 throw new Error('Start time and end time are required');
             }
 
-            // Convert Manila time to UTC
-            const manilaStart = new Date(sleepData.start_time);
-            const manilaEnd = new Date(sleepData.end_time);
+            // Convert Manila time to UTC for database storage
+            const utcStart = SleepService.convertToUTC(sleepData.start_time);
+            const utcEnd = SleepService.convertToUTC(sleepData.end_time);
 
-            if (isNaN(manilaStart.getTime()) || isNaN(manilaEnd.getTime())) {
+            if (!utcStart || !utcEnd) {
                 throw new Error('Invalid start time or end time');
             }
-
-            // Convert to UTC by subtracting 8 hours
-            const utcStart = new Date(manilaStart.getTime() - (8 * 60 * 60 * 1000));
-            const utcEnd = new Date(manilaEnd.getTime() - (8 * 60 * 60 * 1000));
 
             const formattedData = {
                 ...sleepData,
@@ -345,30 +307,31 @@ export const SleepService = {
             console.log('Updating sleep log:', {
                 id,
                 manila: {
-                    start: format(manilaStart, "yyyy-MM-dd HH:mm:ss"),
-                    end: format(manilaEnd, "yyyy-MM-dd HH:mm:ss")
+                    start: format(sleepData.start_time, "yyyy-MM-dd HH:mm:ss"),
+                    end: format(sleepData.end_time, "yyyy-MM-dd HH:mm:ss")
                 },
                 utc: {
-                    start: utcStart.toISOString(),
-                    end: utcEnd.toISOString()
-                },
-                duration: `${Math.round((manilaEnd - manilaStart) / (1000 * 60))} minutes`
+                    start: format(utcStart, "yyyy-MM-dd HH:mm:ss"),
+                    end: format(utcEnd, "yyyy-MM-dd HH:mm:ss")
+                }
             });
 
             const response = await api.put(`/sleep/${id}`, formattedData);
             
             // Convert response times back to Manila time
             if (response.data) {
-                const responseUtcStart = new Date(response.data.start_time);
-                const responseUtcEnd = new Date(response.data.end_time);
+                const manilaStart = SleepService.convertToManilaTime(new Date(response.data.start_time));
+                const manilaEnd = SleepService.convertToManilaTime(new Date(response.data.end_time));
                 
-                response.data.start_time = new Date(responseUtcStart.getTime() + (8 * 60 * 60 * 1000));
-                response.data.end_time = new Date(responseUtcEnd.getTime() + (8 * 60 * 60 * 1000));
+                if (manilaStart && manilaEnd) {
+                    response.data.start_time = manilaStart;
+                    response.data.end_time = manilaEnd;
+                }
             }
             
             return response.data;
         } catch (error) {
-            console.error('Error in updateSleepLog:', error.message);
+            console.error('Error in updateSleepLog:', error);
             throw error;
         }
     },

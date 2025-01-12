@@ -29,9 +29,16 @@ const AddSleepScreen = ({ navigation }) => {
     const [loading, setLoading] = useState(false);
     const [sleepData, setSleepData] = useState(() => {
         try {
+            // Get current time in Manila timezone by adding 8 hours to UTC
             const now = new Date();
-            const defaultEndTime = new Date(now);
-            const defaultStartTime = new Date(now);
+            const manilaTime = SleepService.convertToManilaTime(now);
+            
+            if (!manilaTime) {
+                throw new Error('Failed to convert to Manila time');
+            }
+
+            const defaultEndTime = new Date(manilaTime);
+            const defaultStartTime = new Date(manilaTime);
             defaultStartTime.setHours(defaultStartTime.getHours() - 1); // Default to 1 hour ago
             
             // Validate the dates
@@ -39,10 +46,11 @@ const AddSleepScreen = ({ navigation }) => {
                 throw new Error('Invalid default dates');
             }
             
-            console.log('Initializing with time:', {
-                now: SleepService.formatTimeForDisplay(now),
-                defaultStartTime: SleepService.formatTimeForDisplay(defaultStartTime),
-                defaultEndTime: SleepService.formatTimeForDisplay(defaultEndTime)
+            console.log('Initializing with Manila time:', {
+                utc: format(now, "yyyy-MM-dd HH:mm:ss"),
+                manila: format(manilaTime, "yyyy-MM-dd HH:mm:ss"),
+                defaultStartTime: format(defaultStartTime, "yyyy-MM-dd HH:mm:ss"),
+                defaultEndTime: format(defaultEndTime, "yyyy-MM-dd HH:mm:ss")
             });
             
             return {
@@ -55,8 +63,12 @@ const AddSleepScreen = ({ navigation }) => {
             };
         } catch (error) {
             console.error('Error initializing sleep data:', error);
-            // Fallback to current time if there's an error
-            const fallbackTime = new Date();
+            // Fallback to current Manila time if there's an error
+            const now = new Date();
+            const fallbackTime = SleepService.convertToManilaTime(now);
+            if (!fallbackTime) {
+                throw new Error('Failed to initialize sleep data');
+            }
             return {
                 start_time: fallbackTime,
                 end_time: new Date(fallbackTime.getTime() + 60 * 60 * 1000), // 1 hour later
