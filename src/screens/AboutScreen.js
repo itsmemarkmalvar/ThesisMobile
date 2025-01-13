@@ -39,14 +39,14 @@ const AboutScreen = ({ navigation }) => {
               <View style={styles.iconContainer}>
                 <MaterialIcons name="child-care" size={60} color="#4A90E2" />
               </View>
-              <Text style={styles.appName}>Baby Care</Text>
+              <Text style={styles.appName}>BiniBaby</Text>
               <Text style={styles.version}>Version 1.1.8</Text>
             </View>
 
             <View style={styles.descriptionSection}>
-              <Text style={styles.sectionTitle}>About Baby Care</Text>
+              <Text style={styles.sectionTitle}>About Binibaby</Text>
               <Text style={styles.description}>
-                Baby Care is your trusted companion in tracking and managing your baby's daily activities. 
+                Binibaby is your trusted companion in tracking and managing your baby's daily activities. 
                 Our app helps you monitor feedings, diapers, sleep patterns, and more, making it easier 
                 to provide the best care for your little one.
               </Text>
@@ -64,10 +64,10 @@ const AboutScreen = ({ navigation }) => {
               <Text style={styles.sectionTitle}>Contact Us</Text>
               <TouchableOpacity 
                 style={styles.contactItem}
-                onPress={() => Linking.openURL('mailto:support@babycare.com')}
+                onPress={() => Linking.openURL('mailto:support@binibaby-api.com')}
               >
                 <MaterialIcons name="email" size={20} color="#4A90E2" />
-                <Text style={styles.contactText}>support@babycare.com</Text>
+                <Text style={styles.contactText}>support@binibaby-api.com</Text>
               </TouchableOpacity>
             </View>
           </View>

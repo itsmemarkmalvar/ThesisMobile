@@ -122,13 +122,14 @@ const EditSleepScreen = ({ navigation, route }) => {
             }
 
             console.log('⏰ Updating sleep log:', {
+                id: sleepLog.id,
                 start_time: SleepService.formatTimeForDisplay(sleepData.start_time),
                 end_time: SleepService.formatTimeForDisplay(sleepData.end_time),
                 duration: `${Math.round((sleepData.end_time - sleepData.start_time) / (1000 * 60))} minutes`,
                 currentTime: SleepService.formatTimeForDisplay(now)
             });
 
-            await SleepService.updateSleepLog(route.params.id, sleepData);
+            await SleepService.updateSleepLog(sleepLog.id, sleepData);
             navigation.goBack();
         } catch (error) {
             console.error('Error updating sleep log:', error);
