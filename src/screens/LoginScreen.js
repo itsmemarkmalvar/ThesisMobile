@@ -179,16 +179,14 @@ const LoginScreen = ({ navigation }) => {
       if (response.data.token) {
         await AsyncStorage.setItem('userToken', response.data.token);
         await TimezoneService.syncWithBackend();  // Sync timezone with backend
-        navigation.replace('MainApp');
         
-        // Check if user has baby data
+        // Check if user has baby data before navigation
         try {
           const babyResponse = await ApiService.get('/baby');
           const hasExistingBaby = babyResponse.data?.data;
           
           if (hasExistingBaby) {
             // Existing user - go straight to MainApp
-            // Set hasCompletedOnboarding to true since user has baby data
             await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
             await cacheBabyData(hasExistingBaby);
             navigation.reset({

@@ -193,7 +193,13 @@ const SleepScreen = ({ navigation }) => {
                 return (
                     <TouchableOpacity
                         key={log.id}
-                        onPress={() => navigation.navigate('EditSleep', { sleepLog: log })}
+                        onPress={() => navigation.navigate('EditSleep', { 
+                            sleepLog: {
+                                ...log,
+                                start_time: log.start_time.toISOString(),
+                                end_time: log.end_time.toISOString()
+                            }
+                        })}
                         style={styles.logTouchable}
                     >
                         <Card containerStyle={styles.logCard}>

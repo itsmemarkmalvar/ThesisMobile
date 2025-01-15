@@ -33,7 +33,7 @@ const EditSleepScreen = ({ navigation, route }) => {
                 location: sleepLog.location
             });
 
-            // Times from database are already in Manila time, just create Date objects
+            // Convert ISO strings to Date objects
             const startTime = new Date(sleepLog.start_time);
             const endTime = new Date(sleepLog.end_time);
 
@@ -41,7 +41,7 @@ const EditSleepScreen = ({ navigation, route }) => {
                 throw new Error('Invalid time values');
             }
 
-            console.log('Manila times from database:', {
+            console.log('Converted times:', {
                 start: format(startTime, "yyyy-MM-dd HH:mm:ss"),
                 end: format(endTime, "yyyy-MM-dd HH:mm:ss")
             });
