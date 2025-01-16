@@ -682,6 +682,7 @@ const ImmunizationScreen = ({ navigation }) => {
 
   const renderVaccineItem = (vaccine, ageGroup) => (
     <TouchableOpacity
+      key={`vaccine-${vaccine.id}-${ageGroup.id}`}
       style={styles.vaccineItem}
       onPress={() => {
         if (vaccine.completed) {
@@ -693,11 +694,27 @@ const ImmunizationScreen = ({ navigation }) => {
             [
               { text: 'OK' },
               {
+                text: 'Mark as Completed',
+                onPress: () => {
+                  setSelectedVaccineForCompletion({ ...vaccine, ageGroup: ageGroup.ageGroup });
+                  setCompletionDetails({
+                    notes: '',
+                    administered_by: '',
+                    administered_at: ''
+                  });
+                  setShowCompletionForm(true);
+                }
+              },
+              {
                 text: 'Reschedule',
                 onPress: () => {
                   setSelectedVaccineForScheduling({ ...vaccine, ageGroup: ageGroup.ageGroup });
                   setShowScheduleForm(true);
                 }
+              },
+              {
+                text: 'Cancel',
+                style: 'cancel'
               }
             ]
           );
