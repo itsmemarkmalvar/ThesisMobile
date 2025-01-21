@@ -322,7 +322,7 @@ const LoginScreen = ({ navigation }) => {
             <View style={loginStyles.logoSection}>
               <View style={loginStyles.iconContainer}>
                 <Image
-                  source={require('../../assets/Logo.png')}
+                  source={require('../../assets/BinibabyIcon.png')}
                   style={loginStyles.logoImage}
                   resizeMode="contain"
                 />

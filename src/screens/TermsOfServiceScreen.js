@@ -33,7 +33,7 @@ const TermsOfServiceScreen = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.section}>
-            <Text style={styles.lastUpdated}>Last updated: January 2024</Text>
+            <Text style={styles.lastUpdated}>Last updated: January 2025</Text>
 
             <View style={styles.termsSection}>
               <Text style={styles.sectionTitle}>1. Acceptance of Terms</Text>
@@ -104,7 +104,7 @@ const TermsOfServiceScreen = ({ navigation }) => {
               <Text style={styles.termsText}>
                 For any questions about these Terms, please contact us at:
                 {'\n\n'}
-                support@babycare.com
+                support@binibaby-api.com
               </Text>
             </View>
           </View>

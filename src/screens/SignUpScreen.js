@@ -305,20 +305,25 @@ const SignUpScreen = ({ navigation }) => {
               </View>
 
               {/* Terms and Conditions */}
-              <TouchableOpacity
-                style={signUpStyles.termsContainer}
-                onPress={() => setAcceptedTerms(!acceptedTerms)}
-              >
-                <MaterialIcons
-                  name={acceptedTerms ? "check-box" : "check-box-outline-blank"}
-                  size={24}
-                  color="#4A90E2"
-                  style={signUpStyles.checkbox}
-                />
-                <Text style={signUpStyles.termsText}>
-                  I agree to the Terms and Conditions
-                </Text>
-              </TouchableOpacity>
+              <View style={signUpStyles.termsContainer}>
+                <TouchableOpacity
+                  style={signUpStyles.checkboxContainer}
+                  onPress={() => setAcceptedTerms(!acceptedTerms)}
+                >
+                  <MaterialIcons
+                    name={acceptedTerms ? "check-box" : "check-box-outline-blank"}
+                    size={24}
+                    color="#4A90E2"
+                    style={signUpStyles.checkbox}
+                  />
+                </TouchableOpacity>
+                <View style={signUpStyles.termsTextContainer}>
+                  <Text style={signUpStyles.termsText}>I agree to the </Text>
+                  <TouchableOpacity onPress={() => navigation.navigate('TermsOfService')}>
+                    <Text style={[signUpStyles.termsText, signUpStyles.termsLink]}>Terms and Conditions</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
 
               {/* Sign Up Button */}
               <TouchableOpacity

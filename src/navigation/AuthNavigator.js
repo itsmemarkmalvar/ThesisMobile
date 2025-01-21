@@ -3,6 +3,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { LoginScreen, SignUpScreen, ForgotPasswordScreen } from '../screens';
 import EmailVerificationScreen from '../screens/EmailVerificationScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
+import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
 import { 
   BabyNameGenderScreen,
   BabyBirthScreen,
@@ -30,6 +31,7 @@ const AuthNavigator = () => {
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
       <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
+      <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
       <Stack.Screen name="Onboarding" component={BabyNameGenderScreen} />
       <Stack.Screen name="BabyBirth" component={BabyBirthScreen} />
       <Stack.Screen name="BabyMeasurements" component={BabyMeasurementsScreen} />

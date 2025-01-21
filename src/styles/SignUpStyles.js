@@ -107,19 +107,26 @@ export const signUpStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
-    marginTop: 10,
+    paddingHorizontal: 10,
+  },
+  checkboxContainer: {
+    marginRight: 10,
   },
   checkbox: {
-    marginRight: 10,
+    marginRight: 5,
+  },
+  termsTextContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
   termsText: {
     fontSize: 14,
-    color: '#333333',
-    flex: 1,
+    color: '#666',
   },
   termsLink: {
     color: '#4A90E2',
-    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   divider: {
     flexDirection: 'row',

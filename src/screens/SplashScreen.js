@@ -11,7 +11,7 @@ const SplashScreen = () => {
       end={{ x: 1, y: 1 }}
     >
       <Image
-        source={require('../../assets/Logo.png')}
+        source={require('../../assets/BinibabyIcon.png')}
         style={styles.logo}
         resizeMode="contain"
       />
