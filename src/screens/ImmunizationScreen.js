@@ -34,6 +34,9 @@ import * as Print from 'expo-print';
 import RNHTMLtoPDF from 'react-native-html-to-pdf';
 import { DateTimeService } from '../services/DateTimeService';
 import { format } from 'date-fns';
+import { Asset } from 'expo-asset';
+import * as FileSystem from 'expo-file-system';
+import BinibabyLogo from '../../assets/BinibabyIcon.png';
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -513,13 +516,96 @@ const ImmunizationScreen = ({ navigation }) => {
     }
   };
 
+  // Helper functions for PDF generation
+  const getTotalVaccineCount = () => {
+    let total = 0;
+    vaccines.forEach(ageGroup => {
+      total += ageGroup.vaccines.length;
+    });
+    return total;
+  };
+
+  const getCompletedVaccineCount = () => {
+    let completed = 0;
+    vaccines.forEach(ageGroup => {
+      ageGroup.vaccines.forEach(vaccine => {
+        if (vaccine.completed) completed++;
+      });
+    });
+    return completed;
+  };
+
+  const getChildInformation = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) throw new Error('No token found');
+      
+      const response = await axios.get(`${API_URL}/baby`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (response.data && response.data.data) {
+        return {
+          firstName: response.data.data.name,
+          lastName: '',
+          dateOfBirth: response.data.data.birth_date
+        };
+      }
+      
+      throw new Error('No baby data found');
+    } catch (error) {
+      console.error('Error fetching baby information:', error);
+      return {
+        firstName: 'Your',
+        lastName: 'Baby',
+        dateOfBirth: new Date().toISOString()
+      };
+    }
+  };
+
+  const getBase64Logo = async () => {
+    try {
+      // Load the image asset
+      const asset = Asset.fromModule(BinibabyLogo);
+      await asset.downloadAsync();
+
+      if (!asset.localUri) {
+        throw new Error('Failed to load logo asset');
+      }
+
+      // Read the file and convert to base64
+      const base64 = await FileSystem.readAsStringAsync(asset.localUri, {
+        encoding: FileSystem.EncodingType.Base64
+      });
+
+      // Return with proper data URI format for PNG
+      return `data:image/png;base64,${base64}`;
+    } catch (error) {
+      console.error('Error converting logo to base64:', error);
+      return null;
+    }
+  };
+
   const handleDownloadSchedule = async () => {
     try {
       setDownloading(true);
+      
+      // Get all required data in parallel
+      const [childInfo, logoBase64, token] = await Promise.all([
+        getChildInformation(),
+        getBase64Logo(),
+        AsyncStorage.getItem('userToken')
+      ]);
 
-      // Get baby information and vaccination data
-      const token = await AsyncStorage.getItem('userToken');
       if (!token) throw new Error('No token found');
+
+      const childName = childInfo.firstName;
+      const dateOfBirth = childInfo.dateOfBirth ? 
+        DateTimeService.formatForDisplay(new Date(childInfo.dateOfBirth)) : 
+        'Not specified';
 
       // Generate HTML content
       const html = `
@@ -529,76 +615,237 @@ const ImmunizationScreen = ({ navigation }) => {
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-              body { font-family: Arial, sans-serif; padding: 20px; }
-              .header { text-align: center; margin-bottom: 30px; }
-              .title { font-size: 24px; font-weight: bold; color: #2E3A59; }
-              .subtitle { font-size: 16px; color: #666; }
-              .section { margin-bottom: 30px; }
-              .section-title { 
-                font-size: 18px; 
-                font-weight: bold; 
+              @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+              body { 
+                font-family: 'Poppins', Arial, sans-serif; 
+                padding: 0; 
+                margin: 0;
                 color: #2E3A59;
-                border-bottom: 2px solid #eee;
-                padding-bottom: 5px;
-                margin-bottom: 15px;
+              }
+              .header { 
+                background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%);
+                padding: 40px;
+                color: white;
+                margin-bottom: 40px;
+              }
+              .header-content {
+                max-width: 1200px;
+                margin: 0 auto;
+                display: flex;
+                align-items: center;
+                gap: 30px;
+              }
+              .logo-container {
+                background: white;
+                width: 80px;
+                height: 80px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 15px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+              }
+              .logo {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+              }
+              .header-text {
+                flex: 1;
+              }
+              .title { 
+                font-size: 28px; 
+                font-weight: 700;
+                margin: 0 0 10px 0;
+              }
+              .subtitle { 
+                font-size: 16px;
+                opacity: 0.9;
+                margin: 0;
+              }
+              .report-info {
+                background: #F8FAFC;
+                border-radius: 12px;
+                padding: 20px;
+                margin: 20px 40px;
+                border: 1px solid #E2E8F0;
+              }
+              .info-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+              }
+              .info-item {
+                display: flex;
+                flex-direction: column;
+              }
+              .info-label {
+                font-size: 14px;
+                color: #64748B;
+                margin-bottom: 4px;
+              }
+              .info-value {
+                font-size: 16px;
+                font-weight: 500;
+                color: #1E293B;
+              }
+              .section { 
+                padding: 0 40px;
+                margin-bottom: 30px; 
+              }
+              .section-title { 
+                font-size: 20px; 
+                font-weight: 600; 
+                color: #1E293B;
+                border-bottom: 2px solid #E2E8F0;
+                padding-bottom: 10px;
+                margin-bottom: 20px;
               }
               .vaccine-item {
+                background: white;
+                border: 1px solid #E2E8F0;
+                border-radius: 12px;
+                padding: 20px;
                 margin-bottom: 15px;
-                padding: 10px;
-                background-color: #f8f9fa;
-                border-radius: 5px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+              }
+              .age-group {
+                font-size: 18px;
+                font-weight: 600;
+                color: #1E293B;
+                margin-bottom: 15px;
+                padding-bottom: 10px;
+                border-bottom: 2px solid #E2E8F0;
+              }
+              .vaccine-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 15px;
+              }
+              .vaccine-card {
+                background: #F8FAFC;
+                border-radius: 8px;
+                padding: 15px;
               }
               .vaccine-name {
-                font-weight: bold;
-                color: #2E3A59;
-                margin-bottom: 5px;
+                font-size: 16px;
+                font-weight: 500;
+                color: #1E293B;
+                margin-bottom: 8px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
               }
-              .vaccine-details {
+              .status-indicator {
+                display: inline-flex;
+                align-items: center;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: 500;
+              }
+              .status-completed {
+                background: #DCFCE7;
+                color: #166534;
+              }
+              .status-scheduled {
+                background: #FEF3C7;
+                color: #92400E;
+              }
+              .status-pending {
+                background: #F1F5F9;
+                color: #64748B;
+              }
+              .vaccine-date {
                 font-size: 14px;
-                color: #666;
+                color: #64748B;
+                margin-top: 4px;
               }
               .footer {
-                margin-top: 40px;
+                margin: 40px;
+                padding-top: 20px;
+                border-top: 1px solid #E2E8F0;
                 text-align: center;
                 font-size: 12px;
-                color: #666;
+                color: #64748B;
               }
             </style>
           </head>
           <body>
             <div class="header">
-              <div class="title">Vaccination Schedule</div>
-              <div class="subtitle">Generated on ${DateTimeService.formatForDisplay(new Date())}</div>
+              <div class="header-content">
+                <div class="logo-container">
+                  ${logoBase64 ? 
+                    `<img src="${logoBase64}" class="logo" alt="Binibaby Logo">` : 
+                    '<div style="width: 100%; height: 100%; background: #E2E8F0; border-radius: 50%;"></div>'
+                  }
+                </div>
+                <div class="header-text">
+                  <h1 class="title">Vaccination Schedule Report</h1>
+                  <p class="subtitle">Generated on ${DateTimeService.formatForDisplay(new Date())}</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="report-info">
+              <div class="info-grid">
+                <div class="info-item">
+                  <span class="info-label">Child's Name</span>
+                  <span class="info-value">${childName}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Date of Birth</span>
+                  <span class="info-value">${dateOfBirth}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Total Vaccines</span>
+                  <span class="info-value">${getTotalVaccineCount()} vaccines</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Completed Vaccines</span>
+                  <span class="info-value">${getCompletedVaccineCount()} completed</span>
+                </div>
+              </div>
             </div>
 
             <div class="section">
-              <div class="section-title">Vaccination Schedule</div>
               ${vaccines.map(ageGroup => `
                 <div class="vaccine-item">
-                  <div class="vaccine-name">${ageGroup.ageGroup}</div>
-                  <div class="vaccine-details">
-                    ${ageGroup.vaccines.map(vaccine => {
-                      // Convert dates using DateTimeService
-                      const displayDate = vaccine.date ? DateTimeService.formatForDisplay(vaccine.date) : '';
-                      return `
-                        <div>
-                          ${vaccine.name} - 
-                          ${vaccine.completed 
-                            ? `✅ Completed on: ${displayDate}`
-                            : vaccine.date 
-                              ? `⏳ Scheduled for: ${displayDate}`
-                              : '◯ Not scheduled'
-                          }
+                  <div class="age-group">${ageGroup.ageGroup}</div>
+                  <div class="vaccine-grid">
+                    ${ageGroup.vaccines.map(vaccine => `
+                      <div class="vaccine-card">
+                        <div class="vaccine-name">
+                          ${vaccine.name}
+                          <span class="status-indicator ${
+                            vaccine.completed ? 'status-completed' : 
+                            vaccine.scheduled_date ? 'status-scheduled' : 
+                            'status-pending'
+                          }">
+                            ${
+                              vaccine.completed ? '✓ Completed' : 
+                              vaccine.scheduled_date ? '⏳ Scheduled' : 
+                              '○ Pending'
+                            }
+                          </span>
                         </div>
-                      `;
-                    }).join('')}
+                        ${vaccine.completed && vaccine.given_at ? 
+                          `<div class="vaccine-date">Completed on: ${DateTimeService.formatForDisplay(new Date(vaccine.given_at))}</div>` :
+                          vaccine.scheduled_date ? 
+                          `<div class="vaccine-date">Scheduled for: ${DateTimeService.formatForDisplay(new Date(vaccine.scheduled_date))}</div>` :
+                          ''
+                        }
+                      </div>
+                    `).join('')}
                   </div>
                 </div>
               `).join('')}
             </div>
 
             <div class="footer">
-              This document was generated automatically. Please consult with your healthcare provider for any questions.
+              <p>This document was generated automatically by BiniBaby. Please consult with your healthcare provider for any questions.</p>
+              <p>Generated on ${DateTimeService.formatForDisplay(new Date())}</p>
             </div>
           </body>
         </html>
