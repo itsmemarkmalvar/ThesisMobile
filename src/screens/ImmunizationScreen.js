@@ -568,35 +568,88 @@ const ImmunizationScreen = ({ navigation }) => {
 
   const getBase64Logo = async () => {
     try {
-      // Load the image asset
-      const asset = Asset.fromModule(BinibabyLogo);
-      await asset.downloadAsync();
+      console.log('Starting logo conversion process...');
 
-      if (!asset.localUri) {
-        throw new Error('Failed to load logo asset');
+      // Load the asset synchronously first
+      const asset = Asset.fromModule(require('../../assets/BinibabyIcon.png'));
+      
+      // Ensure the asset is downloaded
+      if (!asset.downloaded) {
+        console.log('Downloading asset...');
+        await asset.downloadAsync();
       }
 
-      // Read the file and convert to base64
-      const base64 = await FileSystem.readAsStringAsync(asset.localUri, {
-        encoding: FileSystem.EncodingType.Base64
-      });
+      // On Android, we need to use the local file system
+      if (Platform.OS === 'android') {
+        // Get the file extension from the URI
+        const extension = asset.localUri ? asset.localUri.split('.').pop() : 'png';
+        
+        // Create a local copy of the file
+        const localPath = `${FileSystem.cacheDirectory}logo.${extension}`;
+        
+        // Copy the file to local storage
+        await FileSystem.copyAsync({
+          from: asset.localUri || asset.uri,
+          to: localPath
+        });
 
-      // Return with proper data URI format for PNG
-      return `data:image/png;base64,${base64}`;
+        console.log('File copied to local storage:', localPath);
+
+        // Read the local file
+        const base64Data = await FileSystem.readAsStringAsync(localPath, {
+          encoding: FileSystem.EncodingType.Base64
+        });
+
+        // Clean up the temporary file
+        await FileSystem.deleteAsync(localPath, { idempotent: true });
+
+        return `data:image/png;base64,${base64Data}`;
+      } else {
+        // For iOS, we can read the asset directly
+        const base64Data = await FileSystem.readAsStringAsync(asset.localUri || asset.uri, {
+          encoding: FileSystem.EncodingType.Base64
+        });
+
+        return `data:image/png;base64,${base64Data}`;
+      }
     } catch (error) {
-      console.error('Error converting logo to base64:', error);
-      return null;
+      console.error('Error in getBase64Logo:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+      });
+      throw error;
     }
   };
 
   const handleDownloadSchedule = async () => {
     try {
       setDownloading(true);
-      
-      // Get all required data in parallel
-      const [childInfo, logoBase64, token] = await Promise.all([
+      console.log('Starting PDF generation process...');
+
+      // Get logo first
+      let logoBase64;
+      try {
+        console.log('Attempting to load logo...');
+        logoBase64 = await getBase64Logo();
+        
+        if (!logoBase64 || !logoBase64.startsWith('data:image/png;base64,')) {
+          throw new Error('Invalid logo data format');
+        }
+        
+        console.log('Logo loaded successfully, data length:', logoBase64.length);
+      } catch (logoError) {
+        console.error('Logo loading error:', logoError);
+        Alert.alert(
+          'Error',
+          'Failed to load logo for PDF generation. Please try again.'
+        );
+        return;
+      }
+
+      // Get other data
+      const [childInfo, token] = await Promise.all([
         getChildInformation(),
-        getBase64Logo(),
         AsyncStorage.getItem('userToken')
       ]);
 
@@ -607,7 +660,9 @@ const ImmunizationScreen = ({ navigation }) => {
         DateTimeService.formatForDisplay(new Date(childInfo.dateOfBirth)) : 
         'Not specified';
 
-      // Generate HTML content
+      console.log('Generating HTML content...');
+
+      // Generate HTML content with embedded logo
       const html = `
         <!DOCTYPE html>
         <html>
@@ -636,15 +691,15 @@ const ImmunizationScreen = ({ navigation }) => {
                 gap: 30px;
               }
               .logo-container {
-                background: white;
                 width: 80px;
                 height: 80px;
-                border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                padding: 15px;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                background: white;
+                border-radius: 50%;
+                padding: 10px;
+                margin-right: 20px;
               }
               .logo {
                 width: 100%;
@@ -776,10 +831,12 @@ const ImmunizationScreen = ({ navigation }) => {
             <div class="header">
               <div class="header-content">
                 <div class="logo-container">
-                  ${logoBase64 ? 
-                    `<img src="${logoBase64}" class="logo" alt="Binibaby Logo">` : 
-                    '<div style="width: 100%; height: 100%; background: #E2E8F0; border-radius: 50%;"></div>'
-                  }
+                  <img 
+                    src="${logoBase64}" 
+                    class="logo" 
+                    alt="Binibaby Logo"
+                    style="width: 100%; height: 100%; object-fit: contain;"
+                  />
                 </div>
                 <div class="header-text">
                   <h1 class="title">Vaccination Schedule Report</h1>
@@ -851,11 +908,15 @@ const ImmunizationScreen = ({ navigation }) => {
         </html>
       `;
 
-      // Generate PDF using expo-print
+      console.log('Generating PDF...');
+
+      // Generate PDF with base64 option set to false
       const { uri } = await Print.printToFileAsync({
         html,
         base64: false
       });
+
+      console.log('PDF generated successfully at:', uri);
 
       // Share the PDF
       if (await Sharing.isAvailableAsync()) {
@@ -863,14 +924,18 @@ const ImmunizationScreen = ({ navigation }) => {
           mimeType: 'application/pdf',
           dialogTitle: 'Download Vaccination Schedule'
         });
+        console.log('PDF shared successfully');
       } else {
-        Alert.alert('Error', 'Sharing is not available on this device');
+        throw new Error('Sharing is not available on this device');
       }
 
-      setDownloading(false);
     } catch (error) {
-      console.error('Error downloading schedule:', error);
-      Alert.alert('Error', 'Failed to download vaccination schedule');
+      console.error('Error in handleDownloadSchedule:', error);
+      Alert.alert(
+        'Error',
+        `Failed to download vaccination schedule: ${error.message}`
+      );
+    } finally {
       setDownloading(false);
     }
   };
