@@ -19,6 +19,8 @@ const AboutScreen = ({ navigation }) => {
       <LinearGradient
         colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
         style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
         <View style={styles.header}>
           <TouchableOpacity
@@ -37,7 +39,11 @@ const AboutScreen = ({ navigation }) => {
           <View style={styles.section}>
             <View style={styles.appInfo}>
               <View style={styles.iconContainer}>
-                <MaterialIcons name="child-care" size={60} color="#4A90E2" />
+                <Image
+                  source={require('../../assets/BinibabyIcon.png')}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
               </View>
               <Text style={styles.appName}>BiniBaby</Text>
               <Text style={styles.version}>Version 1.1.8</Text>
@@ -127,13 +133,14 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   iconContainer: {
-    width: 100,
-    height: 100,
-    backgroundColor: '#F0F8FF',
-    borderRadius: 20,
+    width: 120,
+    height: 120,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    padding: 15,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -145,6 +152,10 @@ const styles = StyleSheet.create({
         elevation: 3,
       },
     }),
+  },
+  logo: {
+    width: '100%',
+    height: '100%',
   },
   appName: {
     fontSize: 24,
