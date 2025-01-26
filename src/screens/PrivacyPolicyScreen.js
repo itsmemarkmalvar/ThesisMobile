@@ -17,6 +17,8 @@ const PrivacyPolicyScreen = ({ navigation }) => {
       <LinearGradient
         colors={['#FFB6C1', '#E6E6FA', '#98FB98']}
         style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
         <View style={styles.header}>
           <TouchableOpacity
@@ -34,6 +36,19 @@ const PrivacyPolicyScreen = ({ navigation }) => {
         >
           <View style={styles.section}>
             <Text style={styles.lastUpdated}>Last updated: January 2024</Text>
+
+            <View style={styles.policySection}>
+              <Text style={styles.sectionTitle}>Compliance with Philippine Laws</Text>
+              <Text style={styles.policyText}>
+                Our application complies with the provisions of Republic Act No. 10175, also known as the Cybercrime Prevention Act of 2012, which safeguards users against cybercrimes such as hacking, identity theft, and data breaches.
+                {'\n\n'}
+                We also adhere to Republic Act No. 10173, or the Data Privacy Act of 2012, which ensures the security and confidentiality of your personal information. Our app collects, processes, and stores your data only with your consent and strictly for purposes disclosed in this policy.
+                {'\n\n'}
+                We employ industry-standard security measures to prevent unauthorized access, disclosure, or misuse of your information, as mandated by these laws.
+                {'\n\n'}
+                If you have questions or concerns about your privacy rights, feel free to contact us.
+              </Text>
+            </View>
 
             <View style={styles.policySection}>
               <Text style={styles.sectionTitle}>Information We Collect</Text>
@@ -94,7 +109,7 @@ const PrivacyPolicyScreen = ({ navigation }) => {
               <Text style={styles.policyText}>
                 If you have any questions about this Privacy Policy, please contact us at:
                 {'\n\n'}
-                support@babycare.com
+                support@binibaby-api.com
               </Text>
             </View>
           </View>

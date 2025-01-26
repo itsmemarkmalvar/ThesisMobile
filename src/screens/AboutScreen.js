@@ -62,6 +62,9 @@ const AboutScreen = ({ navigation }) => {
               <Text style={styles.sectionTitle}>Developer</Text>
               <Text style={styles.developerInfo}>
                 Developed by BSIT Students{'\n'}
+                Kristel De Los Reyes{'\n'}
+                Pamela Garcia{'\n'}
+                Alysa B. Morillo{'\n'}
                 Southern Luzon State University Gumaca Campus
               </Text>
             </View>
